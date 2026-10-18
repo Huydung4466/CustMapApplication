@@ -261,6 +261,38 @@
             font-size: 0.8rem;
             margin-bottom: 10px;
         }
+
+        /* Hàng nút: gọi điện bên trái, chụp ảnh + xử lý bên phải; hẹp quá thì nhóm bên phải xuống dòng */
+        .action-buttons-grid {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: stretch;
+        }
+        .action-buttons-grid .btn-call-phone { flex: 1 1 190px; min-width: 0; }
+        .action-right { display: flex; gap: 6px; margin-left: auto; }
+        .btn-camera {
+            background: #fff;
+            color: #0f172a;
+            border: 1px solid var(--card-border, #cbd5e1);
+            border-radius: 8px;
+            padding: 7px 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .btn-camera:hover { background: #f1f5f9; }
+        .btn-camera .photo-count {
+            background: #2563eb;
+            color: #fff;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            padding: 0 6px;
+            min-width: 18px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -723,9 +755,14 @@
 
             <div class="action-buttons-grid">
                 \${phoneButtons}
-                <button type="button" class="btn-action-trigger ms-auto" onclick="openModal(\${Number(item.id)}, '\${safeStatus(item.appStatus)}')">
-                    <i class="fa-regular fa-pen-to-square"></i>Xử lý
-                </button>
+                <div class="action-right">
+                    <button type="button" class="btn-camera" title="Chụp ảnh hiện trường" onclick="openCamera(\${Number(item.id)})">
+                        <i class="fa-solid fa-camera"></i>\${item.photoCount > 0 ? `<span class="photo-count">\${Number(item.photoCount)}</span>` : ''}
+                    </button>
+                    <button type="button" class="btn-action-trigger" onclick="openModal(\${Number(item.id)}, '\${safeStatus(item.appStatus)}')">
+                        <i class="fa-regular fa-pen-to-square"></i>Xử lý
+                    </button>
+                </div>
             </div>
 
             <div class="quick-toolbar">
@@ -778,9 +815,7 @@
         el.classList.toggle('complaint-collapsed');
     }
 
-    // Chỉ chấp nhận các trạng thái đã biết khi đưa vào thuộc tính onclick
-    const VALID_STATUSES = ['DANG_XU_LY', 'HEN_GIO', 'HEN_KHAC', 'KLL', 'DA_XU_LY'];
-        // Màu nền theo mức ưu tiên: Hot = đỏ, Nguy cơ HOT = vàng, Bình thường = xanh
+    // Màu nền theo mức ưu tiên: Hot = đỏ, Nguy cơ HOT = vàng, Bình thường = xanh
     function priorityStyle(level) {
         const v = String(level || '').trim().toUpperCase();
         if (v.includes('NGUY CƠ')) return 'background:#facc15;color:#422006;';
@@ -788,6 +823,9 @@
         if (v.includes('BÌNH THƯỜNG')) return 'background:#16a34a;color:#fff;';
         return 'background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;';
     }
+
+    // Chỉ chấp nhận các trạng thái đã biết khi đưa vào thuộc tính onclick
+    const VALID_STATUSES = ['DANG_XU_LY', 'HEN_GIO', 'HEN_KHAC', 'KLL', 'DA_XU_LY'];
     function safeStatus(s) {
         return VALID_STATUSES.includes(s) ? s : 'DANG_XU_LY';
     }
@@ -1004,5 +1042,7 @@
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 </script>
+<%-- Chụp ảnh hiện trường: camera + chữ giờ/GPS/địa chỉ in lên ảnh. Đổi số v khi sửa file để trình duyệt tải lại --%>
+<script src="${pageContext.request.contextPath}/js/camera-capture.js?v=1"></script>
 </body>
 </html>

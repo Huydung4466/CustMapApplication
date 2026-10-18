@@ -8,6 +8,7 @@ import com.huydung.custmapapplication.common.exception.ResourceNotFoundException
 import com.huydung.custmapapplication.common.util.GeoUtils;
 import com.huydung.custmapapplication.kmz.entity.KmzLocationEntity;
 import com.huydung.custmapapplication.kmz.repository.KmzLocationRepository;
+import com.huydung.custmapapplication.photo.repository.TicketPhotoRepository;
 import com.huydung.custmapapplication.ticket.converter.TicketConverter;
 import com.huydung.custmapapplication.ticket.dto.TicketImportResultDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
@@ -62,15 +63,18 @@ public class TicketServiceImpl implements TicketService {
     private final KmzLocationRepository kmzLocationRepository;
     private final AuthService authService;
     private final TicketConverter ticketConverter;
+    private final TicketPhotoRepository ticketPhotoRepository;
 
     public TicketServiceImpl(TicketRepository ticketRepository,
                              KmzLocationRepository kmzLocationRepository,
                              AuthService authService,
-                             TicketConverter ticketConverter) {
+                             TicketConverter ticketConverter,
+                             TicketPhotoRepository ticketPhotoRepository) {
         this.ticketRepository = ticketRepository;
         this.kmzLocationRepository = kmzLocationRepository;
         this.authService = authService;
         this.ticketConverter = ticketConverter;
+        this.ticketPhotoRepository = ticketPhotoRepository;
     }
 
     // ===================== IMPORT =====================
@@ -264,14 +268,25 @@ public class TicketServiceImpl implements TicketService {
                 .collect(Collectors.toSet());
         Map<String, KmzLocationEntity> kmzMap = kmzLocationRepository.findMapByCabinetCodes(cabinets);
 
-        // 3. Dùng TicketConverter chuyển đổi sang DTO
+        // 3. Số ảnh hiện trường đã chụp của từng ca (hiện trên nút camera)
+        Set<Long> ticketIds = tickets.stream()
+                .map(CustomerTicketEntity::getId)
+                .collect(Collectors.toSet());
+        Map<Long, Integer> photoCounts = new HashMap<>();
+        for (Object[] row : ticketPhotoRepository.countGroupedByTicket(ticketIds)) {
+            photoCounts.put((Long) row[0], ((Number) row[1]).intValue());
+        }
+
+        // 4. Dùng TicketConverter chuyển đổi sang DTO
         return tickets.stream().map(entity -> {
             int dupCount = (entity.getSubscriberAccount() != null)
                     ? dupMap.getOrDefault(entity.getSubscriberAccount().trim().toLowerCase(), 1) : 1;
             KmzLocationEntity kmz = (entity.getCabinetCode() != null)
                     ? kmzMap.get(entity.getCabinetCode().trim().toUpperCase()) : null;
 
-            return ticketConverter.toResponseDTO(entity, dupCount, kmz);
+            TicketResponseDTO dto = ticketConverter.toResponseDTO(entity, dupCount, kmz);
+            dto.setPhotoCount(photoCounts.getOrDefault(entity.getId(), 0));
+            return dto;
         }).collect(Collectors.toCollection(ArrayList::new));
     }
 

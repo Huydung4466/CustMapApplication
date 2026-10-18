@@ -53,6 +53,9 @@ public class TicketResponseDTO extends BaseDTO {
     private String callNote;
     private Boolean isPinned;
 
+    // Số ảnh hiện trường đã chụp của ca (hiện trên nút camera)
+    private Integer photoCount;
+
     // Lưu trữ / lịch sử
     private LocalDateTime archivedAt;
     private String archiveReason; // DONE (bấm Đã xử lý) | NOT_IN_IMPORT (không còn trong file import mới)
