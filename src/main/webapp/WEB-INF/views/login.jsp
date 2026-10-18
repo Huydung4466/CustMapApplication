@@ -72,7 +72,7 @@
 
 <div class="login-card">
     <div class="text-center mb-4">
-        <span class="brand-badge"><i class="fa-solid fa-bolt me-1"></i>CSKH & KT ĐỊA BÀN</span>
+        <span class="brand-badge"><i class="fa-solid fa-bolt me-1"></i>VIETTEL CSKH & KT ĐỊA BÀN</span>
         <h4 class="fw-bold text-dark mb-1">Đăng Nhập Hệ Thống</h4>
         <p class="text-muted small mb-0">Tự động lọc khách hàng theo tên nhân viên</p>
     </div>

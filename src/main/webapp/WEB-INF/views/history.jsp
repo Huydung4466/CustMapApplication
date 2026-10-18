@@ -275,6 +275,7 @@
         .history-card { opacity: 0.97; }
         .reason-done { background:#f0fdf4; color:#15803d; border:1px solid #dcfce7; }
         .reason-closed { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+        .reason-kll { background:#fffbeb; color:#b45309; border:1px solid #fde68a; }
     </style>
 </head>
 <body>
@@ -434,10 +435,14 @@
         }
 
         box.innerHTML = items.map(function (item) {
-            const isDone = item.archiveReason === 'DONE';
-            const reasonBadge = isDone
-                ? '<span class="status-badge reason-done"><i class="fa-solid fa-check"></i>Đã xử lý</span>'
-                : '<span class="status-badge reason-closed"><i class="fa-solid fa-box-archive"></i>Không còn trong file GNOC</span>';
+            let reasonBadge;
+            if (item.archiveReason === 'DONE') {
+                reasonBadge = '<span class="status-badge reason-done"><i class="fa-solid fa-check"></i>Đã xử lý</span>';
+            } else if (item.archiveReason === 'KLL') {
+                reasonBadge = '<span class="status-badge reason-kll"><i class="fa-solid fa-phone-slash"></i>Không liên lạc được</span>';
+            } else {
+                reasonBadge = '<span class="status-badge reason-closed"><i class="fa-solid fa-box-archive"></i>Không còn trong file GNOC</span>';
+            }
 
             let phones = '';
             if (item.contactPhone) {

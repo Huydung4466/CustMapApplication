@@ -58,5 +58,5 @@ public class TicketResponseDTO extends BaseDTO {
 
     // Lưu trữ / lịch sử
     private LocalDateTime archivedAt;
-    private String archiveReason; // DONE (bấm Đã xử lý) | NOT_IN_IMPORT (không còn trong file import mới)
+    private String archiveReason; // DONE (bấm Đã xử lý) | KLL (không liên lạc được) | NOT_IN_IMPORT (không còn trong file import mới)
 }

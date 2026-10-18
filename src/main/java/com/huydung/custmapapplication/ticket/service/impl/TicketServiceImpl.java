@@ -40,7 +40,9 @@ public class TicketServiceImpl implements TicketService {
 
     private static final String STATUS_DONE = "DA_XU_LY";
     private static final String STATUS_PROCESSING = "DANG_XU_LY";
+    private static final String STATUS_KLL = "KLL";
     private static final String REASON_DONE = "DONE";
+    private static final String REASON_KLL = "KLL";
     private static final String REASON_NOT_IN_IMPORT = "NOT_IN_IMPORT";
 
     // Các trạng thái hợp lệ mà giao diện được phép gán cho ca (chặn giá trị tùy ý từ client)
@@ -140,12 +142,12 @@ public class TicketServiceImpl implements TicketService {
             throw new IllegalStateException("Lỗi khi đọc file Excel (.xlsx): " + e.getMessage(), e);
         }
 
-        // Tìm các ca cần chuyển sang Lịch sử: (1) đã bấm Đã xử lý, (2) không còn trong file mới
+        // Tìm các ca cần chuyển sang Lịch sử: (1) đã bấm Đã xử lý hoặc KLL, (2) không còn trong file mới
         List<CustomerTicketEntity> archiveDone = new ArrayList<>();
         List<CustomerTicketEntity> archiveMissing = new ArrayList<>();
         for (CustomerTicketEntity t : existingMap.values()) {
             if (t.getArchivedAt() != null) continue;
-            if (STATUS_DONE.equals(t.getAppStatus())) {
+            if (STATUS_DONE.equals(t.getAppStatus()) || STATUS_KLL.equals(t.getAppStatus())) {
                 archiveDone.add(t);
             } else if (!codesInFile.contains(t.getTicketCode())) {
                 archiveMissing.add(t);
@@ -162,7 +164,7 @@ public class TicketServiceImpl implements TicketService {
         LocalDateTime now = LocalDateTime.now();
         for (CustomerTicketEntity t : archiveDone) {
             t.setArchivedAt(now);
-            t.setArchiveReason(REASON_DONE);
+            t.setArchiveReason(STATUS_KLL.equals(t.getAppStatus()) ? REASON_KLL : REASON_DONE);
         }
         for (CustomerTicketEntity t : archiveMissing) {
             t.setArchivedAt(now);
@@ -341,7 +343,7 @@ public class TicketServiceImpl implements TicketService {
 
         entity.setArchivedAt(null);
         entity.setArchiveReason(null);
-        if (STATUS_DONE.equals(entity.getAppStatus())) {
+        if (STATUS_DONE.equals(entity.getAppStatus()) || STATUS_KLL.equals(entity.getAppStatus())) {
             entity.setAppStatus(STATUS_PROCESSING);
         }
         entity.setUpdatedAt(LocalDateTime.now());
@@ -370,10 +372,15 @@ public class TicketServiceImpl implements TicketService {
         ticketConverter.updateEntityFromRequest(request, entity);
         applyAppointment(request, entity);
 
-        // Bấm "Đã xử lý" thì chuyển ca sang Lịch sử ngay
-        if (STATUS_DONE.equals(entity.getAppStatus()) && entity.getArchivedAt() == null) {
-            entity.setArchivedAt(LocalDateTime.now());
-            entity.setArchiveReason(REASON_DONE);
+        // Bấm "Đã xử lý" hoặc "KLL" (không liên lạc được) thì chuyển ca sang Lịch sử ngay
+        if (entity.getArchivedAt() == null) {
+            if (STATUS_DONE.equals(entity.getAppStatus())) {
+                entity.setArchivedAt(LocalDateTime.now());
+                entity.setArchiveReason(REASON_DONE);
+            } else if (STATUS_KLL.equals(entity.getAppStatus())) {
+                entity.setArchivedAt(LocalDateTime.now());
+                entity.setArchiveReason(REASON_KLL);
+            }
         }
 
         return ticketConverter.toActionResponseDTO(ticketRepository.save(entity));

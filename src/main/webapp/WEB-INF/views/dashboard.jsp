@@ -301,6 +301,7 @@
 <div class="top-navbar py-2 mb-3">
     <div class="container-app d-flex justify-content-between align-items-center">
         <div class="d-flex align-items-center gap-2">
+
             <span class="badge bg-primary rounded-pill px-3 py-1.5" style="font-size: 0.85rem;">
                 <i class="fa-solid fa-user-shield me-1"></i><span id="currentUserFullName">Đang tải...</span>
             </span>
@@ -382,7 +383,6 @@
                     <option value="ALL">Tất cả trạng thái</option>
                     <option value="DANG_XU_LY">Đang xử lý</option>
                     <option value="HEN_GIO">Đã hẹn giờ</option>
-                    <option value="KLL">Không liên lạc (KLL)</option>
                     <option value="PINNED">⭐ Đã ghim</option>
                 </select>
             </div>
@@ -462,8 +462,8 @@
                         <option value="DANG_XU_LY">Đang xử lý</option>
                         <option value="HEN_GIO">Hẹn giờ</option>
                         <option value="HEN_KHAC">Hẹn khác</option>
-                        <option value="KLL">Không liên lạc được (KLL)</option>
-                        <option value="DA_XU_LY">Đã xử lý hoàn tất</option>
+                        <option value="KLL">Không liên lạc được (KLL) - chuyển vào Lịch sử</option>
+                        <option value="DA_XU_LY">Đã xử lý hoàn tất - chuyển vào Lịch sử</option>
                     </select>
                 </div>
                 <div class="mb-2">
@@ -879,6 +879,7 @@
     }
 
     async function quickKLL(id) {
+        if (!confirm('Không liên lạc được khách hàng này? Ca sẽ được chuyển vào Lịch sử.')) return;
         await sendTicketAction(id, { appStatus: 'KLL', callNote: 'Không liên lạc được' });
         loadTickets(true);
     }
