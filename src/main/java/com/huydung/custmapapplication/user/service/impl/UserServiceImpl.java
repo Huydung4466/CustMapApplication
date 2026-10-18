@@ -52,13 +52,25 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDTO createUser(CreateUserRequest request) {
-        if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
+        if (request == null) {
+            throw new IllegalArgumentException("Thiếu dữ liệu tạo tài khoản");
+        }
+        String username = request.getUsername() == null ? "" : request.getUsername().trim();
+        if (username.isEmpty()) {
             throw new IllegalArgumentException("Username không được để trống");
         }
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new IllegalArgumentException("Username đã tồn tại: " + request.getUsername());
+        if (userRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("Username đã tồn tại: " + username);
         }
-        validateNewPassword(request.getPassword(), request.getUsername());
+        String fullName = request.getFullName() == null ? "" : request.getFullName().trim();
+        if (fullName.isEmpty()) {
+            throw new IllegalArgumentException("Họ tên không được để trống");
+        }
+        // Ca phản ánh được ghép với nhân viên theo họ tên, nên không cho hai tài khoản trùng họ tên
+        if (userRepository.findByNormalizedFullName(fullName).isPresent()) {
+            throw new IllegalArgumentException("Đã có tài khoản khác dùng họ tên này: " + fullName);
+        }
+        validateNewPassword(request.getPassword(), username);
 
         UserEntity user = userConverter.toEntity(request);
         user.setPassword(passwordEncoder.encode(request.getPassword()));
@@ -72,7 +84,10 @@ public class UserServiceImpl implements UserService {
             roles.add(staffRole);
         } else {
             for (String code : request.getRoleCodes()) {
-                roleRepository.findByCode(code).ifPresent(roles::add);
+                // Mã quyền sai thì báo lỗi, tránh tạo tài khoản không có quyền nào
+                RoleEntity role = roleRepository.findByCode(code == null ? "" : code.trim())
+                        .orElseThrow(() -> new IllegalArgumentException("Mã quyền không tồn tại"));
+                roles.add(role);
             }
         }
         user.setRoles(roles);

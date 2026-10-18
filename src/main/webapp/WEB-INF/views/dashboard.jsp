@@ -66,16 +66,6 @@
             font-weight: 700;
             color: #0f172a;
         }
-        .badge-viettel {
-            background: #fef2f2;
-            color: #ef4444;
-            font-size: 0.72rem;
-            font-weight: 700;
-            padding: 2px 7px;
-            border-radius: 4px;
-            border: 1px solid #fee2e2;
-            vertical-align: middle;
-        }
 
         .status-badge {
             font-size: 0.78rem;
@@ -679,7 +669,7 @@
             let kmzHtml = '';
             if (item.cabinetCode) {
                 if (item.googleMapsUrl) {
-                    kmzHtml = `<a href="\${item.googleMapsUrl}" target="_blank" class="btn-kmz-map has-kmz"><i class="fa-solid fa-map-pin"></i>Tủ: \${escapeHtml(item.cabinetCode)}</a>`;
+                    kmzHtml = `<a href="\${escapeHtml(item.googleMapsUrl)}" target="_blank" rel="noopener" class="btn-kmz-map has-kmz"><i class="fa-solid fa-map-pin"></i>Tủ: \${escapeHtml(item.cabinetCode)}</a>`;
                 } else {
                     kmzHtml = `<span class="btn-kmz-map no-kmz"><i class="fa-solid fa-server"></i>Tủ: \${escapeHtml(item.cabinetCode)} (Chưa có KMZ)</span>`;
                 }
@@ -690,10 +680,10 @@
 
             let phoneButtons = '';
             if (item.contactPhone) {
-                phoneButtons += `<a href="tel:\${item.contactPhone}" class="btn-call-phone"><i class="fa-solid fa-phone"></i>Gọi KH (\${item.contactPhone})</a>`;
+                phoneButtons += `<a href="tel:\${escapeHtml(item.contactPhone)}" class="btn-call-phone"><i class="fa-solid fa-phone"></i>Gọi KH (\${escapeHtml(item.contactPhone)})</a>`;
             }
             if (item.reportPhone && item.reportPhone !== item.contactPhone) {
-                phoneButtons += `<a href="tel:\${item.reportPhone}" class="btn-call-phone btn-call-report"><i class="fa-solid fa-phone-volume"></i>Báo cáo</a>`;
+                phoneButtons += `<a href="tel:\${escapeHtml(item.reportPhone)}" class="btn-call-phone btn-call-report"><i class="fa-solid fa-phone-volume"></i>Báo cáo</a>`;
             }
 
             const isPinned = item.isPinned === true;
@@ -705,8 +695,7 @@
                 <div class="card-header-row">
                     <div>
                         <span class="customer-title">\${escapeHtml(item.customerName || 'Khách hàng')}</span>
-                        <span class="badge-viettel ms-1">Viettel</span>
-                        \${item.priorityLevel ? `<span class="badge bg-light text-secondary border ms-1" style="font-size:0.7rem;">\${escapeHtml(item.priorityLevel)}</span>` : ''}
+                        \${item.priorityLevel ? `<span class="badge ms-1" style="font-size:0.7rem;\${priorityStyle(item.priorityLevel)}">\${escapeHtml(item.priorityLevel)}</span>` : ''}
         </div>
             <div>\${statusBadge}</div>
         </div>
@@ -734,7 +723,7 @@
 
             <div class="action-buttons-grid">
                 \${phoneButtons}
-                <button type="button" class="btn-action-trigger ms-auto" onclick="openModal(\${item.id}, '\${item.appStatus}')">
+                <button type="button" class="btn-action-trigger ms-auto" onclick="openModal(\${Number(item.id)}, '\${safeStatus(item.appStatus)}')">
                     <i class="fa-regular fa-pen-to-square"></i>Xử lý
                 </button>
             </div>
@@ -787,6 +776,20 @@
     function toggleC(id) {
         const el = document.getElementById(`c-\${id}`);
         el.classList.toggle('complaint-collapsed');
+    }
+
+    // Chỉ chấp nhận các trạng thái đã biết khi đưa vào thuộc tính onclick
+    const VALID_STATUSES = ['DANG_XU_LY', 'HEN_GIO', 'HEN_KHAC', 'KLL', 'DA_XU_LY'];
+        // Màu nền theo mức ưu tiên: Hot = đỏ, Nguy cơ HOT = vàng, Bình thường = xanh
+    function priorityStyle(level) {
+        const v = String(level || '').trim().toUpperCase();
+        if (v.includes('NGUY CƠ')) return 'background:#facc15;color:#422006;';
+        if (v.includes('HOT'))     return 'background:#dc2626;color:#fff;';
+        if (v.includes('BÌNH THƯỜNG')) return 'background:#16a34a;color:#fff;';
+        return 'background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;';
+    }
+    function safeStatus(s) {
+        return VALID_STATUSES.includes(s) ? s : 'DANG_XU_LY';
     }
 
     function renderStatusBadge(status) {
@@ -1002,4 +1005,4 @@
     }
 </script>
 </body>
-</html>
+</html>

@@ -42,6 +42,11 @@ public class TicketServiceImpl implements TicketService {
     private static final String REASON_DONE = "DONE";
     private static final String REASON_NOT_IN_IMPORT = "NOT_IN_IMPORT";
 
+    // Các trạng thái hợp lệ mà giao diện được phép gán cho ca (chặn giá trị tùy ý từ client)
+    private static final Set<String> ALLOWED_STATUSES =
+            Set.of("DANG_XU_LY", "HEN_GIO", "HEN_KHAC", "KLL", "DA_XU_LY");
+    private static final int MAX_CALL_NOTE_LENGTH = 2000;
+
     // Nếu một lần import làm biến mất từ ngần này ca VÀ vượt quá tỉ lệ này so với số ca đang mở -> hỏi xác nhận
     private static final int ARCHIVE_CONFIRM_MIN_COUNT = 10;
     private static final double ARCHIVE_CONFIRM_RATIO = 0.5;
@@ -73,6 +78,7 @@ public class TicketServiceImpl implements TicketService {
     @Override
     @Transactional
     public TicketImportResultDTO importExcelFile(MultipartFile file, boolean confirmArchive) {
+        assertAdmin();
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("File Excel (.xlsx) không được để trống!");
         }
@@ -340,6 +346,7 @@ public class TicketServiceImpl implements TicketService {
         if (entity.getArchivedAt() != null) {
             throw new IllegalArgumentException("Ca này đã nằm trong Lịch sử, hãy đưa về danh sách trước khi xử lý");
         }
+        validateActionRequest(request);
         if (request.getAppointmentStart() != null && request.getAppointmentEnd() != null
                 && !request.getAppointmentEnd().isAfter(request.getAppointmentStart())) {
             throw new IllegalArgumentException("Giờ kết thúc hẹn phải sau giờ bắt đầu");
@@ -366,7 +373,31 @@ public class TicketServiceImpl implements TicketService {
             return;
         }
         if (request.getAppointmentStart() != null) {
+            // Gán trực tiếp cả giờ bắt đầu lẫn kết thúc: ModelMapper bỏ qua giá trị null nên nếu chỉ dựa vào nó,
+            // giờ kết thúc cũ sẽ còn nguyên khi người dùng đặt lại giờ hẹn không có giờ kết thúc
+            entity.setAppointmentStart(request.getAppointmentStart());
+            entity.setAppointmentEnd(request.getAppointmentEnd());
             entity.setAppointmentTime(buildAppointmentLabel(request.getAppointmentStart(), request.getAppointmentEnd()));
+        }
+    }
+
+    // Kiểm tra dữ liệu cập nhật ca: trạng thái phải thuộc danh sách cho phép, ghi chú không quá dài
+    private void validateActionRequest(UpdateTicketActionRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Thiếu dữ liệu cập nhật");
+        }
+        if (request.getAppStatus() != null) {
+            String status = request.getAppStatus().trim().toUpperCase();
+            if (status.isEmpty()) {
+                request.setAppStatus(null);
+            } else if (!ALLOWED_STATUSES.contains(status)) {
+                throw new IllegalArgumentException("Trạng thái không hợp lệ");
+            } else {
+                request.setAppStatus(status);
+            }
+        }
+        if (request.getCallNote() != null && request.getCallNote().length() > MAX_CALL_NOTE_LENGTH) {
+            throw new IllegalArgumentException("Ghi chú quá dài (tối đa " + MAX_CALL_NOTE_LENGTH + " ký tự)");
         }
     }
 
@@ -385,6 +416,7 @@ public class TicketServiceImpl implements TicketService {
     @Override
     @Transactional(readOnly = true)
     public List<String> getAssignedStaffList() {
+        assertAdmin();
         return ticketRepository.findAllDistinctAssignedStaff();
     }
 
@@ -426,6 +458,12 @@ public class TicketServiceImpl implements TicketService {
             }
         }
         return effectiveStaff;
+    }
+
+    private void assertAdmin() {
+        if (!authService.getCurrentLoggedUser().isAdmin()) {
+            throw new AccessDeniedException("Chức năng này chỉ dành cho quản trị viên");
+        }
     }
 
     // ADMIN được xử lý mọi ca; STAFF chỉ được xử lý ca có "Giao nhân viên" trùng họ tên của mình

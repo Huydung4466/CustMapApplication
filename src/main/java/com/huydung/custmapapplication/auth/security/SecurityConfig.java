@@ -31,7 +31,7 @@ public class SecurityConfig {
                         .requestMatchers("/login", "/css/**", "/js/**", "/images/**").permitAll()
                         // API Quản lý User chỉ dành cho ADMIN
                         .requestMatchers("/api/users/**").hasAuthority("ROLE_ADMIN")
-                        // Cac Trang Import chi co Admin la duoc phep su dung
+                        // Import file Excel và danh sách nhân viên chỉ dành cho ADMIN
                         .requestMatchers("/api/tickets/import", "/api/tickets/staffs").hasAuthority("ROLE_ADMIN")
                         // Các trang và API còn lại yêu cầu phải đăng nhập
                         .anyRequest().authenticated()

@@ -110,8 +110,8 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
 
         // Ca đã ghim luôn lên đầu; t.id ở cuối để thứ tự ổn định khi phân trang
         String orderBy = sortByAppointment
-                ? "ORDER BY t.isPinned DESC, CASE WHEN t.appointmentStart IS NULL THEN 1 ELSE 0 END ASC, t.appointmentStart ASC, t.id ASC"
-                : "ORDER BY t.isPinned DESC, t.id ASC";
+                ? "ORDER BY COALESCE(t.isPinned, false) DESC, CASE WHEN t.appointmentStart IS NULL THEN 1 ELSE 0 END ASC, t.appointmentStart ASC, t.id ASC"
+                : "ORDER BY COALESCE(t.isPinned, false) DESC, t.id ASC";
 
         TypedQuery<CustomerTicketEntity> query = entityManager.createQuery(
                 "SELECT t FROM CustomerTicketEntity t " + q.where + orderBy, CustomerTicketEntity.class);

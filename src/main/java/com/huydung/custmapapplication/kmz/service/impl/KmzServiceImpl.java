@@ -155,25 +155,4 @@ public class KmzServiceImpl implements KmzService {
         reader.close();
         return results;
     }
-
-    // Chuyển đổi chuỗi tọa độ KML "108.25637,12.943032,0" -> Vĩ độ (12.943032) & Kinh độ (108.25637)
-    private KmzLocationDTO buildLocationDTO(String name, String coordsText, String sourceFile) {
-        if (name == null || name.isBlank() || coordsText == null || coordsText.isBlank()) {
-            return null;
-        }
-        try {
-            // Lấy cặp tọa độ đầu tiên nếu có khoảng trắng
-            String firstPoint = coordsText.trim().split("\\s+")[0];
-            String[] parts = firstPoint.split(",");
-            if (parts.length >= 2) {
-                double longitude = Double.parseDouble(parts[0].trim()); // KML lưu Kinh độ trước
-                double latitude = Double.parseDouble(parts[1].trim());  // KML lưu Vĩ độ sau
-
-                return new KmzLocationDTO(name.trim().toUpperCase(), latitude, longitude, sourceFile);
-            }
-        } catch (NumberFormatException ignored) {
-            // Bỏ qua nếu tọa độ không hợp lệ
-        }
-        return null;
-    }
 }
