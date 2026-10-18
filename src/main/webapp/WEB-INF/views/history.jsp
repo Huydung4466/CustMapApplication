@@ -22,6 +22,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: #1e293b;
             padding-bottom: 70px;
+            overflow-x: hidden;
         }
 
         .top-navbar {
@@ -31,6 +32,17 @@
             top: 0;
             z-index: 1030;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        /* Thanh trên cùng: luôn một hàng vừa mọi cỡ màn hình điện thoại (chữ dài thì hiện dấu ...) */
+        .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: nowrap; }
+        .nav-left { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 0; }
+        .nav-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95rem; }
+        .nav-user { flex: 0 1 auto; min-width: 0; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; }
+        .nav-icon-btn {
+            width: 34px; height: 34px; padding: 0; flex: 0 0 auto;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 50%;
         }
 
         .container-app {
@@ -281,16 +293,16 @@
 <body>
 
 <div class="top-navbar py-2 mb-3">
-    <div class="container-app d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center gap-2">
-            <a href="${pageContext.request.contextPath}/dashboard" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                <i class="fa-solid fa-arrow-left me-1"></i>Danh sách ca
+    <div class="container-app nav-inner">
+        <div class="nav-left">
+            <a href="${pageContext.request.contextPath}/dashboard" class="btn btn-sm btn-outline-primary nav-icon-btn" title="Về danh sách ca" aria-label="Về danh sách ca">
+                <i class="fa-solid fa-arrow-left"></i>
             </a>
-            <span class="fw-bold text-dark" style="font-size:0.95rem;">
+            <span class="fw-bold text-dark nav-title">
                 <i class="fa-solid fa-clock-rotate-left text-success me-1"></i>Lịch sử ca đã làm
             </span>
         </div>
-        <span class="badge bg-primary rounded-pill px-3 py-1.5" style="font-size: 0.85rem;">
+        <span class="badge bg-primary rounded-pill px-3 py-1 nav-user">
             <i class="fa-solid fa-user-shield me-1"></i><span id="currentUserFullName">Đang tải...</span>
         </span>
     </div>

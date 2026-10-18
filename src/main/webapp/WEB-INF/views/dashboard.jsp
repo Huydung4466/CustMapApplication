@@ -22,6 +22,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: #1e293b;
             padding-bottom: 70px;
+            overflow-x: hidden;
         }
 
         .top-navbar {
@@ -65,6 +66,16 @@
             font-size: 1.1rem;
             font-weight: 700;
             color: #0f172a;
+        }
+        .badge-viettel {
+            background: #fef2f2;
+            color: #ef4444;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            border: 1px solid #fee2e2;
+            vertical-align: middle;
         }
 
         .status-badge {
@@ -262,6 +273,20 @@
             margin-bottom: 10px;
         }
 
+        /* Thanh trên cùng: luôn một hàng vừa mọi cỡ màn hình điện thoại.
+           Bên trái co lại được (tên dài thì hiện dấu ...), bên phải là các nút tròn cỡ cố định. */
+        .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: nowrap; }
+        .nav-left { display: flex; align-items: center; gap: 6px; flex: 1 1 0; min-width: 0; }
+        .nav-user { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; }
+        .nav-kmz { flex: 0 0 auto; white-space: nowrap; }
+        .nav-right { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+        .nav-icon-btn {
+            width: 34px; height: 34px; padding: 0;
+            display: inline-flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+        }
+        @media (max-width: 420px) { .nav-kmz-label { display: none; } }
+
         /* Hàng nút: gọi điện bên trái, chụp ảnh + xử lý bên phải; hẹp quá thì nhóm bên phải xuống dòng */
         .action-buttons-grid {
             display: flex;
@@ -299,27 +324,26 @@
 
 <!-- TOP NAVBAR -->
 <div class="top-navbar py-2 mb-3">
-    <div class="container-app d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center gap-2">
-
-            <span class="badge bg-primary rounded-pill px-3 py-1.5" style="font-size: 0.85rem;">
+    <div class="container-app nav-inner">
+        <div class="nav-left">
+            <span class="badge bg-primary rounded-pill px-3 py-1 nav-user">
                 <i class="fa-solid fa-user-shield me-1"></i><span id="currentUserFullName">Đang tải...</span>
             </span>
-            <span class="badge bg-light text-secondary border small">
-                <i class="fa-solid fa-server text-primary me-1"></i>KMZ: <b id="kmzTotalCount">0</b>
+            <span class="badge bg-light text-secondary border small nav-kmz" title="Số tủ đã có tọa độ KMZ">
+                <i class="fa-solid fa-server text-primary me-1"></i><span class="nav-kmz-label">KMZ: </span><b id="kmzTotalCount">0</b>
             </span>
         </div>
-        <div class="d-flex align-items-center gap-2">
-            <button class="btn btn-sm btn-outline-primary fw-semibold rounded-pill px-3" type="button" data-bs-toggle="collapse" data-bs-target="#importPanel">
-                <i class="fa-solid fa-cloud-arrow-up me-1"></i>Import File
+        <div class="nav-right">
+            <button class="btn btn-sm btn-outline-primary nav-icon-btn" type="button" data-bs-toggle="collapse" data-bs-target="#importPanel" title="Import file" aria-label="Import file">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
             </button>
-            <a href="${pageContext.request.contextPath}/history" class="btn btn-sm btn-outline-success rounded-circle" title="Lịch sử ca đã làm">
+            <a href="${pageContext.request.contextPath}/history" class="btn btn-sm btn-outline-success nav-icon-btn" title="Lịch sử ca đã làm" aria-label="Lịch sử ca đã làm">
                 <i class="fa-solid fa-clock-rotate-left"></i>
             </a>
-            <a href="${pageContext.request.contextPath}/change-password" class="btn btn-sm btn-outline-secondary rounded-circle" title="Đổi mật khẩu">
+            <a href="${pageContext.request.contextPath}/change-password" class="btn btn-sm btn-outline-secondary nav-icon-btn" title="Đổi mật khẩu" aria-label="Đổi mật khẩu">
                 <i class="fa-solid fa-key"></i>
             </a>
-            <a href="${pageContext.request.contextPath}/logout" class="btn btn-sm btn-outline-danger rounded-circle" title="Đăng xuất">
+            <a href="${pageContext.request.contextPath}/logout" class="btn btn-sm btn-outline-danger nav-icon-btn" title="Đăng xuất" aria-label="Đăng xuất">
                 <i class="fa-solid fa-power-off"></i>
             </a>
         </div>
@@ -727,6 +751,7 @@
                 <div class="card-header-row">
                     <div>
                         <span class="customer-title">\${escapeHtml(item.customerName || 'Khách hàng')}</span>
+                        <span class="badge-viettel ms-1">Viettel</span>
                         \${item.priorityLevel ? `<span class="badge ms-1" style="font-size:0.7rem;\${priorityStyle(item.priorityLevel)}">\${escapeHtml(item.priorityLevel)}</span>` : ''}
         </div>
             <div>\${statusBadge}</div>
@@ -1046,4 +1071,4 @@
 <%-- Chụp ảnh hiện trường: camera + chữ giờ/GPS/địa chỉ in lên ảnh. Đổi số v khi sửa file để trình duyệt tải lại --%>
 <script src="${pageContext.request.contextPath}/js/camera-capture.js?v=1"></script>
 </body>
-</html>
+</html>
