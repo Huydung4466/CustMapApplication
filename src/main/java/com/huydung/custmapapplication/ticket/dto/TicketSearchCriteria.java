@@ -1,0 +1,28 @@
+package com.huydung.custmapapplication.ticket.dto;
+
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+// Gom các tham số lọc của danh sách ca (query string -> object)
+@Getter
+@Setter
+@NoArgsConstructor
+public class TicketSearchCriteria {
+    private String staffFilter;
+    private String keyword;
+    private String appStatus;
+    private Boolean onlyPinned;
+    private String area;
+    private String cabinetPrefix;
+    private String priority;
+
+    // DEFAULT (ghim trước, theo ID) | APPOINTMENT (theo giờ hẹn) | NEAREST (gần vị trí hiện tại nhất)
+    private String sort;
+    private Double lat;
+    private Double lng;
+
+    // Phân trang: page bắt đầu từ 1 (mặc định 1), size mặc định 10, tối đa 50
+    private Integer page;
+    private Integer size;
+}
