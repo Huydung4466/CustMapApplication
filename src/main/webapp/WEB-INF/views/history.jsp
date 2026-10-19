@@ -289,8 +289,10 @@
         .reason-closed { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
         .reason-kll { background:#fffbeb; color:#b45309; border:1px solid #fde68a; }
     </style>
+    <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
+    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
 </head>
-<body>
+<body class="vt-app">
 
 <div class="top-navbar py-2 mb-3">
     <div class="container-app nav-inner">

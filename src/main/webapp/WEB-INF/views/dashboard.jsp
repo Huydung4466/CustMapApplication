@@ -319,8 +319,10 @@
             text-align: center;
         }
     </style>
+    <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
+    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
 </head>
-<body>
+<body class="vt-app">
 
 <!-- TOP NAVBAR -->
 <div class="top-navbar py-2 mb-3">

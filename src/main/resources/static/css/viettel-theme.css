@@ -1,0 +1,205 @@
+/*
+ * viettel-theme.css - Giao diện mang tông thương hiệu Viettel cho toàn bộ ứng dụng.
+ *
+ * Cách dùng: nạp SAU các khối <style> của từng trang (đã gắn sẵn ở 4 trang JSP) để ghi đè màu cũ.
+ * Đổi màu chủ đạo: sửa 2 biến --vt-red và --vt-red-rgb (cùng một màu, một dạng hex và một dạng R,G,B),
+ * cùng 3 biến đậm hơn --vt-red-dark, --vt-red-deep và các sắc nhạt --vt-red-50/100/200.
+ * Lưu ý: file này chỉ dùng tông màu và hình khối, không chứa logo hay hình ảnh thương hiệu.
+ */
+
+:root {
+    /* ===== Bảng màu ===== */
+    --vt-red: #EE0033;
+    --vt-red-rgb: 238, 0, 51;
+    --vt-red-dark: #C70029;
+    --vt-red-deep: #8F001D;
+    --vt-red-50: #FFF1F3;
+    --vt-red-100: #FFE1E6;
+    --vt-red-200: #FFC2CD;
+
+    --vt-ink: #111827;
+    --vt-gray-700: #374151;
+    --vt-gray-500: #6B7280;
+    --vt-gray-200: #E5E7EB;
+    --vt-gray-100: #F3F4F6;
+    --vt-bg: #F5F5F7;
+
+    /* ===== Biến riêng của các trang ===== */
+    --primary-color: var(--vt-red);
+    --bg-body: var(--vt-bg);
+    --card-border: var(--vt-gray-200);
+
+    /* ===== Biến của Bootstrap 5.3 (đổi màu "primary" toàn cục) ===== */
+    --bs-primary: var(--vt-red);
+    --bs-primary-rgb: var(--vt-red-rgb);
+    --bs-link-color: var(--vt-red);
+    --bs-link-color-rgb: var(--vt-red-rgb);
+    --bs-link-hover-color: var(--vt-red-dark);
+    --bs-link-hover-color-rgb: 199, 0, 41;
+}
+
+::selection { background: var(--vt-red-100); color: var(--vt-ink); }
+
+/* ===================== NÚT / Ô NHẬP LIỆU CỦA BOOTSTRAP ===================== */
+.btn-primary {
+    --bs-btn-bg: var(--vt-red);
+    --bs-btn-border-color: var(--vt-red);
+    --bs-btn-hover-bg: var(--vt-red-dark);
+    --bs-btn-hover-border-color: var(--vt-red-dark);
+    --bs-btn-active-bg: var(--vt-red-deep);
+    --bs-btn-active-border-color: var(--vt-red-deep);
+    --bs-btn-focus-shadow-rgb: var(--vt-red-rgb);
+    --bs-btn-disabled-bg: var(--vt-red);
+    --bs-btn-disabled-border-color: var(--vt-red);
+}
+.btn-outline-primary {
+    --bs-btn-color: var(--vt-red);
+    --bs-btn-border-color: var(--vt-red);
+    --bs-btn-hover-bg: var(--vt-red);
+    --bs-btn-hover-border-color: var(--vt-red);
+    --bs-btn-active-bg: var(--vt-red-dark);
+    --bs-btn-active-border-color: var(--vt-red-dark);
+    --bs-btn-focus-shadow-rgb: var(--vt-red-rgb);
+    --bs-btn-disabled-color: var(--vt-red);
+    --bs-btn-disabled-border-color: var(--vt-red);
+}
+.alert-primary {
+    --bs-alert-color: #7A0019;
+    --bs-alert-bg: var(--vt-red-50);
+    --bs-alert-border-color: var(--vt-red-200);
+}
+.form-control:focus,
+.form-select:focus {
+    border-color: #F27A93;
+    box-shadow: 0 0 0 .2rem rgba(var(--vt-red-rgb), .15);
+}
+.form-check-input:checked { background-color: var(--vt-red); border-color: var(--vt-red); }
+.form-check-input:focus { border-color: #F27A93; box-shadow: 0 0 0 .2rem rgba(var(--vt-red-rgb), .2); }
+.modal-content { border-radius: 16px; }
+
+/* ===================== TRANG ĐĂNG NHẬP / ĐỔI MẬT KHẨU ===================== */
+body.vt-auth {
+    background:
+        radial-gradient(circle at 12% 8%, rgba(255, 255, 255, .14) 0, rgba(255, 255, 255, 0) 38%),
+        linear-gradient(160deg, var(--vt-red) 0%, var(--vt-red-dark) 55%, var(--vt-red-deep) 100%);
+    background-attachment: fixed;
+}
+/* Hai vòng tròn mờ trang trí ở góc dưới */
+body.vt-auth::before,
+body.vt-auth::after {
+    content: "";
+    position: fixed;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .07);
+    pointer-events: none;
+}
+body.vt-auth::before { width: 380px; height: 380px; right: -140px; bottom: -120px; }
+body.vt-auth::after  { width: 220px; height: 220px; left: -80px;  bottom: 12%; }
+
+.login-card,
+.pw-card {
+    position: relative;
+    z-index: 1;
+    border-radius: 18px;
+    border-top: 6px solid var(--vt-red);
+    box-shadow: 0 22px 48px rgba(0, 0, 0, .30);
+}
+.brand-badge {
+    background: var(--vt-red-50);
+    color: var(--vt-red);
+    border: 1px solid var(--vt-red-100);
+    letter-spacing: .02em;
+}
+.btn-login,
+.btn-submit {
+    background: var(--vt-red);
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 6px 16px rgba(var(--vt-red-rgb), .30);
+}
+.btn-login:hover,
+.btn-submit:hover { background: var(--vt-red-dark); }
+.quick-acc code { color: var(--vt-red); }
+
+/* ===================== TRANG CHÍNH / LỊCH SỬ ===================== */
+body.vt-app {
+    background: var(--vt-bg);
+    color: var(--vt-ink);
+}
+
+/* ----- Thanh trên cùng: nền đỏ, chữ và nút màu trắng ----- */
+body.vt-app .top-navbar {
+    background: linear-gradient(90deg, var(--vt-red) 0%, var(--vt-red-dark) 100%);
+    border-bottom: 0;
+    box-shadow: 0 3px 10px rgba(var(--vt-red-rgb), .30);
+}
+.top-navbar .nav-user {
+    background: #fff !important;
+    color: var(--vt-red) !important;
+    font-weight: 700;
+}
+.top-navbar .nav-user i { color: var(--vt-red) !important; }
+.top-navbar .nav-kmz {
+    background: rgba(255, 255, 255, .16) !important;
+    color: #fff !important;
+    border-color: rgba(255, 255, 255, .38) !important;
+}
+.top-navbar .nav-kmz i { color: #fff !important; }
+.top-navbar .nav-title { color: #fff !important; }
+.top-navbar .nav-title i { color: #fff !important; }
+.top-navbar .nav-icon-btn {
+    color: #fff;
+    background: rgba(255, 255, 255, .10);
+    border: 1px solid rgba(255, 255, 255, .60);
+}
+.top-navbar .nav-icon-btn:hover,
+.top-navbar .nav-icon-btn:focus-visible,
+.top-navbar .nav-icon-btn:active {
+    color: var(--vt-red);
+    background: #fff;
+    border-color: #fff;
+}
+
+/* ----- Thẻ ca ----- */
+.ticket-card {
+    border-color: var(--vt-gray-200);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(17, 24, 39, .06);
+}
+.ticket-card:hover {
+    border-color: var(--vt-red-200);
+    box-shadow: 0 8px 20px rgba(var(--vt-red-rgb), .10);
+}
+.customer-title { color: var(--vt-ink); }
+.account-tag { background: var(--vt-gray-100); color: var(--vt-gray-700); }
+.complaint-box { border-left-color: var(--vt-red); color: var(--vt-gray-700); }
+.see-more-link { color: var(--vt-red); }
+.card-footer-info { color: var(--vt-gray-500); }
+
+/* Trạng thái: "Đang xử lý" dùng màu trung tính để màu đỏ chỉ dành cho thương hiệu và việc cần chú ý */
+.status-dang-xu-ly { background: var(--vt-gray-100); color: var(--vt-gray-700); border: 1px solid var(--vt-gray-200); }
+
+/* Nút xem vị trí tủ trên bản đồ */
+.has-kmz { background: var(--vt-red-50); color: var(--vt-red-dark); border: 1px solid var(--vt-red-200); }
+.no-kmz  { background: var(--vt-gray-100); color: var(--vt-gray-500); border: 1px dashed #D1D5DB; }
+
+/* Nút hành động chính */
+.btn-action-trigger { background: var(--vt-red); box-shadow: 0 3px 8px rgba(var(--vt-red-rgb), .25); }
+.btn-action-trigger:hover { background: var(--vt-red-dark); }
+.btn-camera { color: var(--vt-ink); }
+.btn-camera:hover { background: var(--vt-red-50); border-color: var(--vt-red-200); color: var(--vt-red-dark); }
+.btn-camera .photo-count { background: var(--vt-red); }
+
+/* Hàng nút nhanh */
+.btn-quick-item:hover { background: var(--vt-red-50); color: var(--vt-red-dark); border-color: var(--vt-red-200); }
+.btn-quick-item.pinned { border-color: var(--vt-red); color: var(--vt-red); background: var(--vt-red-50); }
+
+/* Khung bộ lọc: viền đỏ phía trên */
+.filter-panel-bg {
+    border-top: 3px solid var(--vt-red);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(17, 24, 39, .05);
+}
+
+/* Cửa sổ chụp ảnh: nút chính cùng màu thương hiệu (cần độ ưu tiên cao hơn CSS do script tự chèn) */
+#ccRoot .cc-act.primary { background: var(--vt-red); }

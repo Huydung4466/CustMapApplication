@@ -67,12 +67,14 @@
             font-weight: 600;
         }
     </style>
+    <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
+    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
 </head>
-<body>
+<body class="vt-auth">
 
 <div class="login-card">
     <div class="text-center mb-4">
-        <span class="brand-badge"><i class="fa-solid fa-bolt me-1"></i>VIETTEL CSKH & KT ĐỊA BÀN</span>
+        <span class="brand-badge"><i class="fa-solid fa-bolt me-1"></i>CSKH & KT ĐỊA BÀN</span>
         <h4 class="fw-bold text-dark mb-1">Đăng Nhập Hệ Thống</h4>
         <p class="text-muted small mb-0">Tự động lọc khách hàng theo tên nhân viên</p>
     </div>
