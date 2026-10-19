@@ -12,4 +12,10 @@ public class TicketPageController {
     public String historyPage() {
         return "history";
     }
+
+    // Trang Khách đã hẹn (nút 1 trên thanh điều hướng): các ca đã bấm Hẹn giờ / Hẹn khác
+    @GetMapping("/appointments")
+    public String appointmentsPage() {
+        return "appointments";
+    }
 }

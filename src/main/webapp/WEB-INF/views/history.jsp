@@ -548,5 +548,6 @@
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 </script>
+<jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp"/>
 </body>
 </html>

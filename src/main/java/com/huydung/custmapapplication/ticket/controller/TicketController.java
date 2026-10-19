@@ -1,19 +1,23 @@
 package com.huydung.custmapapplication.ticket.controller;
 
 import com.huydung.custmapapplication.common.dto.AbstractDTO;
-import com.huydung.custmapapplication.ticket.dto.TicketImportResultDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketSearchCriteria;
-import com.huydung.custmapapplication.ticket.dto.UpdateTicketActionRequest;
 import com.huydung.custmapapplication.ticket.service.TicketService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * Chỉ chứa các API HIỂN THỊ (đọc dữ liệu) của ca phản ánh.
+ * API thay đổi dữ liệu (import, cập nhật xử lý, đưa về danh sách) nằm ở package ticket.api.
+ */
 @RestController
 @RequestMapping("/api/tickets")
 public class TicketController {
@@ -24,20 +28,18 @@ public class TicketController {
         this.ticketService = ticketService;
     }
 
-    // 1. Upload và bóc tách file Excel (.xlsx) vào Database (chỉ ADMIN - chặn trong SecurityConfig)
-    //    confirmArchive=true: đồng ý chuyển nhiều ca sang Lịch sử khi file không còn chứa các ca đó
-    @PostMapping("/import")
-    public ResponseEntity<TicketImportResultDTO> importExcel(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "confirmArchive", defaultValue = "false") boolean confirmArchive) {
-        return ResponseEntity.ok(ticketService.importExcelFile(file, confirmArchive));
-    }
-
-    // 2. Danh sách ca đang mở, phân trang bằng page (từ 1) và size (lọc theo nhân viên, từ khóa, trạng thái, ghim, khu vực, đầu mã tủ, ưu tiên;
+    // 1. Danh sách ca đang cần xử lý (KHÔNG gồm ca đã hẹn), phân trang bằng page (từ 1) và size
+    //    (lọc theo nhân viên, từ khóa, trạng thái, ghim, khu vực, đầu mã tủ, ưu tiên;
     //    sort = DEFAULT | APPOINTMENT | NEAREST (kèm lat, lng))
     @GetMapping
     public ResponseEntity<AbstractDTO<TicketResponseDTO>> getTickets(TicketSearchCriteria criteria) {
         return ResponseEntity.ok(ticketService.getTicketsForCurrentUser(criteria));
+    }
+
+    // 2. Danh sách ca ĐÃ HẸN (trạng thái HEN_GIO / HEN_KHAC), xếp theo giờ hẹn gần nhất; appStatus = HEN_GIO | HEN_KHAC để lọc riêng
+    @GetMapping("/appointments")
+    public ResponseEntity<AbstractDTO<TicketResponseDTO>> getAppointments(TicketSearchCriteria criteria) {
+        return ResponseEntity.ok(ticketService.getAppointmentsForCurrentUser(criteria));
     }
 
     // 3. Danh sách ca đã làm / đã lưu trữ (trang Lịch sử)
@@ -52,21 +54,7 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.getHistoryForCurrentUser(staffFilter, keyword, fromDate, toDate, page, size));
     }
 
-    // 4. Cập nhật trạng thái ca (Hẹn giờ, KLL, Hẹn khác, Đã ghim, Xử lý ca)
-    @PutMapping("/{id}/action")
-    public ResponseEntity<TicketResponseDTO> updateAction(
-            @PathVariable("id") Long id,
-            @RequestBody UpdateTicketActionRequest request) {
-        return ResponseEntity.ok(ticketService.updateTicketAction(id, request));
-    }
-
-    // 5. Đưa ca từ Lịch sử về danh sách chính
-    @PutMapping("/{id}/restore")
-    public ResponseEntity<TicketResponseDTO> restore(@PathVariable("id") Long id) {
-        return ResponseEntity.ok(ticketService.restoreTicket(id));
-    }
-
-    // 6. Danh sách nhân viên địa bàn có trong dữ liệu Excel (chỉ ADMIN - chặn trong SecurityConfig)
+    // 4. Danh sách nhân viên địa bàn có trong dữ liệu Excel (chỉ ADMIN - chặn trong SecurityConfig)
     @GetMapping("/staffs")
     public ResponseEntity<List<String>> getStaffList() {
         return ResponseEntity.ok(ticketService.getAssignedStaffList());

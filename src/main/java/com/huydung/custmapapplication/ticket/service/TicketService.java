@@ -18,6 +18,9 @@ public interface TicketService {
     // Danh sách ca đang mở, có phân trang (page bắt đầu từ 1)
     AbstractDTO<TicketResponseDTO> getTicketsForCurrentUser(TicketSearchCriteria criteria);
 
+    // Danh sách ca ĐÃ HẸN (Hẹn giờ / Hẹn khác), xếp theo giờ hẹn gần nhất, có phân trang
+    AbstractDTO<TicketResponseDTO> getAppointmentsForCurrentUser(TicketSearchCriteria criteria);
+
     AbstractDTO<TicketResponseDTO> getHistoryForCurrentUser(String staffFilter, String keyword,
                                                             LocalDate fromDate, LocalDate toDate,
                                                             Integer page, Integer size);

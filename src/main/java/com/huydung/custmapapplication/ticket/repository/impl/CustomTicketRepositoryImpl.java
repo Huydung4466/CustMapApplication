@@ -34,6 +34,13 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
 
         appendStaffFilter(q.where, q.params, f.assignedStaff());
 
+        // Ca đã hẹn (Hẹn giờ / Hẹn khác) chuyển sang trang "Đã hẹn", không hiện ở danh sách chính
+        if (f.appointed()) {
+            q.where.append("AND t.appStatus IN ('HEN_GIO', 'HEN_KHAC') ");
+        } else {
+            q.where.append("AND (t.appStatus IS NULL OR t.appStatus NOT IN ('HEN_GIO', 'HEN_KHAC')) ");
+        }
+
         if (f.keyword() != null && !f.keyword().trim().isEmpty()) {
             q.where.append("""
                     AND (LOWER(t.customerName) LIKE LOWER(:kw)

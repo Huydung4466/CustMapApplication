@@ -5,7 +5,11 @@
  * (giờ, tọa độ GPS, địa chỉ, mã thuê bao) -> bấm chụp thì chữ được in luôn vào ảnh -> xem lại ->
  * Lưu (gửi lên server) / Chia sẻ (Zalo...) / Tải về.
  *
- * Phụ thuộc vào trang dashboard.jsp: biến CTX, ticketCache, hàm apiFetch(), loadTickets(). Font Awesome cho biểu tượng.
+ * Hai chế độ:
+ *  - Gắn với ca: openCamera(ticketId) - in thêm mã thuê bao, có nút Lưu ảnh (gửi lên server, cần ticketCache, apiFetch(), loadTickets()).
+ *  - Chụp nhanh (nút "+" ở thanh điều hướng): CameraCapture.openFree() - không gắn ca/tài khoản nào, không lưu lên server,
+ *    chỉ có Chụp lại / Chia sẻ / Tải về. Giờ, tọa độ GPS và địa chỉ vẫn được in lên ảnh.
+ * Font Awesome cho biểu tượng.
  * Camera và GPS chỉ chạy khi mở trang bằng HTTPS (hoặc localhost).
  */
 (function () {
@@ -557,6 +561,7 @@
         btnLabel(ui.btnRetake, 'Chụp lại');
         btnLabel(ui.btnSave, 'Lưu ảnh');
         ui.btnSave.disabled = false;
+        ui.btnSave.style.display = s.free ? 'none' : '';
         ui.btnShare.style.display = canShareFile(c.file) ? '' : 'none';
         layoutStage();
     }
@@ -608,7 +613,7 @@
     function updateSub() {
         var s = state;
         if (!s) return;
-        var base = accountOf(s.ticket);
+        var base = accountOf(s.ticket) || (s.free ? 'Ảnh không gắn với ca nào' : '');
         ui.sub.textContent = s.savedCount ? (base + ' • Đã lưu ' + s.savedCount + ' ảnh') : base;
     }
 
@@ -650,7 +655,9 @@
     function share() {
         var s = state, c = s && s.captured;
         if (!c) return;
-        navigator.share({ files: [c.file], title: accountOf(s.ticket) || 'Ảnh hiện trường' }).catch(function (err) {
+        navigator.share({ files: [c.file], title: accountOf(s.ticket) || 'Ảnh hiện trường' }).then(function () {
+            c.exported = true;
+        }).catch(function (err) {
             if (err && err.name !== 'AbortError') toast('Không chia sẻ được ảnh, hãy dùng nút Tải về.', 3500);
         });
     }
@@ -664,6 +671,7 @@
         document.body.appendChild(a);
         a.click();
         a.remove();
+        c.exported = true;
     }
 
     // ===================== MỞ / ĐÓNG =====================
@@ -674,14 +682,17 @@
         updateChips();
     }
 
+    // ticketId rỗng (null/undefined) = chụp nhanh, không gắn với ca nào
     function open(ticketId) {
         if (state) return;
-        var ticket = (typeof ticketCache !== 'undefined' && ticketCache) ? ticketCache[ticketId] : null;
+        var free = (ticketId === null || ticketId === undefined);
+        var ticket = free ? { customerName: 'Chụp ảnh nhanh' }
+            : ((typeof ticketCache !== 'undefined' && ticketCache) ? ticketCache[ticketId] : null);
         if (!ticket) { alert('Không tìm thấy thông tin ca, hãy tải lại danh sách.'); return; }
         ensureUi();
 
         var s = state = {
-            ticketId: ticketId, ticket: ticket, facing: 'environment', mode: 'live',
+            ticketId: ticketId, ticket: ticket, free: free, facing: 'environment', mode: 'live',
             stream: null, videoRatio: 0, ratio: 3 / 4, noCamera: false,
             pos: null, gpsStatus: 'waiting', watchId: null,
             geoAddress: '', geoFrom: null, geoBusy: false, geoLastTry: 0, geoFails: 0,
@@ -707,7 +718,9 @@
         var s = state;
         if (!s) return;
         if (s.busy) { toast('Đang lưu ảnh, vui lòng chờ…'); return; }
-        if (s.captured && !s.captured.saved && !confirm('Ảnh vừa chụp chưa được lưu. Bỏ ảnh này?')) return;
+        // Chụp gắn ca: cảnh báo nếu chưa Lưu. Chụp nhanh: cảnh báo nếu chưa Tải về / Chia sẻ
+        var unsaved = s.captured && (s.free ? !s.captured.exported : !s.captured.saved);
+        if (unsaved && !confirm(s.free ? 'Ảnh vừa chụp chưa được tải về hoặc chia sẻ. Bỏ ảnh này?' : 'Ảnh vừa chụp chưa được lưu. Bỏ ảnh này?')) return;
 
         clearInterval(s.timer);
         if (s.watchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(s.watchId);
@@ -726,6 +739,7 @@
     window.openCamera = open;
     window.CameraCapture = {
         open: open,
+        openFree: function () { open(null); },
         close: closeCamera,
         _test: {
             toDMS: toDMS, formatCoords: formatCoords, formatTime: formatTime, formatStamp: formatStamp,

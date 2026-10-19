@@ -9,11 +9,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
 import java.util.List;
 
+/**
+ * Chỉ chứa các API HIỂN THỊ ảnh hiện trường (danh sách, tải ảnh).
+ * API lưu ảnh (thay đổi dữ liệu) nằm ở package photo.api.
+ */
 @RestController
 @RequestMapping("/api/tickets/{ticketId}/photos")
 public class TicketPhotoController {
@@ -24,26 +27,13 @@ public class TicketPhotoController {
         this.photoService = photoService;
     }
 
-    // 1. Lưu ảnh vừa chụp (multipart): file + toạ độ + độ chính xác GPS + địa chỉ in trên ảnh
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<TicketPhotoDTO> upload(
-            @PathVariable("ticketId") Long ticketId,
-            @RequestParam("file") MultipartFile file,
-            @RequestParam(value = "latitude", required = false) Double latitude,
-            @RequestParam(value = "longitude", required = false) Double longitude,
-            @RequestParam(value = "accuracy", required = false) Double accuracy,
-            @RequestParam(value = "address", required = false) String address,
-            @RequestParam(value = "addressSource", required = false) String addressSource) {
-        return ResponseEntity.ok(photoService.upload(ticketId, file, latitude, longitude, accuracy, address, addressSource));
-    }
-
-    // 2. Danh sách ảnh của ca (thông tin lúc chụp, chưa gồm nội dung ảnh)
+    // 1. Danh sách ảnh của ca (thông tin lúc chụp, chưa gồm nội dung ảnh)
     @GetMapping
     public ResponseEntity<List<TicketPhotoDTO>> list(@PathVariable("ticketId") Long ticketId) {
         return ResponseEntity.ok(photoService.listPhotos(ticketId));
     }
 
-    // 3. Tải nội dung ảnh (có kiểm tra quyền); ?download=true để tải về thay vì xem trực tiếp
+    // 2. Tải nội dung ảnh (có kiểm tra quyền); ?download=true để tải về thay vì xem trực tiếp
     @GetMapping("/{photoId}/file")
     public ResponseEntity<Resource> file(@PathVariable("ticketId") Long ticketId,
                                          @PathVariable("photoId") Long photoId,

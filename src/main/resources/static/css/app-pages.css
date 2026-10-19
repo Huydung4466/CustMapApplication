@@ -1,0 +1,98 @@
+/*
+ * app-pages.css - Kiểu nền dùng chung cho các trang mới (Đã hẹn, Bản đồ, Báo cáo, Cá nhân).
+ * Nạp TRƯỚC viettel-theme.css để tông màu Viettel ghi đè lên.
+ */
+:root {
+    --primary-color: #2563eb;
+    --card-border: #e2e8f0;
+}
+body {
+    background-color: #f8fafc;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #1e293b;
+    overflow-x: hidden;
+}
+.top-navbar { background: #fff; position: sticky; top: 0; z-index: 1030; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+.container-app { max-width: 740px; margin: 0 auto; padding: 0 10px; }
+.nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: nowrap; }
+.nav-left { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 0; }
+.nav-title { font-size: 1rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-user { min-width: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .85rem; }
+.nav-icon-btn {
+    width: 34px; height: 34px; padding: 0; flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
+}
+
+/* ---------- Thẻ ca ---------- */
+.ticket-card { background: #fff; border: 1px solid var(--card-border); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.03); }
+.ticket-card.overdue { border-color: #ef4444; box-shadow: 0 0 0 2px rgba(239,68,68,.15); }
+.card-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.customer-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; }
+.status-badge { font-size: .78rem; font-weight: 600; padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.status-hen-gio  { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
+.status-hen-khac { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
+.meta-info-row { display: flex; align-items: center; justify-content: space-between; font-size: .85rem; margin-bottom: 8px; }
+.account-tag { background: #f1f5f9; color: #334155; font-family: monospace; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+.badge-dup { background: #ef4444; color: #fff; font-size: .72rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 5px; }
+.appt-strip {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: #f0fdf4; border: 1px solid #dcfce7; color: #15803d;
+    border-radius: 10px; padding: 7px 10px; margin-bottom: 8px; font-weight: 700; font-size: .9rem;
+}
+.appt-strip.is-overdue { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+.appt-strip.is-empty { background: #f8fafc; border-color: #e2e8f0; color: #64748b; font-weight: 600; }
+.location-section { background: #f8fafc; border-radius: 8px; padding: 8px 10px; margin-bottom: 10px; font-size: .88rem; display: flex; flex-direction: column; gap: 6px; }
+.btn-kmz-map { display: inline-flex; align-items: center; gap: 5px; font-size: .76rem; font-weight: 700; padding: 3px 8px; border-radius: 6px; text-decoration: none; width: fit-content; }
+.has-kmz { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.no-kmz  { background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1; }
+.complaint-box { font-size: .88rem; color: #334155; line-height: 1.4; margin-bottom: 10px; border-left: 3px solid #3b82f6; padding-left: 8px; }
+.complaint-collapsed { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.see-more-link { font-size: .8rem; color: #2563eb; font-weight: 600; cursor: pointer; text-decoration: none; }
+.action-buttons-grid { display: flex; flex-wrap: wrap; align-items: stretch; gap: 6px; margin-bottom: 10px; }
+.action-buttons-grid .btn-call-phone { flex: 1 1 150px; min-width: 0; }
+.action-right { display: flex; gap: 6px; margin-left: auto; }
+.btn-call-phone {
+    background: #15803d; color: #fff; border: none; border-radius: 8px; padding: 7px 10px;
+    font-size: .82rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 5px;
+    text-decoration: none; white-space: nowrap;
+}
+.btn-call-phone:hover { background: #166534; color: #fff; }
+.btn-call-report { background: #0f766e; }
+.btn-action-trigger { background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 7px 14px; font-size: .85rem; font-weight: 600; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.btn-camera { background: #fff; color: #0f172a; border: 1px solid var(--card-border); border-radius: 8px; padding: 7px 12px; font-size: .85rem; font-weight: 600; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.btn-camera .photo-count { background: #2563eb; color: #fff; border-radius: 999px; font-size: .72rem; padding: 0 6px; min-width: 18px; text-align: center; }
+.quick-toolbar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding-top: 8px; border-top: 1px dashed var(--card-border); }
+.btn-quick-item { background: #fff; border: 1px solid var(--card-border); border-radius: 6px; padding: 6px 5px; font-size: .78rem; font-weight: 600; color: #475569; display: flex; align-items: center; justify-content: center; gap: 4px; cursor: pointer; }
+.btn-quick-item:hover { background: #f1f5f9; color: #0f172a; }
+.card-footer-info { display: flex; justify-content: space-between; align-items: center; font-size: .78rem; color: #64748b; margin-top: 8px; padding-top: 6px; border-top: 1px solid #f1f5f9; }
+.filter-panel-bg { background: #fff; border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; margin-bottom: 14px; box-shadow: 0 2px 6px rgba(0,0,0,.02); }
+.reminder-banner { border-radius: 12px; padding: 8px 12px; font-size: .8rem; margin-bottom: 10px; }
+
+/* ---------- Thông báo nhỏ (toast) nổi phía trên thanh điều hướng ---------- */
+.app-toast {
+    position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+    z-index: 1060; max-width: 90%; padding: 9px 16px; border-radius: 10px; font-size: .86rem; text-align: center;
+    background: rgba(15, 23, 42, .93); color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,.25);
+}
+.app-toast.error { background: #b91c1c; }
+
+/* ---------- Trang Cá nhân ---------- */
+.avatar-circle {
+    width: 64px; height: 64px; border-radius: 50%; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; font-weight: 700; color: #fff; background: #2563eb;
+}
+.avatar-sm { width: 40px; height: 40px; font-size: 1rem; }
+.role-badge { font-size: .72rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; border: 1px solid transparent; }
+.role-admin { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.role-staff { background: #e0f2fe; color: #075985; border-color: #bae6fd; }
+.user-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+.user-row:last-child { border-bottom: 0; }
+.user-row .info { flex: 1 1 auto; min-width: 0; }
+.user-row .info .name { font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.user-row .info .sub { font-size: .78rem; color: #64748b; }
+
+/* ---------- Trang Bản đồ / Báo cáo ---------- */
+.map-frame { width: 100%; height: calc(100vh - 190px); height: calc(100dvh - 190px); min-height: 360px; border: 0; border-radius: 14px; background: #e5e7eb; display: block; }
+.placeholder-card { text-align: center; padding: 48px 20px; }
+.placeholder-card .big-icon { font-size: 3rem; color: #cbd5e1; margin-bottom: 12px; }

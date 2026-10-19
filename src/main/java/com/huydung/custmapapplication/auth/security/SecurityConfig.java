@@ -25,8 +25,8 @@ public class SecurityConfig {
                 // Tắt CSRF cho các API nội bộ để gọi Ajax/Multipart Upload dễ dàng
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // Cho phép forward tới các file JSP trong WEB-INF/views
-                        .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
+                        // Cho phép forward/include tới các file JSP trong WEB-INF/views (kể cả fragment thanh điều hướng)
+                        .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.INCLUDE, DispatcherType.ERROR).permitAll()
                         // Cho phép truy cập trang login và tài nguyên tĩnh
                         .requestMatchers("/login", "/css/**", "/js/**", "/images/**").permitAll()
                         // API Quản lý User chỉ dành cho ADMIN

@@ -207,7 +207,8 @@ public class TicketServiceImpl implements TicketService {
                 criteria.getOnlyPinned(),
                 criteria.getArea(),
                 criteria.getCabinetPrefix(),
-                criteria.getPriority()
+                criteria.getPriority(),
+                false
         );
 
         int size = normalizeSize(criteria.getSize());
@@ -248,6 +249,37 @@ public class TicketServiceImpl implements TicketService {
         }
 
         return AbstractDTO.of(pageItems, page, size, totalItem);
+    }
+
+    // ===================== DANH SÁCH CA ĐÃ HẸN (CÓ PHÂN TRANG) =====================
+
+    @Override
+    @Transactional(readOnly = true)
+    public AbstractDTO<TicketResponseDTO> getAppointmentsForCurrentUser(TicketSearchCriteria criteria) {
+        // Chỉ nhận lọc riêng theo HEN_GIO hoặc HEN_KHAC; giá trị khác coi như lấy cả hai loại
+        String status = criteria.getAppStatus() == null ? null : criteria.getAppStatus().trim().toUpperCase();
+        if (!"HEN_GIO".equals(status) && !"HEN_KHAC".equals(status)) {
+            status = null;
+        }
+
+        TicketFilter filter = new TicketFilter(
+                resolveEffectiveStaffFilter(criteria.getStaffFilter()),
+                criteria.getKeyword(),
+                status,
+                false,
+                criteria.getArea(),
+                criteria.getCabinetPrefix(),
+                criteria.getPriority(),
+                true
+        );
+
+        int size = normalizeSize(criteria.getSize());
+        long totalItem = ticketRepository.countTicketsCustom(filter);
+        int page = clampPage(criteria.getPage(), totalItem, size);
+        // Luôn xếp theo giờ hẹn (ca ghim lên đầu, ca chưa có giờ hẹn xuống cuối)
+        List<CustomerTicketEntity> entities = ticketRepository.findTicketsCustom(filter, true, (page - 1) * size, size);
+
+        return AbstractDTO.of(toResponseDtos(entities), page, size, totalItem);
     }
 
     // Chuyển entity sang DTO kèm số lần trùng thuê bao và toạ độ tủ (chỉ tra cứu cho các ca đang cần hiển thị)

@@ -408,7 +408,6 @@
                 <select id="statusFilterSelect" class="form-select form-select-sm" onchange="loadTickets()">
                     <option value="ALL">Tất cả trạng thái</option>
                     <option value="DANG_XU_LY">Đang xử lý</option>
-                    <option value="HEN_GIO">Đã hẹn giờ</option>
                     <option value="PINNED">⭐ Đã ghim</option>
                 </select>
             </div>
@@ -457,7 +456,6 @@
     </div>
 
     <!-- NHẮC HẸN -->
-    <div id="reminderBanner"></div>
 
     <!-- DANH SÁCH THẺ KHÁCH HÀNG -->
     <div id="ticketListContainer">
@@ -713,7 +711,6 @@
         const container = document.getElementById('ticketListContainer');
         ticketCache = {};
         (tickets || []).forEach(t => { ticketCache[t.id] = t; });
-        renderReminderBanner(tickets || []);
         if (!tickets || tickets.length === 0) {
             container.innerHTML = `<div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white text-muted small">Không tìm thấy ca phản ánh phù hợp với bộ lọc</div>`;
             return;
@@ -749,7 +746,7 @@
                 ? `<span class="badge-distance"><i class="fa-solid fa-route me-1"></i>\${item.distanceKm} km</span>` : '';
 
             return `
-            <div class="ticket-card \${isOverdue(item) ? 'overdue' : ''}">
+            <div class="ticket-card">
                 <div class="card-header-row">
                     <div>
                         <span class="customer-title">\${escapeHtml(item.customerName || 'Khách hàng')}</span>
@@ -901,6 +898,10 @@
         }
         if (await sendTicketAction(id, payload)) {
             actionModalInstance.hide();
+            // Ca đã hẹn không còn nằm ở danh sách này mà chuyển sang trang "Đã hẹn"
+            if (payload.appStatus === 'HEN_GIO' || payload.appStatus === 'HEN_KHAC') {
+                flashNotice('Đã chuyển khách sang mục "Đã hẹn"');
+            }
         }
         loadTickets(true);
     }
@@ -1023,54 +1024,25 @@
         });
     }
 
-    // Ca đã hẹn giờ nhưng đã quá giờ hẹn (hết giờ kết thúc, hoặc quá giờ bắt đầu nếu không có giờ kết thúc)
-    function isOverdue(item) {
-        if (item.appStatus !== 'HEN_GIO' || !item.appointmentStart) return false;
-        const limit = new Date(item.appointmentEnd || item.appointmentStart);
-        return limit.getTime() < Date.now();
-    }
-
-    // Banner nhắc: ca sắp đến giờ hẹn (trong 60 phút tới) và ca quá giờ hẹn trong danh sách đang hiển thị
-    function renderReminderBanner(tickets) {
-        const box = document.getElementById('reminderBanner');
-        const now = Date.now();
-        const soon = [];
-        let overdueCount = 0;
-
-        tickets.forEach(t => {
-            if (t.appStatus !== 'HEN_GIO' || !t.appointmentStart) return;
-            const start = new Date(t.appointmentStart).getTime();
-            const end = new Date(t.appointmentEnd || t.appointmentStart).getTime();
-            if (end < now) {
-                overdueCount++;
-            } else if (start - now <= 60 * 60 * 1000) {
-                soon.push(t);
-            }
-        });
-
-        let html = '';
-        if (soon.length > 0) {
-            soon.sort((a, b) => new Date(a.appointmentStart) - new Date(b.appointmentStart));
-            const names = soon.slice(0, 4).map(t => {
-                const d = new Date(t.appointmentStart);
-                const hh = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-                return escapeHtml(t.customerName || 'Khách hàng') + ' (' + hh + ')';
-            }).join(', ');
-            html += '<div class="reminder-banner alert-warning border border-warning-subtle"><i class="fa-regular fa-bell me-1"></i><b>'
-                + soon.length + ' ca sắp đến giờ hẹn:</b> ' + names + (soon.length > 4 ? '...' : '') + '</div>';
-        }
-        if (overdueCount > 0) {
-            html += '<div class="reminder-banner alert-danger border border-danger-subtle"><i class="fa-solid fa-triangle-exclamation me-1"></i><b>'
-                + overdueCount + ' ca đã quá giờ hẹn</b> (viền đỏ), hãy gọi lại hoặc cập nhật trạng thái.</div>';
-        }
-        box.innerHTML = html;
+    // Thông báo nhỏ nổi phía trên thanh điều hướng, tự tắt
+    function flashNotice(message) {
+        const old = document.getElementById('flashNotice');
+        if (old) old.remove();
+        const el = document.createElement('div');
+        el.id = 'flashNotice';
+        el.textContent = message;
+        el.style.cssText = 'position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);'
+            + 'z-index:1060;max-width:90%;padding:9px 16px;border-radius:10px;font-size:.86rem;text-align:center;'
+            + 'background:rgba(15,23,42,.93);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.25);';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 3000);
     }
 
     function escapeHtml(str) {
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 </script>
-<%-- Chụp ảnh hiện trường: camera + chữ giờ/GPS/địa chỉ in lên ảnh. Đổi số v khi sửa file để trình duyệt tải lại --%>
-<script src="${pageContext.request.contextPath}/js/camera-capture.js?v=1"></script>
+<%-- Thanh điều hướng dưới cùng (đã gồm camera-capture.js: chụp ảnh hiện trường, chữ giờ/GPS/địa chỉ in lên ảnh) --%>
+<jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp"/>
 </body>
 </html>
