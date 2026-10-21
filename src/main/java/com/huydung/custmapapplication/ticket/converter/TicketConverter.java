@@ -1,12 +1,13 @@
 package com.huydung.custmapapplication.ticket.converter;
 
+import com.huydung.custmapapplication.constant.ComplaintExcelConstant;
 import com.huydung.custmapapplication.kmz.entity.KmzLocationEntity;
 import com.huydung.custmapapplication.ticket.dto.TicketAttributeView;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
 import com.huydung.custmapapplication.ticket.dto.UpdateTicketActionRequest;
 import com.huydung.custmapapplication.ticket.entity.CustomerTicketEntity;
 import com.huydung.custmapapplication.ticket.type.TicketAttribute;
-import com.huydung.custmapapplication.ticket.type.TicketType;
+import com.huydung.custmapapplication.ticket.enums.TicketType;
 import org.apache.poi.ss.usermodel.*;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -91,31 +92,32 @@ public class TicketConverter {
         dto.setAttributeItems(items);
     }
 
-    // 4. Đọc dòng dữ liệu từ Sheet "chi tiêt" của file Excel (.xlsx) vào Entity
+    // 4. Đọc dòng dữ liệu từ sheet chi tiết của file phản ánh (.xlsx) vào Entity.
+    //    Vị trí từng cột khai báo trong ComplaintExcelConstant
     public void mapExcelRowToEntity(Row row, CustomerTicketEntity entity, DataFormatter formatter) {
-        entity.setAssignedStaff(getCellString(row, 0, formatter));                   // Cột A: Giao nhân viên
-        entity.setArea(getCellString(row, 2, formatter));                            // Cột C: Khu vực
-        entity.setCommuneCluster(getCellString(row, 3, formatter));                  // Cột D: Cụm xã
-        entity.setCommune(getCellString(row, 4, formatter));                         // Cột E: Xã
-        entity.setLocalStaffCode(getCellString(row, 5, formatter));                  // Cột F: Nhân viên địa bàn
-        entity.setServiceName(getCellString(row, 7, formatter));                     // Cột H: Tên dịch vụ
-        entity.setCustomerName(getCellString(row, 8, formatter));                    // Cột I: Tên KH
-        entity.setContactPhone(normalizePhone(getCellString(row, 9, formatter)));    // Cột J: SĐT liên hệ KH
-        entity.setInstallAddress(getCellString(row, 10, formatter));                 // Cột K: Địa chỉ lắp đặt
-        entity.setReportPhone(normalizePhone(getCellString(row, 11, formatter)));    // Cột L: Số liên hệ nhập phản ánh
-        entity.setCategory(getCellString(row, 13, formatter));                       // Cột N: Thể loại
-        entity.setPriorityLevel(getCellString(row, 18, formatter));                  // Cột S: Mức ưu tiên SCKN
-        entity.setTechStaffName(getCellString(row, 21, formatter));                  // Cột V: NV kỹ thuật được giao WO
-        entity.setTechStaffPhone(normalizePhone(getCellString(row, 22, formatter))); // Cột W: SĐT của NV kỹ thuật
-        entity.setComplaintContent(getCellString(row, 23, formatter));               // Cột X: Nội dung khiếu nại
-        entity.setGnocProgress(getCellString(row, 25, formatter));                   // Cột Z: Tiến độ của GNOC
-        entity.setSubscriberAccount(getCellString(row, 28, formatter));              // Cột AC: Thuê bao phản ánh
-        entity.setCabinetCode(getCellString(row, 30, formatter).toUpperCase());      // Cột AE: Mã tủ
+        entity.setAssignedStaff(getCellString(row, ComplaintExcelConstant.COL_ASSIGNED_STAFF, formatter));
+        entity.setArea(getCellString(row, ComplaintExcelConstant.COL_AREA, formatter));
+        entity.setCommuneCluster(getCellString(row, ComplaintExcelConstant.COL_COMMUNE_CLUSTER, formatter));
+        entity.setCommune(getCellString(row, ComplaintExcelConstant.COL_COMMUNE, formatter));
+        entity.setLocalStaffCode(getCellString(row, ComplaintExcelConstant.COL_LOCAL_STAFF_CODE, formatter));
+        entity.setServiceName(getCellString(row, ComplaintExcelConstant.COL_SERVICE_NAME, formatter));
+        entity.setCustomerName(getCellString(row, ComplaintExcelConstant.COL_CUSTOMER_NAME, formatter));
+        entity.setContactPhone(normalizePhone(getCellString(row, ComplaintExcelConstant.COL_CONTACT_PHONE, formatter)));
+        entity.setInstallAddress(getCellString(row, ComplaintExcelConstant.COL_INSTALL_ADDRESS, formatter));
+        entity.setReportPhone(normalizePhone(getCellString(row, ComplaintExcelConstant.COL_REPORT_PHONE, formatter)));
+        entity.setCategory(getCellString(row, ComplaintExcelConstant.COL_CATEGORY, formatter));
+        entity.setPriorityLevel(getCellString(row, ComplaintExcelConstant.COL_PRIORITY_LEVEL, formatter));
+        entity.setTechStaffName(getCellString(row, ComplaintExcelConstant.COL_TECH_STAFF_NAME, formatter));
+        entity.setTechStaffPhone(normalizePhone(getCellString(row, ComplaintExcelConstant.COL_TECH_STAFF_PHONE, formatter)));
+        entity.setComplaintContent(getCellString(row, ComplaintExcelConstant.COL_COMPLAINT_CONTENT, formatter));
+        entity.setGnocProgress(getCellString(row, ComplaintExcelConstant.COL_GNOC_PROGRESS, formatter));
+        entity.setSubscriberAccount(getCellString(row, ComplaintExcelConstant.COL_SUBSCRIBER_ACCOUNT, formatter));
+        entity.setCabinetCode(getCellString(row, ComplaintExcelConstant.COL_CABINET_CODE, formatter).toUpperCase());
         entity.setUpdatedAt(LocalDateTime.now());
     }
 
     public String extractTicketCode(Row row, DataFormatter formatter) {
-        return getCellString(row, 1, formatter); // Cột B: Mã phản ánh
+        return getCellString(row, ComplaintExcelConstant.COL_REPORT_CODE, formatter);
     }
 
     public String getCellString(Row row, int cellIndex, DataFormatter formatter) {

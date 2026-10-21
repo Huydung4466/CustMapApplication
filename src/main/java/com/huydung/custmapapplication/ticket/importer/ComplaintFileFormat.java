@@ -1,8 +1,9 @@
 package com.huydung.custmapapplication.ticket.importer;
 
+import com.huydung.custmapapplication.constant.ComplaintExcelConstant;
 import com.huydung.custmapapplication.ticket.converter.TicketConverter;
 import com.huydung.custmapapplication.ticket.entity.CustomerTicketEntity;
-import com.huydung.custmapapplication.ticket.type.TicketType;
+import com.huydung.custmapapplication.ticket.enums.TicketType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.springframework.stereotype.Component;
@@ -17,8 +18,6 @@ import java.util.Set;
 @Component
 public class ComplaintFileFormat implements TicketFileFormat {
 
-    private static final String KEY_HEADER = "Mã phản ánh";
-
     private final TicketConverter converter;
 
     public ComplaintFileFormat(TicketConverter converter) {
@@ -32,7 +31,7 @@ public class ComplaintFileFormat implements TicketFileFormat {
 
     @Override
     public boolean supports(ExcelHeader header) {
-        return header.has(KEY_HEADER);
+        return header.has(ComplaintExcelConstant.HEADER_REPORT_CODE);
     }
 
     @Override

@@ -1,6 +1,6 @@
 package com.huydung.custmapapplication.ticket.importer;
 
-import com.huydung.custmapapplication.ticket.type.TicketType;
+import com.huydung.custmapapplication.ticket.enums.TicketType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 
 import java.util.Set;

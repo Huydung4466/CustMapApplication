@@ -1,5 +1,7 @@
 package com.huydung.custmapapplication.ticket.type;
 
+import com.huydung.custmapapplication.ticket.enums.TicketType;
+
 /**
  * Một thuộc tính riêng của từng loại ca (VD: "Công suất thu").
  * Cùng một khai báo này vừa dùng để ĐỌC cột Excel (theo tên tiêu đề, không theo vị trí cột)

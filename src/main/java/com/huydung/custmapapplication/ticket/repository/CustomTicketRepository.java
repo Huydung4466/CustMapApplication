@@ -7,7 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import com.huydung.custmapapplication.ticket.type.TicketType;
+import com.huydung.custmapapplication.ticket.enums.TicketType;
 
 public interface CustomTicketRepository {
 

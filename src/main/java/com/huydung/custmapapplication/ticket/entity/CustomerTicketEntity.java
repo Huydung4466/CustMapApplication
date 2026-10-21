@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-import com.huydung.custmapapplication.ticket.type.TicketType;
+import com.huydung.custmapapplication.ticket.enums.TicketType;
 import com.huydung.custmapapplication.ticket.type.TicketTypeConverter;
 
 import java.time.LocalDateTime;

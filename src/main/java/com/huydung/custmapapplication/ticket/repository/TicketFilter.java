@@ -1,6 +1,6 @@
 package com.huydung.custmapapplication.ticket.repository;
 
-import com.huydung.custmapapplication.ticket.type.TicketType;
+import com.huydung.custmapapplication.ticket.enums.TicketType;
 
 import java.util.Collection;
 

@@ -1,10 +1,11 @@
 package com.huydung.custmapapplication.ticket.importer;
 
+import com.huydung.custmapapplication.constant.InfraExcelConstant;
 import com.huydung.custmapapplication.ticket.converter.TicketConverter;
 import com.huydung.custmapapplication.ticket.entity.CustomerTicketEntity;
 import com.huydung.custmapapplication.ticket.type.TicketAttribute;
-import com.huydung.custmapapplication.ticket.type.TicketGroup;
-import com.huydung.custmapapplication.ticket.type.TicketType;
+import com.huydung.custmapapplication.ticket.enums.TicketGroup;
+import com.huydung.custmapapplication.ticket.enums.TicketType;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -33,19 +34,8 @@ import java.util.stream.Collectors;
 @Component
 public class InfraFileFormat implements TicketFileFormat {
 
-    private static final String H_TYPE = "Loại dữ liệu";
-    private static final String H_ACCOUNT = "Account / Thuê bao dịch vụ";
-    private static final String H_MANAGER = "Nhân viên quản lý";
-    private static final String H_AREA = "Khu vực";
-    private static final String H_COMMUNE = "Phường/Xã";
-    private static final String H_DETAIL = "Chi tiết lỗi";
-    private static final String H_NAME = "Tên KH";
-    private static final String H_ADDRESS = "Địa chỉ";
-    private static final String H_PHONE = "Số ĐT liên hệ";
-    private static final String H_CABINET = "Mã tủ";
-
     // Thiếu một trong các cột này thì file không dùng được -> báo lỗi ngay thay vì import sai
-    private static final List<String> REQUIRED = List.of(H_TYPE, H_ACCOUNT, H_MANAGER, H_AREA);
+    private static final List<String> REQUIRED = List.of(InfraExcelConstant.HEADER_TYPE, InfraExcelConstant.HEADER_ACCOUNT, InfraExcelConstant.HEADER_MANAGER, InfraExcelConstant.HEADER_AREA);
 
     private static final int MAX_CODE_LENGTH = 100;       // độ dài cột ticket_code
     private static final int SUMMARY_ATTRIBUTES = 4;      // số thuộc tính đầu đưa vào dòng tóm tắt
@@ -65,7 +55,7 @@ public class InfraFileFormat implements TicketFileFormat {
 
     @Override
     public boolean supports(ExcelHeader header) {
-        return header.has(H_TYPE) && header.has(H_ACCOUNT);
+        return header.has(InfraExcelConstant.HEADER_TYPE) && header.has(InfraExcelConstant.HEADER_ACCOUNT);
     }
 
     @Override
@@ -111,7 +101,7 @@ public class InfraFileFormat implements TicketFileFormat {
 
         @Override
         public RowKey readKey(Row row) {
-            String typeText = text(row, H_TYPE);
+            String typeText = text(row, InfraExcelConstant.HEADER_TYPE);
             if (typeText.isEmpty()) return null; // dòng trống
 
             TicketType type = TicketType.fromSourceLabel(typeText);
@@ -137,15 +127,15 @@ public class InfraFileFormat implements TicketFileFormat {
         public void fill(Row row, RowKey key, CustomerTicketEntity entity) {
             TicketType type = key.type();
             entity.setTicketType(type);
-            entity.setAssignedStaff(text(row, H_MANAGER));
-            entity.setArea(text(row, H_AREA));
-            entity.setCommune(text(row, H_COMMUNE));
-            entity.setCategory(text(row, H_DETAIL));
-            entity.setCustomerName(text(row, H_NAME));
-            entity.setInstallAddress(text(row, H_ADDRESS));
-            entity.setContactPhone(converter.normalizePhone(text(row, H_PHONE)));
-            entity.setSubscriberAccount(text(row, H_ACCOUNT));
-            entity.setCabinetCode(text(row, H_CABINET).toUpperCase());
+            entity.setAssignedStaff(text(row, InfraExcelConstant.HEADER_MANAGER));
+            entity.setArea(text(row, InfraExcelConstant.HEADER_AREA));
+            entity.setCommune(text(row, InfraExcelConstant.HEADER_COMMUNE));
+            entity.setCategory(text(row, InfraExcelConstant.HEADER_DETAIL));
+            entity.setCustomerName(text(row, InfraExcelConstant.HEADER_CUSTOMER_NAME));
+            entity.setInstallAddress(text(row, InfraExcelConstant.HEADER_ADDRESS));
+            entity.setContactPhone(converter.normalizePhone(text(row, InfraExcelConstant.HEADER_PHONE)));
+            entity.setSubscriberAccount(text(row, InfraExcelConstant.HEADER_ACCOUNT));
+            entity.setCabinetCode(text(row, InfraExcelConstant.HEADER_CABINET).toUpperCase());
             entity.setTechStaffName(type.getStaffHeader() == null ? "" : text(row, type.getStaffHeader()));
 
             Map<String, String> attrs = new LinkedHashMap<>();

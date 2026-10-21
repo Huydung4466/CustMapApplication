@@ -1,5 +1,6 @@
 package com.huydung.custmapapplication.ticket.type;
 
+import com.huydung.custmapapplication.ticket.enums.TicketType;
 import jakarta.persistence.AttributeConverter;
 
 /**

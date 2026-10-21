@@ -7,6 +7,9 @@ import com.huydung.custmapapplication.common.exception.ImportConfirmationRequire
 import com.huydung.custmapapplication.common.exception.ResourceNotFoundException;
 import com.huydung.custmapapplication.common.util.ExportMarker;
 import com.huydung.custmapapplication.common.util.GeoUtils;
+import com.huydung.custmapapplication.constant.ComplaintExcelConstant;
+import com.huydung.custmapapplication.constant.ExcelSheetConstant;
+import com.huydung.custmapapplication.constant.InfraExcelConstant;
 import com.huydung.custmapapplication.kmz.entity.KmzLocationEntity;
 import com.huydung.custmapapplication.kmz.repository.KmzLocationRepository;
 import com.huydung.custmapapplication.photo.repository.TicketPhotoRepository;
@@ -28,8 +31,8 @@ import com.huydung.custmapapplication.ticket.importer.TicketRowReader;
 import com.huydung.custmapapplication.ticket.repository.TicketFilter;
 import com.huydung.custmapapplication.ticket.repository.TicketRepository;
 import com.huydung.custmapapplication.ticket.service.TicketService;
-import com.huydung.custmapapplication.ticket.type.TicketGroup;
-import com.huydung.custmapapplication.ticket.type.TicketType;
+import com.huydung.custmapapplication.ticket.enums.TicketGroup;
+import com.huydung.custmapapplication.ticket.enums.TicketType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -154,7 +157,8 @@ public class TicketServiceImpl implements TicketService {
             }
             if (format == null) {
                 throw new IllegalArgumentException("Không nhận diện được định dạng file. File phản ánh cần có cột "
-                        + "\"Mã phản ánh\"; file hạ tầng cần có cột \"Loại dữ liệu\" và \"Account / Thuê bao dịch vụ\".");
+                        + "\"" + ComplaintExcelConstant.HEADER_REPORT_CODE + "\"; file hạ tầng cần có cột \""
+                        + InfraExcelConstant.HEADER_TYPE + "\" và \"" + InfraExcelConstant.HEADER_ACCOUNT + "\".");
             }
             formatName = format.name();
             scope = format.coveredTypes();
@@ -693,8 +697,8 @@ public class TicketServiceImpl implements TicketService {
 
     // Xác định sheet chứa dữ liệu chi tiết trong file Excel
     private Sheet resolveTargetSheet(Workbook workbook) {
-        Sheet sheet = workbook.getSheet("chi tiêt");
-        if (sheet == null) sheet = workbook.getSheet("chi tiết");
+        Sheet sheet = workbook.getSheet(ExcelSheetConstant.DETAIL_SHEET);
+        if (sheet == null) sheet = workbook.getSheet(ExcelSheetConstant.DETAIL_SHEET_ALT);
         if (sheet == null) {
             sheet = workbook.getNumberOfSheets() > 1 ? workbook.getSheetAt(1) : workbook.getSheetAt(0);
         }

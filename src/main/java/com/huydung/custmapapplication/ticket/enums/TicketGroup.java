@@ -1,4 +1,4 @@
-package com.huydung.custmapapplication.ticket.type;
+package com.huydung.custmapapplication.ticket.enums;
 
 /**
  * Nhóm lớn của ca = mỗi nhóm là một tab trên giao diện.
