@@ -1,6 +1,7 @@
 package com.huydung.custmapapplication.auth.security;
 
 import jakarta.servlet.DispatcherType;
+import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -33,6 +34,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/**").hasAuthority("ROLE_ADMIN")
                         // Import file Excel và danh sách nhân viên chỉ dành cho ADMIN
                         .requestMatchers("/api/tickets/import", "/api/tickets/staffs").hasAuthority("ROLE_ADMIN")
+                        // Xuất báo cáo Excel (tạo, danh sách, tải về, xóa) chỉ dành cho ADMIN
+                        .requestMatchers("/api/exports/**").hasAuthority("ROLE_ADMIN")
+                        // Sửa cấu hình hệ thống (VD: bật/tắt mục in lên ảnh) chỉ dành cho ADMIN; đọc cấu hình thì ai đăng nhập cũng được
+                        .requestMatchers(HttpMethod.PUT, "/api/settings/**").hasAuthority("ROLE_ADMIN")
                         // Các trang và API còn lại yêu cầu phải đăng nhập
                         .anyRequest().authenticated()
                 )

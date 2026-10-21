@@ -96,3 +96,11 @@ body {
 .map-frame { width: 100%; height: calc(100vh - 190px); height: calc(100dvh - 190px); min-height: 360px; border: 0; border-radius: 14px; background: #e5e7eb; display: block; }
 .placeholder-card { text-align: center; padding: 48px 20px; }
 .placeholder-card .big-icon { font-size: 3rem; color: #cbd5e1; margin-bottom: 12px; }
+
+/* ---------- Cấu hình camera: xem trước chữ in lên ảnh ---------- */
+.camera-preview {
+    background: linear-gradient(180deg, #475569 0%, #1e293b 100%);
+    color: #fff; border-radius: 12px; padding: 14px 16px; min-height: 90px;
+    display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;
+    text-align: right; font-size: .85rem; line-height: 1.45; text-shadow: 0 1px 2px rgba(0,0,0,.7);
+}

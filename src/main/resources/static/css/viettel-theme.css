@@ -203,3 +203,4 @@ body.vt-app .top-navbar {
 
 /* Cửa sổ chụp ảnh: nút chính cùng màu thương hiệu (cần độ ưu tiên cao hơn CSS do script tự chèn) */
 #ccRoot .cc-act.primary { background: var(--vt-red); }
+#ccRoot .cc-main { background: var(--vt-red); }

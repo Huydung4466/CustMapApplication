@@ -1,28 +1,42 @@
 /*
- * camera-capture.js - Chụp ảnh hiện trường cho thẻ ca (kiểu Timemark).
+ * camera-capture.js - Chụp ảnh hiện trường bằng CAMERA GỐC CỦA ĐIỆN THOẠI rồi in thông tin lên ảnh (kiểu Timemark).
  *
- * Luồng: bấm nút camera trên thẻ ca -> mở camera toàn màn hình, trên khung hình trực tiếp có chữ
- * (giờ, tọa độ GPS, địa chỉ, mã thuê bao) -> bấm chụp thì chữ được in luôn vào ảnh -> xem lại ->
+ * Vì sao không dùng camera của trình duyệt: ảnh lấy từ khung hình trình duyệt bị mờ, thiếu các xử lý của ứng dụng máy ảnh
+ * (lấy nét, HDR, chống rung...). Cách làm hiện tại: bấm "Chụp ảnh" -> mở ứng dụng máy ảnh của thiết bị -> chụp xong ảnh
+ * quay về trang -> trang in thông tin (giờ, tọa độ, địa chỉ, mã thuê bao...) lên ảnh gốc -> xem lại ->
  * Lưu (gửi lên server) / Chia sẻ (Zalo...) / Tải về.
  *
+ * Mục nào được in lên ảnh do ADMIN bật/tắt (trang Cá nhân > Cấu hình camera), lấy qua GET /api/settings/camera.
+ *
  * Hai chế độ:
- *  - Gắn với ca: openCamera(ticketId) - in thêm mã thuê bao, có nút Lưu ảnh (gửi lên server, cần ticketCache, apiFetch(), loadTickets()).
+ *  - Gắn với ca: openCamera(ticketId) - in thêm thông tin của ca, có nút Lưu ảnh (gửi lên server, cần ticketCache, apiFetch(), loadTickets()).
  *  - Chụp nhanh (nút "+" ở thanh điều hướng): CameraCapture.openFree() - không gắn ca/tài khoản nào, không lưu lên server,
  *    chỉ có Chụp lại / Chia sẻ / Tải về. Giờ, tọa độ GPS và địa chỉ vẫn được in lên ảnh.
- * Font Awesome cho biểu tượng.
- * Camera và GPS chỉ chạy khi mở trang bằng HTTPS (hoặc localhost).
+ *
+ * GPS chỉ chạy khi mở trang bằng HTTPS (hoặc localhost). Font Awesome cho biểu tượng.
  */
 (function () {
     'use strict';
 
     // ===================== CẤU HÌNH =====================
-    var MAX_EDGE = 1600;            // cạnh dài tối đa của ảnh lưu (px)
-    var JPEG_QUALITY = 0.85;
+    var MAX_EDGE = 2560;            // cạnh dài tối đa của ảnh lưu (px); ảnh nhỏ hơn thì giữ nguyên
+    var JPEG_QUALITY = 0.9;
+    var MAX_BYTES = 7 * 1024 * 1024;        // server nhận tối đa 8 MB; nếu vượt thì nén thêm
+    var MAX_PHOTO_AGE_MS = 30 * 60 * 1000;  // chỉ nhận ảnh chụp trong vòng 30 phút (tránh chọn nhầm ảnh cũ trong thư viện)
     var GOOD_ACCURACY_M = 50;       // GPS sai số <= ngưỡng này thì báo xanh
     var GEOCODE_MIN_MOVE_M = 30;    // chỉ dò lại địa chỉ khi đã di chuyển quá ngần này
     var GEOCODE_RETRY_MS = 5000;
     var GEOCODE_MAX_FAILS = 3;
     var SHADE_BOTTOM = true;        // làm tối nhẹ phía dưới ảnh cho chữ dễ đọc trên nền sáng (đặt false để bỏ)
+
+    // Mục in lên ảnh: mặc định khi chưa tải được cấu hình từ server (khớp mặc định phía server)
+    var DEFAULT_CFG = {
+        showTime: true, showCoordinates: true, showAddress: true,
+        showCustomerName: false, showAccount: true, showCabinetCode: false, showStaff: false
+    };
+    var cfg = Object.assign({}, DEFAULT_CFG);
+    var staffName = '';
+    var staffLoaded = false;
 
     var ui = null;      // các phần tử giao diện (tạo một lần)
     var state = null;   // trạng thái của phiên chụp đang mở
@@ -115,12 +129,18 @@
 
     function accountOf(ticket) { return ticket.subscriberAccount || ticket.ticketCode || ''; }
 
-    function buildLines(ticket, when, pos, address) {
-        var lines = [{ text: formatTime(when) }];
-        if (pos) lines.push({ text: formatCoords(pos.lat, pos.lng) });
-        if (address && address.text) lines.push({ text: address.text, wrap: true });
+    // Chỉ in những mục ADMIN đã bật; thứ tự: giờ, tọa độ, địa chỉ, tên KH, mã thuê bao, mã tủ, nhân viên
+    function buildLines(ticket, when, pos, address, conf, staff) {
+        conf = conf || DEFAULT_CFG;
+        var lines = [];
+        if (conf.showTime) lines.push({ text: formatTime(when) });
+        if (conf.showCoordinates && pos) lines.push({ text: formatCoords(pos.lat, pos.lng) });
+        if (conf.showAddress && address && address.text) lines.push({ text: address.text, wrap: true });
+        if (conf.showCustomerName && ticket.customerName) lines.push({ text: String(ticket.customerName) });
         var acc = accountOf(ticket);
-        if (acc) lines.push({ text: String(acc) });
+        if (conf.showAccount && acc) lines.push({ text: String(acc) });
+        if (conf.showCabinetCode && ticket.cabinetCode) lines.push({ text: 'Tủ: ' + ticket.cabinetCode });
+        if (conf.showStaff && staff) lines.push({ text: 'NV: ' + staff });
         return lines;
     }
 
@@ -131,6 +151,7 @@
         var margin = Math.round(W * 0.03);
         var maxW = W - margin * 2;
 
+        if (!lines.length) return;
         ctx.save();
         ctx.font = '500 ' + fs + 'px "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
         ctx.textAlign = 'right';
@@ -178,23 +199,23 @@
         '.cc-title span{display:block;font-size:.75rem;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
         '.cc-area{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0;overflow:hidden}',
         '.cc-stage{position:relative;background:#111;overflow:hidden}',
-        '.cc-video,.cc-photo{position:absolute;inset:0;width:100%;height:100%;display:block}',
-        '.cc-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}',
-        '.cc-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}',
-        '.cc-flash.go{animation:ccflash .18s ease-out}',
-        '@keyframes ccflash{from{opacity:.85}to{opacity:0}}',
+        '.cc-photo{position:absolute;inset:0;width:100%;height:100%;display:block}',
         '.cc-chips{position:absolute;left:10px;top:8px;display:flex;flex-direction:column;gap:6px;align-items:flex-start;z-index:2;pointer-events:none}',
-        '.cc-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.55);color:#fff;border-radius:999px;padding:4px 10px;font-size:.74rem;font-weight:600}',
+        '.cc-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);color:#fff;border-radius:999px;padding:4px 10px;font-size:.74rem;font-weight:600}',
         '.cc-dot{width:8px;height:8px;border-radius:50%;background:#94a3b8;display:inline-block}',
         '.cc-dot.ok{background:#22c55e}.cc-dot.warn{background:#facc15}.cc-dot.bad{background:#ef4444}',
-        '.cc-fallback{display:none;position:absolute;inset:0;padding:24px;text-align:center;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#e2e8f0;font-size:.92rem}',
-        '.cc-fallback i.big{font-size:2rem;color:#facc15}',
+        '.cc-ready{position:absolute;inset:0;padding:64px 22px 16px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;overflow:auto}',
+        '.cc-ready-icon{width:84px;height:84px;border-radius:50%;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:2.1rem}',
+        '.cc-ready-title{font-weight:700;font-size:1.05rem}',
+        '.cc-ready-hint{font-size:.84rem;color:#cbd5e1;max-width:360px}',
+        '.cc-preview{width:100%;max-width:380px;margin-top:6px;padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.08);text-align:right;font-size:.86rem;line-height:1.45}',
+        '.cc-preview small{display:block;text-align:left;color:#94a3b8;font-size:.72rem;margin-bottom:6px}',
+        '.cc-preview div.l{word-break:break-word}',
         '.cc-bottom{padding:14px 16px;padding-bottom:calc(14px + env(safe-area-inset-bottom));display:flex;align-items:center;justify-content:center;min-height:104px}',
-        '.cc-live,.cc-review{display:flex;align-items:center;justify-content:space-between;width:100%;max-width:520px;gap:10px}',
-        '.cc-shutter{width:74px;height:74px;border-radius:50%;border:4px solid #fff;background:transparent;padding:0;display:flex;align-items:center;justify-content:center}',
-        '.cc-shutter::after{content:"";width:56px;height:56px;border-radius:50%;background:#fff;transition:transform .08s}',
-        '.cc-shutter:active::after{transform:scale(.9)}',
-        '.cc-shutter:disabled{opacity:.35}',
+        '.cc-live,.cc-review{display:flex;align-items:center;justify-content:center;width:100%;max-width:520px;gap:10px}',
+        '.cc-main{flex:1;max-width:420px;border:0;border-radius:14px;background:#2563eb;color:#fff;padding:16px 12px;font-size:1.05rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px}',
+        '.cc-main:active{filter:brightness(.92)}',
+        '.cc-main:disabled{opacity:.45}',
         '.cc-act{flex:1;border:0;border-radius:12px;padding:12px 8px;font-weight:600;font-size:.88rem;color:#fff;background:rgba(255,255,255,.16);display:flex;flex-direction:column;align-items:center;gap:4px}',
         '.cc-act i{font-size:1.05rem}',
         '.cc-act.primary{background:#2563eb}',
@@ -206,31 +227,27 @@
         '<div class="cc-top">',
         '  <button type="button" class="cc-icon-btn" data-cc="close" aria-label="Đóng"><i class="fa-solid fa-xmark"></i></button>',
         '  <div class="cc-title"><b data-cc="title"></b><span data-cc="sub"></span></div>',
-        '  <button type="button" class="cc-icon-btn" data-cc="switch" aria-label="Đổi camera" style="display:none"><i class="fa-solid fa-camera-rotate"></i></button>',
+        '  <span style="width:40px;flex:0 0 40px"></span>',
         '</div>',
         '<div class="cc-area">',
-        '  <div class="cc-chips">',
+        '  <div class="cc-chips" data-cc="chips">',
         '    <span class="cc-chip"><i class="cc-dot" data-cc="gpsDot"></i><span data-cc="gpsText"></span></span>',
         '    <span class="cc-chip"><i class="cc-dot" data-cc="addrDot"></i><span data-cc="addrText"></span></span>',
         '  </div>',
-        '  <div class="cc-stage" data-cc="stage">',
-        '    <video class="cc-video" data-cc="video" playsinline muted autoplay></video>',
-        '    <img class="cc-photo" data-cc="photo" alt="Ảnh vừa chụp" style="display:none">',
-        '    <canvas class="cc-overlay" data-cc="overlay"></canvas>',
-        '    <div class="cc-flash" data-cc="flash"></div>',
+        '  <div class="cc-ready" data-cc="ready">',
+        '    <div class="cc-ready-icon"><i class="fa-solid fa-camera"></i></div>',
+        '    <div class="cc-ready-title">Chụp bằng camera của điện thoại</div>',
+        '    <div class="cc-ready-hint">Ảnh nét như khi chụp bằng ứng dụng máy ảnh. Thông tin bên dưới sẽ được in lên ảnh sau khi chụp.</div>',
+        '    <div class="cc-preview"><small>Sẽ in lên ảnh:</small><div data-cc="preview"></div></div>',
         '  </div>',
-        '  <div class="cc-fallback" data-cc="fallback">',
-        '    <i class="fa-solid fa-triangle-exclamation big"></i>',
-        '    <div data-cc="fallbackMsg"></div>',
-        '    <button type="button" class="cc-act primary" data-cc="pickFallback" style="flex:none;padding:12px 18px"><i class="fa-solid fa-image"></i><span>Chụp bằng ứng dụng máy ảnh</span></button>',
+        '  <div class="cc-stage" data-cc="stage" style="display:none">',
+        '    <img class="cc-photo" data-cc="photo" alt="Ảnh vừa chụp">',
         '  </div>',
         '</div>',
         '<div class="cc-toast" data-cc="toast"></div>',
         '<div class="cc-bottom">',
         '  <div class="cc-live" data-cc="live">',
-        '    <button type="button" class="cc-icon-btn" data-cc="pick" aria-label="Dùng ứng dụng máy ảnh của thiết bị" title="Dùng ứng dụng máy ảnh của thiết bị"><i class="fa-solid fa-image"></i></button>',
-        '    <button type="button" class="cc-shutter" data-cc="shutter" aria-label="Chụp ảnh" disabled></button>',
-        '    <span style="width:40px;flex:0 0 40px"></span>',
+        '    <button type="button" class="cc-main" data-cc="shoot" disabled><i class="fa-solid fa-camera"></i><span>Chụp ảnh</span></button>',
         '  </div>',
         '  <div class="cc-review" data-cc="review" style="display:none">',
         '    <button type="button" class="cc-act" data-cc="retake"><i class="fa-solid fa-rotate-left"></i><span>Chụp lại</span></button>',
@@ -260,29 +277,22 @@
         function q(name) { return el.querySelector('[data-cc="' + name + '"]'); }
         ui = {
             root: el, area: el.querySelector('.cc-area'),
-            stage: q('stage'), video: q('video'), photo: q('photo'), overlay: q('overlay'), flash: q('flash'),
-            fallback: q('fallback'), fallbackMsg: q('fallbackMsg'),
+            stage: q('stage'), photo: q('photo'), ready: q('ready'), preview: q('preview'), chips: q('chips'),
             title: q('title'), sub: q('sub'),
             gpsDot: q('gpsDot'), gpsText: q('gpsText'), addrDot: q('addrDot'), addrText: q('addrText'),
-            live: q('live'), review: q('review'),
-            shutter: q('shutter'), switchBtn: q('switch'), file: q('file'),
+            live: q('live'), review: q('review'), shoot: q('shoot'), file: q('file'),
             btnRetake: q('retake'), btnSave: q('save'), btnShare: q('share'), btnDownload: q('download'),
             toastEl: q('toast'), toastTimer: null
         };
-        ui.video.muted = true;
 
         q('close').addEventListener('click', closeCamera);
-        ui.shutter.addEventListener('click', capture);
-        ui.switchBtn.addEventListener('click', switchCamera);
-        q('pick').addEventListener('click', function () { ui.file.click(); });
-        q('pickFallback').addEventListener('click', function () { ui.file.click(); });
+        // Bấm nút là mở camera ngay trong cùng thao tác chạm (trình duyệt chỉ cho mở camera khi có thao tác của người dùng)
+        ui.shoot.addEventListener('click', function () { if (!ui.shoot.disabled) ui.file.click(); });
         ui.file.addEventListener('change', onFilePicked);
         ui.btnRetake.addEventListener('click', retake);
         ui.btnSave.addEventListener('click', save);
         ui.btnShare.addEventListener('click', share);
         ui.btnDownload.addEventListener('click', download);
-        ui.video.addEventListener('loadedmetadata', onVideoSize);
-        ui.video.addEventListener('resize', onVideoSize);
         window.addEventListener('resize', layoutStage);
         window.addEventListener('orientationchange', function () { setTimeout(layoutStage, 250); });
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && state) closeCamera(); });
@@ -297,22 +307,20 @@
 
     function btnLabel(btn, text) { btn.querySelector('span').textContent = text; }
 
+    // mode: 'ready' (chờ chụp, hiện nội dung sẽ in) | 'review' (xem lại ảnh đã chụp)
     function setMode(mode) {
         state.mode = mode;
-        var live = mode === 'live';
-        var showFallback = live && state.noCamera;
-        ui.live.style.display = live ? 'flex' : 'none';
-        ui.review.style.display = live ? 'none' : 'flex';
-        ui.video.style.display = live ? 'block' : 'none';
-        ui.overlay.style.display = live ? 'block' : 'none';
-        ui.photo.style.display = live ? 'none' : 'block';
-        ui.fallback.style.display = showFallback ? 'flex' : 'none';
-        ui.stage.style.display = showFallback ? 'none' : 'block';
+        var ready = mode === 'ready';
+        ui.live.style.display = ready ? 'flex' : 'none';
+        ui.review.style.display = ready ? 'none' : 'flex';
+        ui.ready.style.display = ready ? 'flex' : 'none';
+        ui.chips.style.display = ready ? 'flex' : 'none';
+        ui.stage.style.display = ready ? 'none' : 'block';
     }
 
-    // Khung hình luôn đúng tỉ lệ của ảnh để xem trước = ảnh chụp thật
+    // Khung xem lại luôn đúng tỉ lệ của ảnh
     function layoutStage() {
-        if (!state) return;
+        if (!state || state.mode !== 'review') return;
         var aw = ui.area.clientWidth, ah = ui.area.clientHeight;
         if (!aw || !ah) return;
         var ratio = state.ratio || 3 / 4;
@@ -320,19 +328,52 @@
         if (h > ah) { h = ah; w = ah * ratio; }
         ui.stage.style.width = Math.floor(w) + 'px';
         ui.stage.style.height = Math.floor(h) + 'px';
-        redrawPreview();
     }
 
-    function redrawPreview() {
-        if (!state || state.mode !== 'live') return;
-        var w = ui.stage.clientWidth, h = ui.stage.clientHeight;
-        if (!w || !h) return;
-        var dpr = window.devicePixelRatio || 1;
-        var cw = Math.round(w * dpr), ch = Math.round(h * dpr);
-        if (ui.overlay.width !== cw || ui.overlay.height !== ch) { ui.overlay.width = cw; ui.overlay.height = ch; }
-        var ctx = ui.overlay.getContext('2d');
-        ctx.clearRect(0, 0, cw, ch);
-        drawOverlay(ctx, cw, ch, buildLines(state.ticket, new Date(), state.pos, currentAddress(state)));
+    // Danh sách "Sẽ in lên ảnh" trên màn hình chờ chụp, cập nhật theo GPS/địa chỉ hiện có
+    function updatePreview() {
+        if (!state || state.mode !== 'ready') return;
+        var lines = buildLines(state.ticket, new Date(), state.pos, currentAddress(state), cfg, staffName);
+        ui.preview.textContent = '';
+        if (!lines.length) {
+            var none = document.createElement('div');
+            none.className = 'l';
+            none.style.color = '#94a3b8';
+            none.textContent = 'Quản trị viên đang tắt mọi mục: ảnh sẽ không có chữ.';
+            ui.preview.appendChild(none);
+            return;
+        }
+        lines.forEach(function (l) {
+            var d = document.createElement('div');
+            d.className = 'l';
+            d.textContent = l.text;
+            ui.preview.appendChild(d);
+        });
+    }
+
+    // ===================== CẤU HÌNH TỪ SERVER =====================
+    function baseUrl() { return (typeof CTX !== 'undefined' ? CTX : ''); }
+
+    function loadConfig() {
+        fetch(baseUrl() + '/api/settings/camera', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { if (!r.ok) throw new Error('cfg ' + r.status); return r.json(); })
+            .then(function (data) {
+                Object.keys(DEFAULT_CFG).forEach(function (k) {
+                    if (typeof data[k] === 'boolean') cfg[k] = data[k];
+                });
+                if (cfg.showStaff && !staffLoaded) loadStaffName();
+                updatePreview();
+            })
+            .catch(function () { /* giữ cấu hình mặc định */ });
+    }
+
+    // Tên nhân viên đang đăng nhập (để in "NV: ..." khi ADMIN bật mục này)
+    function loadStaffName() {
+        staffLoaded = true;
+        fetch(baseUrl() + '/api/auth/me', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { if (!r.ok) throw new Error('me ' + r.status); return r.json(); })
+            .then(function (u) { staffName = (u && u.fullName) || ''; updatePreview(); })
+            .catch(function () { staffLoaded = false; });
     }
 
     // ===================== TRẠNG THÁI GPS / ĐỊA CHỈ =====================
@@ -367,15 +408,6 @@
         setChip(ui.addrDot, ui.addrText, a.level, a.text);
     }
 
-    // Chỉ cho chụp khi đã có camera và GPS đã có kết quả (có tọa độ hoặc đã báo lỗi rõ ràng)
-    function updateShutter() {
-        var s = state;
-        if (!s) return;
-        var ready = !!(s.stream && s.videoRatio) && s.gpsStatus !== 'waiting' && s.mode === 'live' && !s.busy;
-        ui.shutter.disabled = !ready;
-        ui.shutter.title = ready ? 'Chụp ảnh' : (s.gpsStatus === 'waiting' ? 'Đang chờ GPS…' : 'Đang bật camera…');
-    }
-
     function startGps() {
         var s = state;
         if (!window.isSecureContext) { s.gpsStatus = 'insecure'; return; }
@@ -385,12 +417,12 @@
             s.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy || 0 };
             s.gpsStatus = 'ok';
             maybeGeocode();
-            updateChips(); updateShutter(); redrawPreview();
+            updateChips(); updateShoot(); updatePreview();
         }, function (err) {
             if (state !== s) return;
             if (!s.pos) s.gpsStatus = (err && err.code === 1) ? 'denied' : 'error';
             else if (err && err.code === 1) { s.gpsStatus = 'denied'; s.pos = null; }
-            updateChips(); updateShutter(); redrawPreview();
+            updateChips(); updateShoot(); updatePreview();
         }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
     }
 
@@ -426,101 +458,37 @@
         }).then(function () {
             if (state !== s) return;
             s.geoBusy = false;
-            updateChips(); redrawPreview();
+            updateChips(); updatePreview();
         });
     }
 
-    // ===================== CAMERA =====================
-    function stopTracks(stream) { stream.getTracks().forEach(function (t) { t.stop(); }); }
-    function stopStream(s) { if (s.stream) { stopTracks(s.stream); s.stream = null; } }
-
-    function describeCameraError(err) {
-        var n = err && err.name;
-        if (n === 'NotAllowedError' || n === 'SecurityError') return 'Bạn chưa cho phép dùng camera. Hãy bật quyền camera cho trang này rồi thử lại.';
-        if (n === 'NotFoundError' || n === 'OverconstrainedError') return 'Không tìm thấy camera trên thiết bị này.';
-        if (n === 'NotReadableError') return 'Camera đang được ứng dụng khác sử dụng. Hãy đóng ứng dụng đó rồi thử lại.';
-        return 'Không bật được camera trực tiếp.';
-    }
-
-    function cameraUnavailable(s, msg) {
-        if (state !== s) return;
-        s.noCamera = true;
-        ui.fallbackMsg.textContent = msg + ' Bạn vẫn có thể chụp bằng ứng dụng máy ảnh của thiết bị, giờ và vị trí sẽ được in lên ảnh.';
-        setMode(s.mode);
-        updateShutter();
-    }
-
-    function startCamera() {
-        var s = state;
-        stopStream(s);
-        s.videoRatio = 0;
-        if (!window.isSecureContext) {
-            return cameraUnavailable(s, 'Camera chỉ bật được khi mở trang bằng HTTPS (hoặc localhost).');
-        }
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            return cameraUnavailable(s, 'Trình duyệt này không hỗ trợ camera trực tiếp.');
-        }
-        navigator.mediaDevices.getUserMedia({
-            audio: false,
-            video: { facingMode: { ideal: s.facing }, width: { ideal: 1920 }, height: { ideal: 1080 } }
-        }).then(function (stream) {
-            if (state !== s) { stopTracks(stream); return; }
-            s.noCamera = false;
-            s.stream = stream;
-            ui.video.srcObject = stream;
-            setMode(s.mode);
-            var p = ui.video.play();
-            if (p && p.catch) p.catch(function () {});
-            if (navigator.mediaDevices.enumerateDevices) {
-                navigator.mediaDevices.enumerateDevices().then(function (list) {
-                    if (state !== s) return;
-                    var n = list.filter(function (d) { return d.kind === 'videoinput'; }).length;
-                    ui.switchBtn.style.display = n > 1 ? 'flex' : 'none';
-                }).catch(function () {});
-            }
-        }).catch(function (err) {
-            cameraUnavailable(s, describeCameraError(err));
-        });
-    }
-
-    function onVideoSize() {
+    // ===================== NÚT CHỤP =====================
+    // Chỉ cho chụp khi GPS đã có kết quả (có tọa độ hoặc đã báo lỗi rõ ràng) để ảnh có đủ thông tin
+    function updateShoot() {
         var s = state;
         if (!s) return;
-        var vw = ui.video.videoWidth, vh = ui.video.videoHeight;
-        if (!vw || !vh) return;
-        s.videoRatio = vw / vh;
-        if (s.mode === 'live') s.ratio = s.videoRatio;
-        layoutStage();
-        updateShutter();
+        var waiting = s.gpsStatus === 'waiting';
+        ui.shoot.disabled = !(s.mode === 'ready' && !waiting && !s.busy);
+        btnLabel(ui.shoot, waiting ? 'Đang chờ GPS…' : (s.busy ? 'Đang xử lý ảnh…' : 'Chụp ảnh'));
     }
 
-    function switchCamera() {
-        var s = state;
-        if (!s || s.mode !== 'live' || s.busy) return;
-        s.facing = s.facing === 'environment' ? 'user' : 'environment';
-        startCamera();
-    }
-
-    // ===================== CHỤP =====================
+    // ===================== XỬ LÝ ẢNH =====================
     function snapshot(s, when) {
         var pos = s.pos ? { lat: s.pos.lat, lng: s.pos.lng, acc: s.pos.acc } : null;
         var address = currentAddress(s);
-        return { when: when, pos: pos, address: address, lines: buildLines(s.ticket, when, pos, address) };
+        return { when: when, pos: pos, address: address, lines: buildLines(s.ticket, when, pos, address, cfg, staffName) };
     }
 
-    function capture() {
-        var s = state;
-        if (!s || s.busy || s.mode !== 'live' || !s.stream) return;
-        var vw = ui.video.videoWidth, vh = ui.video.videoHeight;
-        if (!vw || !vh) return;
-        ui.flash.classList.remove('go');
-        void ui.flash.offsetWidth;
-        ui.flash.classList.add('go');
-        produce(s, ui.video, vw, vh);
+    // Xuất JPEG; nếu quá nặng thì nén thêm cho vừa giới hạn của server
+    function exportJpeg(canvas, quality, cb) {
+        canvas.toBlob(function (blob) {
+            if (blob && blob.size > MAX_BYTES && quality > 0.6) { exportJpeg(canvas, quality - 0.1, cb); return; }
+            cb(blob);
+        }, 'image/jpeg', quality);
     }
 
-    // Vẽ khung hình (hoặc ảnh chọn từ máy) lên canvas, in chữ, rồi xuất JPEG
-    function produce(s, source, sw, sh) {
+    // Vẽ ảnh gốc lên canvas, in chữ, rồi xuất JPEG
+    function produce(s, source, sw, sh, taken) {
         var scale = Math.min(1, MAX_EDGE / Math.max(sw, sh));
         var W = Math.round(sw * scale), H = Math.round(sh * scale);
         var canvas = document.createElement('canvas');
@@ -529,12 +497,14 @@
         var ctx = canvas.getContext('2d');
         ctx.drawImage(source, 0, 0, W, H);
 
-        var snap = snapshot(s, new Date());
+        var snap = snapshot(s, taken);
         drawOverlay(ctx, W, H, snap.lines);
-        canvas.toBlob(function (blob) {
+        exportJpeg(canvas, JPEG_QUALITY, function (blob) {
+            s.busy = false;
+            updateShoot();
             if (!blob) { toast('Không tạo được ảnh, hãy thử lại.'); return; }
             showReview(s, blob, snap, W, H);
-        }, 'image/jpeg', JPEG_QUALITY);
+        });
     }
 
     function makeFile(blob, name) {
@@ -549,10 +519,11 @@
 
     function showReview(s, blob, snap, W, H) {
         if (state !== s) return;
+        if (s.captured) URL.revokeObjectURL(s.captured.url);
         var name = safeName(accountOf(s.ticket)) + '_' + formatStamp(snap.when) + '.jpg';
         var c = {
             blob: blob, file: makeFile(blob, name), name: name, url: URL.createObjectURL(blob),
-            pos: snap.pos, address: snap.address, saved: false
+            pos: snap.pos, address: snap.address, saved: false, exported: false
         };
         s.captured = c;
         s.ratio = W / H;
@@ -566,36 +537,55 @@
         layoutStage();
     }
 
+    // Ảnh vừa chụp từ ứng dụng máy ảnh quay về trang
     function onFilePicked() {
         var s = state;
         var f = ui.file.files && ui.file.files[0];
         ui.file.value = '';
-        if (!s || !f) return;
+        if (!s || !f || s.busy) return;
+
+        // Giờ in lên ảnh = giờ file được tạo; ảnh quá cũ (chọn nhầm từ thư viện) thì không nhận
+        var taken = new Date();
+        if (f.lastModified) {
+            var made = new Date(f.lastModified);
+            var age = Date.now() - made.getTime();
+            if (age > MAX_PHOTO_AGE_MS) {
+                toast('Ảnh này không phải ảnh vừa chụp (tạo lúc ' + formatTime(made) + '). Hãy chụp trực tiếp bằng camera.', 5500);
+                return;
+            }
+            if (age >= 0) taken = made;
+        }
+
+        s.busy = true;
+        updateShoot();
+        toast('Đang xử lý ảnh…', 1500);
         var url = URL.createObjectURL(f);
         var img = new Image();
         img.onload = function () {
             URL.revokeObjectURL(url);
             if (state !== s) return;
-            produce(s, img, img.naturalWidth, img.naturalHeight);
+            produce(s, img, img.naturalWidth, img.naturalHeight, taken);
         };
         img.onerror = function () {
             URL.revokeObjectURL(url);
-            toast('Không đọc được ảnh vừa chọn.');
+            s.busy = false;
+            updateShoot();
+            toast('Không đọc được ảnh vừa chụp.');
         };
         img.src = url;
     }
 
+    // Chụp lại / chụp tiếp: mở lại camera ngay (đang trong thao tác chạm của người dùng)
     function retake() {
         var s = state;
         if (!s || s.busy) return;
         if (s.captured) URL.revokeObjectURL(s.captured.url);
         s.captured = null;
         ui.photo.removeAttribute('src');
-        s.ratio = s.videoRatio || 3 / 4;
-        setMode('live');
-        layoutStage();
-        updateShutter();
-        if (s.noCamera) ui.file.click();
+        setMode('ready');
+        updateShoot();
+        updatePreview();
+        ui.file.click();
     }
 
     // ===================== LƯU / CHIA SẺ / TẢI VỀ =====================
@@ -678,54 +668,51 @@
     function tick() {
         if (!state) return;
         maybeGeocode();
-        redrawPreview();
         updateChips();
+        updatePreview();
+        updateShoot();
     }
 
     // ticketId rỗng (null/undefined) = chụp nhanh, không gắn với ca nào
     function open(ticketId) {
         if (state) return;
         var free = (ticketId === null || ticketId === undefined);
-        var ticket = free ? { customerName: 'Chụp ảnh nhanh' }
+        var ticket = free ? { _free: true }
             : ((typeof ticketCache !== 'undefined' && ticketCache) ? ticketCache[ticketId] : null);
         if (!ticket) { alert('Không tìm thấy thông tin ca, hãy tải lại danh sách.'); return; }
         ensureUi();
 
         var s = state = {
-            ticketId: ticketId, ticket: ticket, free: free, facing: 'environment', mode: 'live',
-            stream: null, videoRatio: 0, ratio: 3 / 4, noCamera: false,
+            ticketId: ticketId, ticket: ticket, free: free, mode: 'ready', ratio: 3 / 4,
             pos: null, gpsStatus: 'waiting', watchId: null,
             geoAddress: '', geoFrom: null, geoBusy: false, geoLastTry: 0, geoFails: 0,
             captured: null, busy: false, savedCount: 0, timer: null
         };
 
-        ui.title.textContent = ticket.customerName || 'Khách hàng';
+        ui.title.textContent = free ? 'Chụp ảnh nhanh' : (ticket.customerName || 'Khách hàng');
         updateSub();
-        ui.switchBtn.style.display = 'none';
         ui.root.classList.add('cc-open');
         document.body.style.overflow = 'hidden';
-        setMode('live');
-        layoutStage();
+        setMode('ready');
 
+        loadConfig();
         startGps();
-        startCamera();
         updateChips();
-        updateShutter();
+        updatePreview();
+        updateShoot();
         s.timer = setInterval(tick, 1000);
     }
 
     function closeCamera() {
         var s = state;
         if (!s) return;
-        if (s.busy) { toast('Đang lưu ảnh, vui lòng chờ…'); return; }
+        if (s.busy) { toast('Đang xử lý, vui lòng chờ…'); return; }
         // Chụp gắn ca: cảnh báo nếu chưa Lưu. Chụp nhanh: cảnh báo nếu chưa Tải về / Chia sẻ
         var unsaved = s.captured && (s.free ? !s.captured.exported : !s.captured.saved);
         if (unsaved && !confirm(s.free ? 'Ảnh vừa chụp chưa được tải về hoặc chia sẻ. Bỏ ảnh này?' : 'Ảnh vừa chụp chưa được lưu. Bỏ ảnh này?')) return;
 
         clearInterval(s.timer);
         if (s.watchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(s.watchId);
-        stopStream(s);
-        ui.video.srcObject = null;
         if (s.captured) URL.revokeObjectURL(s.captured.url);
         ui.photo.removeAttribute('src');
         ui.root.classList.remove('cc-open');

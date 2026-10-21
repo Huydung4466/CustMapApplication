@@ -19,7 +19,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     await loadProfile();
     if (isAdmin) {
         document.getElementById('adminSection').classList.remove('d-none');
+        document.getElementById('cameraSection').classList.remove('d-none');
         loadUsers();
+        loadCameraSettings();
     }
 });
 
@@ -220,5 +222,67 @@ async function submitReset() {
         err.textContent = e.message;
     } finally {
         btn.disabled = false;
+    }
+}
+
+// ===================== CẤU HÌNH CAMERA (ADMIN) =====================
+// Thứ tự khớp với thứ tự in trên ảnh (camera-capture.js > buildLines)
+const CAMERA_OPTIONS = [
+    { key: 'showTime',         label: 'Ngày giờ chụp',          sample: '19/10/26 09:43' },
+    { key: 'showCoordinates',  label: 'Tọa độ GPS',             sample: "N 12\u00B0 40' 0\", E 108\u00B0 2' 18\"" },
+    { key: 'showAddress',      label: 'Địa chỉ',                sample: '12 Lê Duẩn, Tân Lợi, Buôn Ma Thuột, Đắk Lắk' },
+    { key: 'showCustomerName', label: 'Tên khách hàng',         sample: 'Nguyễn Văn A' },
+    { key: 'showAccount',      label: 'Mã thuê bao (account)',  sample: 'd500_gftth_a1' },
+    { key: 'showCabinetCode',  label: 'Mã tủ',                  sample: 'Tủ: DLK0412-A' },
+    { key: 'showStaff',        label: 'Tên nhân viên chụp',     sample: 'NV: ' + (me ? me.fullName : 'Họ tên') }
+];
+let cameraCfg = null;
+
+async function loadCameraSettings() {
+    try {
+        cameraCfg = await apiFetch(CTX + '/api/settings/camera');
+        renderCameraSwitches();
+    } catch (e) {
+        document.getElementById('cameraSwitches').innerHTML =
+            '<div class="alert alert-danger p-2 small mb-0">' + escapeHtml(e.message) + '</div>';
+    }
+}
+
+function renderCameraSwitches() {
+    document.getElementById('cameraSwitches').innerHTML = CAMERA_OPTIONS.map(function (o) {
+        return '<div class="form-check form-switch d-flex align-items-center justify-content-between ps-0 py-2 border-bottom">'
+            + '<label class="form-check-label flex-grow-1" for="sw-' + o.key + '">' + escapeHtml(o.label) + '</label>'
+            + '<input class="form-check-input ms-2 mt-0" type="checkbox" role="switch" id="sw-' + o.key + '"'
+            + (cameraCfg[o.key] ? ' checked' : '') + ' onchange="toggleCamera(\'' + o.key + '\', this)" style="width:2.6em;height:1.4em;">'
+            + '</div>';
+    }).join('');
+    renderCameraPreview();
+}
+
+function renderCameraPreview() {
+    const lines = CAMERA_OPTIONS.filter(function (o) { return cameraCfg[o.key]; });
+    const box = document.getElementById('cameraPreview');
+    box.innerHTML = lines.length
+        ? lines.map(function (o) { return '<div>' + escapeHtml(o.sample) + '</div>'; }).join('')
+        : '<div class="text-white-50">Đã tắt hết: ảnh sẽ không có chữ.</div>';
+}
+
+async function toggleCamera(key, checkbox) {
+    const body = {};
+    body[key] = checkbox.checked;
+    checkbox.disabled = true;
+    try {
+        cameraCfg = await apiFetch(CTX + '/api/settings/camera', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        renderCameraPreview();
+        showToast('Đã lưu cấu hình camera');
+    } catch (e) {
+        checkbox.checked = !checkbox.checked;   // lưu lỗi thì trả công tắc về như cũ
+        showToast(e.message, true);
+    } finally {
+        checkbox.disabled = false;
     }
 }

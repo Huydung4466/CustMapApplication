@@ -20,4 +20,7 @@ public interface TicketPhotoRepository extends JpaRepository<TicketPhotoEntity, 
     // Đếm số ảnh của nhiều ca trong một câu truy vấn: mỗi dòng là [ticketId, số ảnh]
     @Query("SELECT p.ticketId, COUNT(p) FROM TicketPhotoEntity p WHERE p.ticketId IN :ticketIds GROUP BY p.ticketId")
     List<Object[]> countGroupedByTicket(@Param("ticketIds") Collection<Long> ticketIds);
+
+    // Ảnh của nhiều ca (cũ trước, mới sau) - dùng khi xuất báo cáo để lấy ảnh chụp gần nhất của từng ca
+    List<TicketPhotoEntity> findByTicketIdInOrderByIdAsc(Collection<Long> ticketIds);
 }

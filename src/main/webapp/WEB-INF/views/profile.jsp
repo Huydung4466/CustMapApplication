@@ -76,6 +76,15 @@
             Quản trị viên chỉ đặt lại được mật khẩu của tài khoản nhân viên (ROLE_STAFF). Nhân viên sẽ phải đổi mật khẩu khi đăng nhập lần tới.
         </div>
     </div>
+
+    <!-- ===== CẤU HÌNH CAMERA (chỉ ROLE_ADMIN) ===== -->
+    <div class="card border-0 shadow-sm rounded-4 bg-white p-3 mb-3 d-none" id="cameraSection">
+        <h6 class="fw-bold text-primary mb-1"><i class="fa-solid fa-camera me-1"></i>Cấu hình camera</h6>
+        <div class="text-muted mb-2" style="font-size:0.78rem;">Bật/tắt các thông tin được in lên ảnh khi nhân viên chụp. Áp dụng cho mọi tài khoản ở lần chụp kế tiếp.</div>
+        <div id="cameraSwitches"></div>
+        <div class="text-muted small mt-3 mb-1">Xem trước (ví dụ):</div>
+        <div class="camera-preview" id="cameraPreview"></div>
+    </div>
 </div>
 
 <!-- MODAL TẠO TÀI KHOẢN -->
@@ -146,7 +155,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>const CTX = '${pageContext.request.contextPath}';</script>
 <script src="${pageContext.request.contextPath}/js/app-common.js?v=1"></script>
-<script src="${pageContext.request.contextPath}/js/profile.js?v=1"></script>
+<script src="${pageContext.request.contextPath}/js/profile.js?v=2"></script>
 
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp">
     <jsp:param name="active" value="profile"/>

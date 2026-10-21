@@ -5,6 +5,7 @@ import com.huydung.custmapapplication.auth.service.AuthService;
 import com.huydung.custmapapplication.common.dto.AbstractDTO;
 import com.huydung.custmapapplication.common.exception.ImportConfirmationRequiredException;
 import com.huydung.custmapapplication.common.exception.ResourceNotFoundException;
+import com.huydung.custmapapplication.common.util.ExportMarker;
 import com.huydung.custmapapplication.common.util.GeoUtils;
 import com.huydung.custmapapplication.kmz.entity.KmzLocationEntity;
 import com.huydung.custmapapplication.kmz.repository.KmzLocationRepository;
@@ -102,6 +103,12 @@ public class TicketServiceImpl implements TicketService {
         try (InputStream is = file.getInputStream();
              Workbook workbook = new XSSFWorkbook(is)) {
 
+            // File báo cáo do hệ thống xuất có bố cục khác file dữ liệu gốc, import vào sẽ ghi sai dữ liệu
+            if (ExportMarker.isExported(workbook)) {
+                throw new IllegalArgumentException(
+                        "Đây là file báo cáo do hệ thống xuất ra, không dùng để import. Hãy chọn file dữ liệu gốc.");
+            }
+
             Sheet sheet = resolveTargetSheet(workbook);
             DataFormatter formatter = new DataFormatter();
 
@@ -138,6 +145,8 @@ public class TicketServiceImpl implements TicketService {
                 toSaveList.add(entity);
                 existingMap.put(ticketCode, entity);
             }
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Lỗi khi đọc file Excel (.xlsx): " + e.getMessage(), e);
         }
