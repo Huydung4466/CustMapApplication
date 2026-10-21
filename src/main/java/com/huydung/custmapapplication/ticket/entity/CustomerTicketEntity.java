@@ -6,8 +6,13 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import com.huydung.custmapapplication.ticket.type.TicketType;
+import com.huydung.custmapapplication.ticket.type.TicketTypeConverter;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Entity
 @Table(name = "customer_tickets", indexes = {
@@ -15,7 +20,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_ticket_assigned_staff", columnList = "assigned_staff"),
         @Index(name = "idx_ticket_subscriber", columnList = "subscriber_account"),
         @Index(name = "idx_ticket_cabinet", columnList = "cabinet_code"),
-        @Index(name = "idx_ticket_archived", columnList = "archived_at")
+        @Index(name = "idx_ticket_archived", columnList = "archived_at"),
+        @Index(name = "idx_ticket_type", columnList = "ticket_type")
 })
 @Getter
 @Setter
@@ -25,6 +31,16 @@ public class CustomerTicketEntity extends BaseEntity {
 
     @Column(name = "ticket_code", unique = true, nullable = false, length = 100)
     private String ticketCode;
+
+    // Loại ca (xem TicketType). Lưu dạng chuỗi qua converter, KHÔNG dùng @Enumerated để thêm loại mới không dính check constraint.
+    @Convert(converter = TicketTypeConverter.class)
+    @Column(name = "ticket_type", length = 30)
+    private TicketType ticketType = TicketType.PHAN_ANH;
+
+    // Thuộc tính riêng của từng loại (công suất thu, số HomeWifi thiếu...), key khai báo trong TicketType
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "attributes", columnDefinition = "jsonb")
+    private Map<String, String> attributes;
 
     @Column(name = "assigned_staff", columnDefinition = "TEXT")
     private String assignedStaff;

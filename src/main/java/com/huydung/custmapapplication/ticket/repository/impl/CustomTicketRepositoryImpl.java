@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.huydung.custmapapplication.ticket.type.TicketType;
+
 @Repository
 public class CustomTicketRepositoryImpl implements CustomTicketRepository {
 
@@ -53,6 +55,16 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
                       OR LOWER(t.techStaffName) LIKE LOWER(:kw))
                     """);
             q.params.put("kw", "%" + f.keyword().trim() + "%");
+        }
+
+        // Lọc theo loại ca (dữ liệu cũ chưa có loại coi như PHAN_ANH)
+        if (f.types() != null && !f.types().isEmpty()) {
+            if (f.types().contains(TicketType.PHAN_ANH)) {
+                q.where.append("AND (t.ticketType IN :types OR t.ticketType IS NULL) ");
+            } else {
+                q.where.append("AND t.ticketType IN :types ");
+            }
+            q.params.put("types", f.types());
         }
 
         // Lọc theo Khu vực
@@ -165,6 +177,27 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
     }
 
     @Override
+    public Map<TicketType, Long> countOpenByType(String assignedStaff) {
+        StringBuilder jpql = new StringBuilder(
+                "SELECT t.ticketType, COUNT(t) FROM CustomerTicketEntity t WHERE t.archivedAt IS NULL "
+                        + "AND (t.appStatus IS NULL OR t.appStatus NOT IN ('HEN_GIO', 'HEN_KHAC')) ");
+        Map<String, Object> params = new HashMap<>();
+        appendStaffFilter(jpql, params, assignedStaff);
+        jpql.append("GROUP BY t.ticketType");
+
+        TypedQuery<Object[]> query = entityManager.createQuery(jpql.toString(), Object[].class);
+        params.forEach(query::setParameter);
+
+        Map<TicketType, Long> result = new EnumMap<>(TicketType.class);
+        for (Object[] row : query.getResultList()) {
+            // Dòng cũ chưa có loại tính vào PHAN_ANH
+            TicketType type = row[0] == null ? TicketType.PHAN_ANH : (TicketType) row[0];
+            result.merge(type, ((Number) row[1]).longValue(), Long::sum);
+        }
+        return result;
+    }
+
+    @Override
     public Map<String, Integer> countDuplicateSubscribers(Collection<String> subscriberAccounts) {
         if (subscriberAccounts == null || subscriberAccounts.isEmpty()) {
             return Collections.emptyMap();
@@ -185,11 +218,13 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
                 SELECT t.subscriberAccount, COUNT(t.id)
                 FROM CustomerTicketEntity t
                 WHERE t.subscriberAccount IN :accounts
+                  AND (t.ticketType = :phanAnh OR t.ticketType IS NULL)
                 GROUP BY t.subscriberAccount
                 """;
 
         List<Object[]> rows = entityManager.createQuery(jpql, Object[].class)
                 .setParameter("accounts", validAccounts)
+                .setParameter("phanAnh", TicketType.PHAN_ANH)
                 .getResultList();
 
         Map<String, Integer> countMap = new HashMap<>();

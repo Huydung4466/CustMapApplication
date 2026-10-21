@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -14,6 +15,13 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class TicketResponseDTO extends BaseDTO {
     private String ticketCode;
+
+    // Loại ca và thuộc tính riêng đã định dạng sẵn để hiển thị (xem TicketType)
+    private String ticketType;       // PHAN_ANH | PORT_KEM | ...
+    private String ticketTypeLabel;
+    private String ticketGroup;      // PHAN_ANH | HA_TANG
+    private String ticketTypeColor;  // màu badge Bootstrap
+    private List<TicketAttributeView> attributeItems;
     private String assignedStaff;
     private String area;
     private String communeCluster;

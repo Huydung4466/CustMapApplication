@@ -12,13 +12,20 @@ import com.huydung.custmapapplication.kmz.repository.KmzLocationRepository;
 import com.huydung.custmapapplication.photo.repository.TicketPhotoRepository;
 import com.huydung.custmapapplication.ticket.converter.TicketConverter;
 import com.huydung.custmapapplication.ticket.dto.TicketImportResultDTO;
+import com.huydung.custmapapplication.ticket.dto.TicketTypeInfoDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketSearchCriteria;
 import com.huydung.custmapapplication.ticket.dto.UpdateTicketActionRequest;
 import com.huydung.custmapapplication.ticket.entity.CustomerTicketEntity;
+import com.huydung.custmapapplication.ticket.importer.ExcelHeader;
+import com.huydung.custmapapplication.ticket.importer.RowKey;
+import com.huydung.custmapapplication.ticket.importer.TicketFileFormat;
+import com.huydung.custmapapplication.ticket.importer.TicketRowReader;
 import com.huydung.custmapapplication.ticket.repository.TicketFilter;
 import com.huydung.custmapapplication.ticket.repository.TicketRepository;
 import com.huydung.custmapapplication.ticket.service.TicketService;
+import com.huydung.custmapapplication.ticket.type.TicketGroup;
+import com.huydung.custmapapplication.ticket.type.TicketType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -67,17 +74,20 @@ public class TicketServiceImpl implements TicketService {
     private final AuthService authService;
     private final TicketConverter ticketConverter;
     private final TicketPhotoRepository ticketPhotoRepository;
+    private final List<TicketFileFormat> fileFormats;
 
     public TicketServiceImpl(TicketRepository ticketRepository,
                              KmzLocationRepository kmzLocationRepository,
                              AuthService authService,
                              TicketConverter ticketConverter,
-                             TicketPhotoRepository ticketPhotoRepository) {
+                             TicketPhotoRepository ticketPhotoRepository,
+                             List<TicketFileFormat> fileFormats) {
         this.ticketRepository = ticketRepository;
         this.kmzLocationRepository = kmzLocationRepository;
         this.authService = authService;
         this.ticketConverter = ticketConverter;
         this.ticketPhotoRepository = ticketPhotoRepository;
+        this.fileFormats = fileFormats;
     }
 
     // ===================== IMPORT =====================
@@ -91,14 +101,20 @@ public class TicketServiceImpl implements TicketService {
         }
 
         String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "data.xlsx";
-        int totalRead = 0, inserted = 0, updated = 0, restored = 0;
+        int totalRead = 0, inserted = 0, updated = 0, restored = 0, duplicateInFile = 0;
 
         Map<String, CustomerTicketEntity> existingMap = ticketRepository.findAll().stream()
                 .collect(Collectors.toMap(CustomerTicketEntity::getTicketCode, t -> t, (a, b) -> a));
-        long activeBefore = existingMap.values().stream().filter(t -> t.getArchivedAt() == null).count();
 
         Set<String> codesInFile = new HashSet<>();
         List<CustomerTicketEntity> toSaveList = new ArrayList<>();
+        Map<TicketType, Integer> rowsPerType = new EnumMap<>(TicketType.class);
+
+        // Phạm vi của file: chỉ các loại ca mà định dạng file này bao phủ mới bị xét "không còn trong file"
+        Set<TicketType> scope = Set.of();
+        String formatName = "";
+        List<String> warnings = List.of();
+        long activeBefore = 0;
 
         try (InputStream is = file.getInputStream();
              Workbook workbook = new XSSFWorkbook(is)) {
@@ -112,15 +128,41 @@ public class TicketServiceImpl implements TicketService {
             Sheet sheet = resolveTargetSheet(workbook);
             DataFormatter formatter = new DataFormatter();
 
+            // Nhận diện định dạng file (phản ánh / hạ tầng...) từ dòng tiêu đề
+            ExcelHeader header = ExcelHeader.from(sheet.getRow(0), formatter);
+            TicketFileFormat format = null;
+            for (TicketFileFormat f : fileFormats) {
+                if (f.supports(header)) {
+                    format = f;
+                    break;
+                }
+            }
+            if (format == null) {
+                throw new IllegalArgumentException("Không nhận diện được định dạng file. File phản ánh cần có cột "
+                        + "\"Mã phản ánh\"; file hạ tầng cần có cột \"Loại dữ liệu\" và \"Account / Thuê bao dịch vụ\".");
+            }
+            formatName = format.name();
+            scope = format.coveredTypes();
+            TicketRowReader reader = format.open(header, formatter);
+
+            // Số ca đang mở thuộc phạm vi file, đếm TRƯỚC khi thêm ca mới (dùng cho cảnh báo import nhầm file)
+            for (CustomerTicketEntity t : existingMap.values()) {
+                if (t.getArchivedAt() == null && scope.contains(typeOf(t))) activeBefore++;
+            }
+
             for (int r = 1; r <= sheet.getLastRowNum(); r++) {
                 Row row = sheet.getRow(r);
                 if (row == null) continue;
 
-                String ticketCode = ticketConverter.extractTicketCode(row, formatter);
-                if (ticketCode.isEmpty()) continue;
+                RowKey key = reader.readKey(row);
+                if (key == null) continue;
 
                 totalRead++;
-                codesInFile.add(ticketCode);
+                rowsPerType.merge(key.type(), 1, Integer::sum);
+                String ticketCode = key.code();
+                boolean firstOccurrence = codesInFile.add(ticketCode);
+                if (!firstOccurrence) duplicateInFile++;
+
                 CustomerTicketEntity entity = existingMap.get(ticketCode);
                 boolean isNew = (entity == null);
 
@@ -130,7 +172,7 @@ public class TicketServiceImpl implements TicketService {
                     entity.setAppStatus(STATUS_PROCESSING);
                     entity.setIsPinned(false);
                     inserted++;
-                } else {
+                } else if (firstOccurrence) {
                     updated++;
                     // Ca từng bị lưu trữ vì "không còn trong file" nay xuất hiện lại -> đưa về danh sách chính
                     if (entity.getArchivedAt() != null && REASON_NOT_IN_IMPORT.equals(entity.getArchiveReason())) {
@@ -140,11 +182,12 @@ public class TicketServiceImpl implements TicketService {
                     }
                 }
 
-                // Giao việc map dữ liệu các cột Excel cho TicketConverter
-                ticketConverter.mapExcelRowToEntity(row, entity, formatter);
-                toSaveList.add(entity);
+                // Giao cho bộ đọc của định dạng file map dữ liệu các cột Excel vào entity
+                reader.fill(row, key, entity);
+                if (firstOccurrence) toSaveList.add(entity);
                 existingMap.put(ticketCode, entity);
             }
+            warnings = reader.warnings();
         } catch (IllegalArgumentException e) {
             throw e;
         } catch (Exception e) {
@@ -152,13 +195,14 @@ public class TicketServiceImpl implements TicketService {
         }
 
         // Tìm các ca cần chuyển sang Lịch sử: (1) đã bấm Đã xử lý hoặc KLL, (2) không còn trong file mới
+        // (chỉ xét các ca cùng loại với file vừa import, ca loại khác giữ nguyên)
         List<CustomerTicketEntity> archiveDone = new ArrayList<>();
         List<CustomerTicketEntity> archiveMissing = new ArrayList<>();
         for (CustomerTicketEntity t : existingMap.values()) {
             if (t.getArchivedAt() != null) continue;
             if (STATUS_DONE.equals(t.getAppStatus()) || STATUS_KLL.equals(t.getAppStatus())) {
                 archiveDone.add(t);
-            } else if (!codesInFile.contains(t.getTicketCode())) {
+            } else if (scope.contains(typeOf(t)) && !codesInFile.contains(t.getTicketCode())) {
                 archiveMissing.add(t);
             }
         }
@@ -185,10 +229,49 @@ public class TicketServiceImpl implements TicketService {
         ticketRepository.saveAll(archiveMissing);
 
         int archived = archiveDone.size() + archiveMissing.size();
-        String msg = String.format(
-                "Import thành công %s: %d dòng (Mới: %d, Cập nhật: %d, Chuyển sang Lịch sử: %d, Khôi phục: %d).",
-                fileName, totalRead, inserted, updated, archived, restored);
-        return new TicketImportResultDTO(fileName, totalRead, inserted, updated, archived, restored, msg);
+        StringBuilder msg = new StringBuilder(String.format(
+                "Import thành công %s (%s): %d dòng (Mới: %d, Cập nhật: %d, Chuyển sang Lịch sử: %d, Khôi phục: %d).",
+                fileName, formatName, totalRead, inserted, updated, archived, restored));
+        if (rowsPerType.size() > 1 || (rowsPerType.size() == 1 && !rowsPerType.containsKey(TicketType.PHAN_ANH))) {
+            msg.append(" Theo loại: ");
+            msg.append(rowsPerType.entrySet().stream()
+                    .map(e -> e.getKey().getLabel() + " " + e.getValue())
+                    .collect(Collectors.joining(", ")));
+            msg.append(".");
+        }
+        if (duplicateInFile > 0) {
+            msg.append(" Có ").append(duplicateInFile).append(" dòng trùng mã trong file (chỉ giữ dòng cuối).");
+        }
+        if (!warnings.isEmpty()) {
+            msg.append(" Cảnh báo: ").append(String.join(" | ", warnings)).append(".");
+        }
+        return new TicketImportResultDTO(fileName, totalRead, inserted, updated, archived, restored, msg.toString());
+    }
+
+    // Ca cũ chưa có loại coi như PHAN_ANH
+    private static TicketType typeOf(CustomerTicketEntity t) {
+        return t.getTicketType() != null ? t.getTicketType() : TicketType.PHAN_ANH;
+    }
+
+    // Từ tham số lọc của giao diện suy ra danh sách loại cần lấy: ticketType > ticketGroup > null (mọi loại)
+    private List<TicketType> resolveTypes(TicketSearchCriteria criteria) {
+        TicketType one = TicketType.fromCode(criteria.getTicketType());
+        if (one != null) return List.of(one);
+        TicketGroup group = TicketGroup.fromCode(criteria.getTicketGroup());
+        if (group != null) return TicketType.ofGroup(group);
+        return null;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TicketTypeInfoDTO> getTicketTypeSummary(String staffFilter) {
+        Map<TicketType, Long> counts = ticketRepository.countOpenByType(resolveEffectiveStaffFilter(staffFilter));
+        List<TicketTypeInfoDTO> result = new ArrayList<>();
+        for (TicketType t : TicketType.values()) {
+            result.add(new TicketTypeInfoDTO(t.name(), t.getLabel(), t.getGroup().name(),
+                    t.getGroup().getLabel(), t.getGroup().getIcon(), t.getColor(), counts.getOrDefault(t, 0L)));
+        }
+        return result;
     }
 
     // ===================== DANH SÁCH CA (CÓ PHÂN TRANG) =====================
@@ -217,7 +300,8 @@ public class TicketServiceImpl implements TicketService {
                 criteria.getArea(),
                 criteria.getCabinetPrefix(),
                 criteria.getPriority(),
-                false
+                false,
+                resolveTypes(criteria)
         );
 
         int size = normalizeSize(criteria.getSize());
@@ -279,7 +363,8 @@ public class TicketServiceImpl implements TicketService {
                 criteria.getArea(),
                 criteria.getCabinetPrefix(),
                 criteria.getPriority(),
-                true
+                true,
+                resolveTypes(criteria)
         );
 
         int size = normalizeSize(criteria.getSize());
@@ -322,7 +407,7 @@ public class TicketServiceImpl implements TicketService {
 
         // 4. Dùng TicketConverter chuyển đổi sang DTO
         return tickets.stream().map(entity -> {
-            int dupCount = (entity.getSubscriberAccount() != null)
+            int dupCount = (entity.getSubscriberAccount() != null && typeOf(entity) == TicketType.PHAN_ANH)
                     ? dupMap.getOrDefault(entity.getSubscriberAccount().trim().toLowerCase(), 1) : 1;
             KmzLocationEntity kmz = (entity.getCabinetCode() != null)
                     ? kmzMap.get(entity.getCabinetCode().trim().toUpperCase()) : null;

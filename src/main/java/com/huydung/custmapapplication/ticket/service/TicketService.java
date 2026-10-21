@@ -3,6 +3,7 @@ package com.huydung.custmapapplication.ticket.service;
 import com.huydung.custmapapplication.common.dto.AbstractDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketImportResultDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
+import com.huydung.custmapapplication.ticket.dto.TicketTypeInfoDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketSearchCriteria;
 import com.huydung.custmapapplication.ticket.dto.UpdateTicketActionRequest;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,6 +30,9 @@ public interface TicketService {
 
     // Đưa ca từ Lịch sử về danh sách chính
     TicketResponseDTO restoreTicket(Long ticketId);
+
+    // Danh sách loại ca kèm số ca đang mở theo phạm vi nhân viên (dựng tab / bộ lọc loại trên giao diện)
+    List<TicketTypeInfoDTO> getTicketTypeSummary(String staffFilter);
 
     List<String> getAssignedStaffList();
 

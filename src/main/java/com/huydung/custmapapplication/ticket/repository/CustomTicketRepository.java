@@ -7,6 +7,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import com.huydung.custmapapplication.ticket.type.TicketType;
+
 public interface CustomTicketRepository {
 
     // Ca ĐANG MỞ (chưa lưu trữ). limit <= 0: lấy tất cả; ngược lại lấy 'limit' ca bắt đầu từ vị trí 'offset'
@@ -28,7 +30,10 @@ public interface CustomTicketRepository {
                              LocalDateTime from,
                              LocalDateTime toExclusive);
 
-    // Đếm số lượng trùng lặp của từng mã "Thuê bao phản ánh" (d500_gftth_...)
+    // Số ca đang mở (chưa hẹn) theo từng loại, trong phạm vi nhân viên (để hiện số trên tab)
+    Map<TicketType, Long> countOpenByType(String assignedStaff);
+
+    // Đếm số lượng trùng lặp của từng mã "Thuê bao phản ánh" (d500_gftth_...), chỉ tính ca PHẢN ÁNH
     Map<String, Integer> countDuplicateSubscribers(Collection<String> subscriberAccounts);
 
     // Lấy danh sách tên các nhân viên có trong cột "Giao nhân viên"

@@ -3,6 +3,7 @@ package com.huydung.custmapapplication.ticket.controller;
 import com.huydung.custmapapplication.common.dto.AbstractDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketSearchCriteria;
+import com.huydung.custmapapplication.ticket.dto.TicketTypeInfoDTO;
 import com.huydung.custmapapplication.ticket.service.TicketService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -52,6 +53,13 @@ public class TicketController {
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size) {
         return ResponseEntity.ok(ticketService.getHistoryForCurrentUser(staffFilter, keyword, fromDate, toDate, page, size));
+    }
+
+    // Các loại ca (PHAN_ANH, PORT_KEM...) kèm số ca đang mở: giao diện dựng tab và bộ lọc loại từ đây
+    @GetMapping("/types")
+    public ResponseEntity<List<TicketTypeInfoDTO>> getTicketTypes(
+            @RequestParam(value = "staffFilter", required = false) String staffFilter) {
+        return ResponseEntity.ok(ticketService.getTicketTypeSummary(staffFilter));
     }
 
     // 4. Danh sách nhân viên địa bàn có trong dữ liệu Excel (chỉ ADMIN - chặn trong SecurityConfig)

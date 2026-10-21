@@ -1,9 +1,12 @@
 package com.huydung.custmapapplication.ticket.converter;
 
 import com.huydung.custmapapplication.kmz.entity.KmzLocationEntity;
+import com.huydung.custmapapplication.ticket.dto.TicketAttributeView;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
 import com.huydung.custmapapplication.ticket.dto.UpdateTicketActionRequest;
 import com.huydung.custmapapplication.ticket.entity.CustomerTicketEntity;
+import com.huydung.custmapapplication.ticket.type.TicketAttribute;
+import com.huydung.custmapapplication.ticket.type.TicketType;
 import org.apache.poi.ss.usermodel.*;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +14,9 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class TicketConverter {
@@ -31,6 +37,7 @@ public class TicketConverter {
         // Gán số lần trùng lặp của Thuê bao phản ánh (x2, x3...)
         dto.setDuplicateCount(duplicateCount);
         dto.setIsPinned(Boolean.TRUE.equals(entity.getIsPinned()));
+        applyTypeInfo(entity, dto);
 
         // Nối tọa độ từ bảng KMZ để tạo link mở Google Maps
         if (kmzLocation != null && kmzLocation.getLatitude() != null && kmzLocation.getLongitude() != null) {
@@ -58,7 +65,30 @@ public class TicketConverter {
         if (entity == null) {
             return null;
         }
-        return modelMapper.map(entity, TicketResponseDTO.class);
+        TicketResponseDTO dto = modelMapper.map(entity, TicketResponseDTO.class);
+        applyTypeInfo(entity, dto);
+        return dto;
+    }
+
+    // Điền loại ca và danh sách thuộc tính (nhãn lấy từ khai báo trong TicketType) cho giao diện
+    private void applyTypeInfo(CustomerTicketEntity entity, TicketResponseDTO dto) {
+        TicketType type = entity.getTicketType() != null ? entity.getTicketType() : TicketType.PHAN_ANH;
+        dto.setTicketType(type.name());
+        dto.setTicketTypeLabel(type.getLabel());
+        dto.setTicketGroup(type.getGroup().name());
+        dto.setTicketTypeColor(type.getColor());
+
+        List<TicketAttributeView> items = new ArrayList<>();
+        Map<String, String> attrs = entity.getAttributes();
+        if (attrs != null) {
+            for (TicketAttribute a : type.getAttributes()) {
+                String v = attrs.get(a.key());
+                if (v != null && !v.isBlank()) {
+                    items.add(new TicketAttributeView(a.label(), v, a.unit()));
+                }
+            }
+        }
+        dto.setAttributeItems(items);
     }
 
     // 4. Đọc dòng dữ liệu từ Sheet "chi tiêt" của file Excel (.xlsx) vào Entity
@@ -95,13 +125,19 @@ public class TicketConverter {
             double num = cell.getNumericCellValue();
             return BigDecimal.valueOf(num).stripTrailingZeros().toPlainString().trim();
         }
-        return formatter.formatCellValue(cell).trim();
+        return cleanPlaceholder(formatter.formatCellValue(cell).trim());
+    }
+
+    // File nguồn hay có "#N/A" (tra cứu lỗi) hoặc chữ "NULL" ở ô không có dữ liệu: coi như ô trống
+    private String cleanPlaceholder(String value) {
+        if (value.equalsIgnoreCase("#N/A") || value.equalsIgnoreCase("NULL")) return "";
+        return value;
     }
 
     public String normalizePhone(String rawPhone) {
         if (rawPhone == null || rawPhone.isBlank()) return "";
         String cleaned = rawPhone.replaceAll("[^0-9]", "");
-        if (cleaned.isEmpty()) return "";
+        if (cleaned.isEmpty() || cleaned.matches("0+")) return "";
         if (cleaned.length() == 9 && !cleaned.startsWith("0")) {
             return "0" + cleaned;
         }

@@ -318,6 +318,22 @@
             min-width: 18px;
             text-align: center;
         }
+
+        /* ===== Tab nhóm (Phản ánh / Hạ tầng) + chip loại + lưới thuộc tính ca hạ tầng ===== */
+        .group-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+        .group-tab { flex: 1; border: 1px solid #e2e8f0; background: #fff; border-radius: 14px; padding: 9px 10px;
+            font-weight: 700; font-size: 0.88rem; color: #475569; display: flex; align-items: center;
+            justify-content: center; gap: 6px; cursor: pointer; }
+        .group-tab .tab-count { background: #f1f5f9; color: #475569; border-radius: 999px; padding: 1px 8px; font-size: 0.75rem; }
+        .group-tab.active { background: #2563eb; border-color: #2563eb; color: #fff; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25); }
+        .group-tab.active .tab-count { background: rgba(255, 255, 255, 0.25); color: #fff; }
+        .type-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .type-chip { border: 1px solid #e2e8f0; background: #fff; border-radius: 999px; padding: 3px 11px;
+            font-size: 0.78rem; font-weight: 600; color: #475569; cursor: pointer; }
+        .type-chip.active { background: #0f172a; border-color: #0f172a; color: #fff; }
+        .attr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 0.82rem; }
+        .attr-grid .attr-label { display: block; color: #64748b; font-size: 0.72rem; }
+        .attr-grid .attr-value { font-weight: 600; color: #0f172a; word-break: break-word; }
     </style>
     <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
@@ -361,7 +377,7 @@
             <div class="row g-2">
                 <div class="col-md-6 d-none" id="excelImportCol">
                     <div class="p-2 border rounded-3 bg-light">
-                        <label class="form-label small fw-bold text-success mb-1">File Danh sách KH (.xlsx)</label>
+                        <label class="form-label small fw-bold text-success mb-1">File dữ liệu (.xlsx) - phản ánh hoặc hạ tầng, tự nhận diện</label>
                         <input type="file" id="excelFileInput" accept=".xlsx,.xls" class="form-control form-control-sm mb-2">
                         <button class="btn btn-sm btn-success w-100 fw-semibold" onclick="uploadExcelFile()" id="btnUploadExcel">
                             <i class="fa-solid fa-upload me-1"></i>Import Excel
@@ -382,6 +398,10 @@
         </div>
     </div>
 
+    <!-- ================= TAB NHÓM + CHIP LOẠI (dựng từ /api/tickets/types) ================= -->
+    <div class="group-tabs" id="groupTabs"></div>
+    <div class="type-chips" id="typeChips"></div>
+
     <!-- ================= BỘ LỌC KHOANH VÙNG THÔNG MINH ================= -->
     <div class="filter-panel-bg">
         <div class="d-flex justify-content-between align-items-center mb-2">
@@ -394,7 +414,7 @@
             <div class="col-12 col-md-6">
                 <div class="input-group input-group-sm">
                     <span class="input-group-text bg-light"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                    <input type="text" id="keywordInput" class="form-control" placeholder="Tìm tên KH, SĐT, mã phản ánh..." oninput="debounceLoadTickets()">
+                    <input type="text" id="keywordInput" class="form-control" placeholder="Tìm tên KH, SĐT, tài khoản, mã tủ, mã phản ánh..." oninput="debounceLoadTickets()">
                 </div>
             </div>
 
@@ -430,7 +450,7 @@
             </div>
 
             <!-- 6. Lọc theo Mức ưu tiên (Priority) -->
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-4" id="priorityFilterCol">
                 <select id="priorityFilterSelect" class="form-select form-select-sm" onchange="loadTickets()">
                     <option value="">-- Tất cả Mức độ ưu tiên --</option>
                     <option value="Hot">🔴 Hot</option>
@@ -450,7 +470,7 @@
         </div>
 
         <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top text-muted" style="font-size: 0.78rem;">
-            <div>Hiển thị: <b class="text-primary" id="ticketCountText">0</b> ca phản ánh</div>
+            <div>Hiển thị: <b class="text-primary" id="ticketCountText">0</b> <span id="ticketCountUnit">ca phản ánh</span></div>
             <div id="autoFilterNotice"></div>
         </div>
     </div>
@@ -521,12 +541,16 @@
     let currentPage = 1;
     const PAGE_SIZE = 10; // Số ca mỗi trang (10 - 20 là hợp lý)
     let myPosition = null;
+    let currentGroup = 'PHAN_ANH'; // nhóm đang xem (tab)
+    let currentType = '';          // loại đang lọc trong nhóm ('' = tất cả loại của nhóm)
+    let typeInfos = [];            // danh sách loại + số ca, lấy từ /api/tickets/types
 
     document.addEventListener('DOMContentLoaded', async () => {
         actionModalInstance = new bootstrap.Modal(document.getElementById('actionModal'));
         await initCurrentUserAndStaffFilter();
         // await loadFilterDropdowns();
         await loadKmzCount();
+        await loadTypeTabs(true);
         await loadTickets();
     });
 
@@ -634,6 +658,96 @@
         } catch (e) { console.error(e); }
     }
 
+
+    // ===================== TAB NHÓM + CHIP LOẠI =====================
+    // Mọi loại / nhóm đều lấy từ server (enum TicketType): thêm loại mới ở đó là tab và chip tự có thêm.
+    async function loadTypeTabs(pickDefault) {
+        try {
+            const staff = document.getElementById('staffFilterSelect').value || '';
+            typeInfos = await apiFetch(`\${CTX}/api/tickets/types?staffFilter=\${encodeURIComponent(staff)}`);
+        } catch (e) { console.error(e); return; }
+
+        const groups = getGroups();
+        if (pickDefault) {
+            // Mặc định vào tab Phản ánh; nếu tab đó trống mà tab khác có ca thì vào tab có ca
+            const cur = groups.find(g => g.code === currentGroup);
+            if (!cur || (cur.count === 0 && groups.some(g => g.count > 0))) {
+                currentGroup = (groups.find(g => g.count > 0) || groups[0] || { code: currentGroup }).code;
+            }
+        }
+        renderGroupTabs();
+        renderTypeChips();
+        applyGroupUi();
+    }
+
+    function getGroups() {
+        const groups = [];
+        typeInfos.forEach(t => {
+            let g = groups.find(x => x.code === t.group);
+            if (!g) { g = { code: t.group, label: t.groupLabel, icon: t.groupIcon, count: 0 }; groups.push(g); }
+            g.count += t.openCount;
+        });
+        return groups;
+    }
+
+    function renderGroupTabs() {
+        document.getElementById('groupTabs').innerHTML = getGroups().map(g => `
+            <button type="button" class="group-tab \${g.code === currentGroup ? 'active' : ''}" onclick="selectGroup('\${g.code}')">
+                <i class="fa-solid \${escapeHtml(g.icon)}"></i>\${escapeHtml(g.label)}<span class="tab-count">\${g.count}</span>
+            </button>`).join('');
+    }
+
+    function renderTypeChips() {
+        const box = document.getElementById('typeChips');
+        const types = typeInfos.filter(t => t.group === currentGroup);
+        if (types.length <= 1) { box.innerHTML = ''; currentType = ''; return; }
+        if (currentType && !types.some(t => t.code === currentType)) currentType = '';
+        const total = types.reduce((sum, t) => sum + t.openCount, 0);
+        box.innerHTML = `<button type="button" class="type-chip \${currentType === '' ? 'active' : ''}" onclick="selectType('')">Tất cả (\${total})</button>`
+            + types.map(t => `<button type="button" class="type-chip \${currentType === t.code ? 'active' : ''}" onclick="selectType('\${t.code}')">\${escapeHtml(t.label)} (\${t.openCount})</button>`).join('');
+    }
+
+    // Bộ lọc mức ưu tiên chỉ có nghĩa với ca phản ánh nên ẩn ở nhóm hạ tầng
+    function applyGroupUi() {
+        const isComplaint = currentGroup === 'PHAN_ANH';
+        document.getElementById('priorityFilterCol').classList.toggle('d-none', !isComplaint);
+        if (!isComplaint) document.getElementById('priorityFilterSelect').value = '';
+        const g = getGroups().find(x => x.code === currentGroup);
+        document.getElementById('ticketCountUnit').textContent = 'ca ' + (g ? g.label.toLowerCase() : '');
+    }
+
+    function selectGroup(code) {
+        if (code === currentGroup) return;
+        currentGroup = code;
+        currentType = '';
+        renderGroupTabs();
+        renderTypeChips();
+        applyGroupUi();
+        loadTickets();
+    }
+
+    function selectType(code) {
+        currentType = code;
+        renderTypeChips();
+        loadTickets();
+    }
+
+    // Thuộc tính riêng của ca hạ tầng (nhãn do server gửi theo TicketType): 6 dòng đầu hiện sẵn, còn lại bấm "xem thêm"
+    function renderAttributes(item) {
+        const attrs = item.attributeItems || [];
+        if (attrs.length === 0) return `<div class="text-muted">Chưa có thông số</div>`;
+        const cell = a => `<div><span class="attr-label">\${escapeHtml(a.label)}</span><span class="attr-value">\${escapeHtml(a.value)}\${a.unit ? ' ' + escapeHtml(a.unit) : ''}</span></div>`;
+        const head = attrs.slice(0, 6).map(cell).join('');
+        const rest = attrs.slice(6).map(cell).join('');
+        return `<div class="attr-grid">\${head}</div>`
+            + (rest ? `<div class="attr-grid d-none mt-2" id="a-\${item.id}">\${rest}</div><a class="see-more-link" onclick="toggleAttrs(\${Number(item.id)}, this)">...xem thêm</a>` : '');
+    }
+
+    function toggleAttrs(id, link) {
+        const hidden = document.getElementById(`a-\${id}`).classList.toggle('d-none');
+        link.textContent = hidden ? '...xem thêm' : 'thu gọn';
+    }
+
     // keepPage = true: giữ nguyên trang hiện tại (sau khi thao tác trên thẻ).
     // Mọi lần đổi bộ lọc / từ khóa / sắp xếp đều gọi không tham số -> tự về trang 1.
     async function loadTickets(keepPage) {
@@ -659,7 +773,9 @@
             onlyPinned,
             area: area || '',
             cabinetPrefix: cabinetPrefix || '',
-            priority: priority || ''
+            priority: priority || '',
+            ticketGroup: currentGroup,
+            ticketType: currentType
         });
 
         // Sắp xếp "Gần tôi nhất": cần lấy vị trí hiện tại của thiết bị
@@ -685,6 +801,7 @@
             document.getElementById('ticketCountText').textContent = data.totalItem;
             renderTicketCards(data.resultList);
             renderPagination(data);
+            loadTypeTabs(false); // cập nhật số ca trên tab sau mỗi lần tải / thao tác
         } catch (e) {
             container.innerHTML = `<div class="alert alert-danger p-2 small">\${escapeHtml(e.message)}</div>`;
             document.getElementById('paginationBar').innerHTML = '';
@@ -697,6 +814,8 @@
     }
 
     async function resetFilters() {
+        currentType = '';
+        renderTypeChips();
         document.getElementById('keywordInput').value = '';
         document.getElementById('areaFilterSelect').value = '';
         document.getElementById('priorityFilterSelect').value = '';
@@ -732,6 +851,15 @@
 
             const complaint = escapeHtml(item.complaintContent || 'Không có nội dung');
             const isLong = complaint.length > 90;
+            const isInfra = item.ticketGroup === 'HA_TANG';
+            // Ca phản ánh: đoạn nội dung khiếu nại; ca hạ tầng: lưới thông số kỹ thuật (xem renderAttributes)
+            const contentHtml = isInfra
+                ? renderAttributes(item)
+                : `<div class="\${isLong ? 'complaint-collapsed' : ''}" id="c-\${item.id}">\${complaint}</div>`
+                  + (isLong ? `<a class="see-more-link" onclick="toggleC(\${item.id})">...xem thêm</a>` : '');
+            const refLabel = isInfra
+                ? `<span class="badge text-bg-\${escapeHtml(item.ticketTypeColor || 'secondary')}" style="font-size:0.72rem;">\${escapeHtml(item.ticketTypeLabel)}</span>`
+                : `PA: #\${escapeHtml(item.ticketCode)}`;
 
             let phoneButtons = '';
             if (item.contactPhone) {
@@ -761,7 +889,7 @@
                     <span class="account-tag">\${escapeHtml(item.subscriberAccount || item.ticketCode)}</span>
                     \${dupBadge}
                 </div>
-                <span class="text-muted" style="font-size: 0.78rem;">PA: #\${escapeHtml(item.ticketCode)}</span>
+                <span class="text-muted" style="font-size: 0.78rem;">\${refLabel}</span>
             </div>
 
             \${appTime}
@@ -772,8 +900,7 @@
             </div>
 
             <div class="complaint-box">
-                <div class="\${isLong ? 'complaint-collapsed' : ''}" id="c-\${item.id}">\${complaint}</div>
-                \${isLong ? `<a class="see-more-link" onclick="toggleC(\${item.id})">...xem thêm</a>` : ''}
+                \${contentHtml}
                 \${item.callNote ? `<div class="text-muted fst-italic mt-1" style="font-size: 0.78rem;"><i class="fa-regular fa-note-sticky me-1"></i>\${escapeHtml(item.callNote)}</div>` : ''}
             </div>
 
@@ -806,7 +933,7 @@
 
             <div class="card-footer-info">
                 <span>Khu vực: <b>\${escapeHtml(item.area || '')}</b></span>
-                <span>Phụ trách: <b class="text-dark">\${escapeHtml(item.techStaffName || 'Chưa phân công')}</b></span>
+                <span>\${isInfra ? 'NV triển khai' : 'Phụ trách'}: <b class="text-dark">\${escapeHtml(item.techStaffName || (isInfra ? '—' : 'Chưa phân công'))}</b></span>
             </div>
         </div>`;
         }).join('');
