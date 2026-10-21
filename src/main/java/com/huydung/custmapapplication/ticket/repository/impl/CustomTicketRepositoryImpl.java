@@ -143,6 +143,37 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
     }
 
     @Override
+    public List<Long> findTicketIdsCustom(TicketFilter filter) {
+        QueryParts q = buildOpenTicketWhere(filter);
+        TypedQuery<Long> query = entityManager.createQuery(
+                "SELECT t.id FROM CustomerTicketEntity t " + q.where + "ORDER BY t.id ASC", Long.class);
+        q.params.forEach(query::setParameter);
+        return query.getResultList();
+    }
+
+    // updated_at phải gán tay vì câu UPDATE hàng loạt không qua @PreUpdate của entity
+    @Override
+    public int markDoneByIds(Collection<Long> ids, LocalDateTime now) {
+        if (ids == null || ids.isEmpty()) return 0;
+        return entityManager.createQuery("""
+                        UPDATE CustomerTicketEntity t
+                        SET t.appStatus = 'DA_XU_LY', t.archivedAt = :now, t.archiveReason = 'DONE', t.updatedAt = :now
+                        WHERE t.id IN :ids AND t.archivedAt IS NULL
+                        """)
+                .setParameter("now", now)
+                .setParameter("ids", ids)
+                .executeUpdate();
+    }
+
+    @Override
+    public int deleteByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        return entityManager.createQuery("DELETE FROM CustomerTicketEntity t WHERE t.id IN :ids")
+                .setParameter("ids", ids)
+                .executeUpdate();
+    }
+
+    @Override
     public long countTicketsCustom(TicketFilter filter) {
         QueryParts q = buildOpenTicketWhere(filter);
         TypedQuery<Long> query = entityManager.createQuery(

@@ -334,6 +334,19 @@
         .attr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 0.82rem; }
         .attr-grid .attr-label { display: block; color: #64748b; font-size: 0.72rem; }
         .attr-grid .attr-value { font-weight: 600; color: #0f172a; word-break: break-word; }
+
+        /* ===== Chọn nhiều + thanh thao tác hàng loạt (ADMIN) ===== */
+        .select-row { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600;
+            color: #475569; margin-bottom: 8px; cursor: pointer; }
+        .select-row .form-check-input { width: 1.15rem; height: 1.15rem; cursor: pointer; }
+        .ticket-card.is-selected { outline: 2px solid #2563eb; outline-offset: -2px; background: #f8fbff; }
+        .bulk-bar { position: fixed; left: 0; right: 0; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); z-index: 1045;
+            background: #fff; border-top: 1px solid #e2e8f0; box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.12); padding: 10px 12px; }
+        .bulk-bar-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+            gap: 6px; margin-bottom: 8px; font-size: 0.85rem; }
+        .bulk-bar-actions { display: flex; gap: 8px; }
+        .bulk-bar-actions .btn { flex: 1; font-weight: 700; }
+        body.has-bottom-nav.select-mode { padding-bottom: calc(230px + env(safe-area-inset-bottom, 0px)) !important; }
     </style>
     <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
@@ -477,6 +490,13 @@
 
     <!-- NHẮC HẸN -->
 
+    <!-- NÚT CHỌN NHIỀU (chỉ ADMIN mới thấy) -->
+    <div class="d-flex justify-content-end mb-2 d-none" id="bulkToggleRow">
+        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill fw-semibold" id="btnBulkMode" onclick="toggleSelectMode()">
+            <i class="fa-regular fa-square-check me-1"></i>Chọn nhiều
+        </button>
+    </div>
+
     <!-- DANH SÁCH THẺ KHÁCH HÀNG -->
     <div id="ticketListContainer">
         <div class="text-center py-5 text-muted">
@@ -560,6 +580,7 @@
         const kmzCol = document.getElementById('kmzImportCol');
         if (currentUser && currentUser.admin) {
             if (excelCol) excelCol.classList.remove('d-none');
+            document.getElementById('bulkToggleRow').classList.remove('d-none');
         } else if (kmzCol) {
             kmzCol.classList.replace('col-md-6', 'col-md-12');
         }
@@ -748,10 +769,144 @@
         link.textContent = hidden ? '...xem thêm' : 'thu gọn';
     }
 
+
+    // ===================== CHỌN NHANH + THAO TÁC HÀNG LOẠT (chỉ ADMIN) =====================
+    // "Chọn tất cả" luôn gắn với BỘ LỌC hiện tại: server tự lấy các ca khớp bộ lọc rồi trừ các ca bỏ tick.
+    // Đổi bộ lọc / từ khóa / tab thì lựa chọn bị xóa. Quyền thật sự do server kiểm tra (SecurityConfig + service).
+    let selectMode = false;          // đang ở chế độ "Chọn nhiều"
+    let selectAllMatching = false;   // true = chọn TOÀN BỘ ca theo bộ lọc hiện tại (mọi trang)
+    const selectedIds = new Set();   // ca được tick riêng (khi selectAllMatching = false)
+    const excludedIds = new Set();   // ca bỏ tick (khi selectAllMatching = true)
+    let totalMatching = 0;           // tổng số ca khớp bộ lọc ở lần tải gần nhất
+    let lastTickets = [];            // các ca đang hiển thị ở trang hiện tại
+    let lastFilterBody = null;       // bộ lọc của lần tải gần nhất
+
+    function isSelected(id) { return selectAllMatching ? !excludedIds.has(id) : selectedIds.has(id); }
+    function selectedCount() { return selectAllMatching ? Math.max(0, totalMatching - excludedIds.size) : selectedIds.size; }
+
+    function toggleSelectMode() {
+        selectMode = !selectMode;
+        if (!selectMode) clearSelection(true);
+        document.body.classList.toggle('select-mode', selectMode);
+        const btn = document.getElementById('btnBulkMode');
+        btn.classList.toggle('btn-primary', selectMode);
+        btn.classList.toggle('btn-outline-primary', !selectMode);
+        btn.innerHTML = selectMode
+            ? '<i class="fa-solid fa-xmark me-1"></i>Thoát chọn'
+            : '<i class="fa-regular fa-square-check me-1"></i>Chọn nhiều';
+        renderTicketCards(lastTickets);
+        updateBulkBar();
+    }
+
+    function toggleSelect(id, checkbox) {
+        const on = checkbox.checked;
+        if (selectAllMatching) { if (on) excludedIds.delete(id); else excludedIds.add(id); }
+        else { if (on) selectedIds.add(id); else selectedIds.delete(id); }
+        const card = checkbox.closest('.ticket-card');
+        if (card) card.classList.toggle('is-selected', on);
+        updateBulkBar();
+    }
+
+    function selectPage() {
+        selectAllMatching = false;
+        excludedIds.clear();
+        selectedIds.clear();
+        lastTickets.forEach(t => selectedIds.add(Number(t.id)));
+        renderTicketCards(lastTickets);
+        updateBulkBar();
+    }
+
+    function selectAllByFilter() {
+        if (totalMatching === 0) return;
+        selectAllMatching = true;
+        selectedIds.clear();
+        excludedIds.clear();
+        renderTicketCards(lastTickets);
+        updateBulkBar();
+    }
+
+    // silent = true: chỉ xóa lựa chọn, không vẽ lại giao diện (dùng khi sắp tải lại danh sách)
+    function clearSelection(silent) {
+        selectAllMatching = false;
+        selectedIds.clear();
+        excludedIds.clear();
+        if (silent !== true) {
+            renderTicketCards(lastTickets);
+            updateBulkBar();
+        }
+    }
+
+    function updateBulkBar() {
+        const bar = document.getElementById('bulkBar');
+        if (!bar) return;
+        bar.classList.toggle('d-none', !selectMode);
+        if (!selectMode) return;
+
+        const n = selectedCount();
+        document.getElementById('bulkSelectedCount').textContent = n;
+        const allBtn = document.getElementById('btnSelectAllFilter');
+        allBtn.textContent = `Chọn tất cả \${totalMatching} ca theo bộ lọc`;
+        allBtn.disabled = totalMatching === 0 || (selectAllMatching && excludedIds.size === 0);
+        document.getElementById('bulkScopeNote').textContent = selectAllMatching
+            ? 'Toàn bộ ca theo bộ lọc hiện tại' + (excludedIds.size ? ', trừ ' + excludedIds.size + ' ca bỏ chọn' : '')
+            : 'Chọn riêng lẻ';
+        document.getElementById('btnBulkDone').disabled = n === 0;
+        document.getElementById('btnBulkDelete').disabled = n === 0;
+    }
+
+    // action: 'DONE' (chuyển Đã xử lý) | 'DELETE' (xóa vĩnh viễn kèm ảnh)
+    async function bulkAction(action) {
+        const count = selectedCount();
+        if (count <= 0) { alert('Chưa chọn ca nào'); return; }
+        if (selectAllMatching && !lastFilterBody) { alert('Chưa có bộ lọc, hãy tải lại danh sách'); return; }
+
+        const scope = selectAllMatching
+            ? ' (toàn bộ ca theo bộ lọc hiện tại' + (excludedIds.size ? ', trừ ' + excludedIds.size + ' ca bỏ chọn' : '') + ')'
+            : '';
+        let msg;
+        if (action === 'DELETE') {
+            msg = `XÓA VĨNH VIỄN \${count} ca\${scope}?\n\nCa bị xóa cùng ảnh hiện trường sẽ mất hoàn toàn, KHÔNG khôi phục được. `
+                + 'Nếu ca vẫn còn trong file import sau này thì sẽ được nạp lại như ca mới.';
+        } else {
+            msg = `Chuyển \${count} ca\${scope} sang ĐÃ XỬ LÝ (vào Lịch sử)?`;
+        }
+        if (!confirm(msg)) return;
+
+        // Xóa nhiều ca: bắt gõ chữ XOA để tránh bấm nhầm
+        if (action === 'DELETE' && count > 20) {
+            const typed = prompt(`Gõ XOA để xác nhận xóa vĩnh viễn \${count} ca:`);
+            if ((typed || '').trim().toUpperCase() !== 'XOA') return;
+        }
+
+        const body = { action: action, expectedCount: count };
+        if (selectAllMatching) {
+            body.criteria = lastFilterBody;
+            body.excludedIds = Array.from(excludedIds);
+        } else {
+            body.ids = Array.from(selectedIds);
+        }
+
+        const btns = [document.getElementById('btnBulkDone'), document.getElementById('btnBulkDelete')];
+        btns.forEach(b => b.disabled = true);
+        try {
+            const result = await apiFetch(`\${CTX}/api/tickets/bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            clearSelection(true);
+            flashNotice(result.message);
+            await loadTickets(true);
+        } catch (e) {
+            alert(e.message);
+            updateBulkBar();
+        }
+    }
+
     // keepPage = true: giữ nguyên trang hiện tại (sau khi thao tác trên thẻ).
     // Mọi lần đổi bộ lọc / từ khóa / sắp xếp đều gọi không tham số -> tự về trang 1.
     async function loadTickets(keepPage) {
-        if (keepPage !== true) currentPage = 1;
+        if (keepPage !== true) { currentPage = 1; clearSelection(true); } // đổi bộ lọc thì bỏ chọn
         const keyword = document.getElementById('keywordInput').value.trim();
         const staffFilter = document.getElementById('staffFilterSelect').value;
         const statusVal = document.getElementById('statusFilterSelect').value;
@@ -777,6 +932,12 @@
             ticketGroup: currentGroup,
             ticketType: currentType
         });
+        // Bộ lọc này được gửi lên server khi "Chọn tất cả theo bộ lọc" (thao tác hàng loạt)
+        lastFilterBody = {
+            staffFilter: staffFilter || '', keyword, appStatus, onlyPinned, area: area || '',
+            cabinetPrefix: cabinetPrefix || '', priority: priority || '',
+            ticketGroup: currentGroup, ticketType: currentType
+        };
 
         // Sắp xếp "Gần tôi nhất": cần lấy vị trí hiện tại của thiết bị
         if (sort === 'NEAREST') {
@@ -799,7 +960,12 @@
             const data = await apiFetch(`\${CTX}/api/tickets?\${params.toString()}`);
             currentPage = data.page; // server tự đưa về trang hợp lệ nếu trang cũ không còn dữ liệu
             document.getElementById('ticketCountText').textContent = data.totalItem;
+            lastTickets = data.resultList || [];
+            // Đang "chọn tất cả theo bộ lọc" mà tổng số ca đổi (vd. vừa xử lý một ca) thì bỏ chọn để khỏi thao tác nhầm
+            if (selectAllMatching && data.totalItem !== totalMatching) clearSelection(true);
+            totalMatching = data.totalItem;
             renderTicketCards(data.resultList);
+            updateBulkBar();
             renderPagination(data);
             loadTypeTabs(false); // cập nhật số ca trên tab sau mỗi lần tải / thao tác
         } catch (e) {
@@ -874,7 +1040,8 @@
                 ? `<span class="badge-distance"><i class="fa-solid fa-route me-1"></i>\${item.distanceKm} km</span>` : '';
 
             return `
-            <div class="ticket-card">
+            <div class="ticket-card \${selectMode && isSelected(Number(item.id)) ? 'is-selected' : ''}">
+                \${selectMode ? `<label class="select-row"><input type="checkbox" class="form-check-input m-0" \${isSelected(Number(item.id)) ? 'checked' : ''} onchange="toggleSelect(\${Number(item.id)}, this)"><span>Chọn ca này</span></label>` : ''}
                 <div class="card-header-row">
                     <div>
                         <span class="customer-title">\${escapeHtml(item.customerName || 'Khách hàng')}</span>
@@ -1170,6 +1337,25 @@
     }
 </script>
 <%-- Thanh điều hướng dưới cùng (đã gồm camera-capture.js: chụp ảnh hiện trường, chữ giờ/GPS/địa chỉ in lên ảnh) --%>
+<!-- THANH THAO TÁC HÀNG LOẠT (chỉ hiện khi ADMIN bật "Chọn nhiều") -->
+<div class="bulk-bar d-none" id="bulkBar">
+    <div class="bulk-bar-top">
+        <div>
+            <b id="bulkSelectedCount">0</b> ca đã chọn
+            <div class="text-muted" style="font-size:0.74rem;" id="bulkScopeNote"></div>
+        </div>
+        <div class="d-flex flex-wrap gap-1">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="selectPage()">Chọn trang này</button>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btnSelectAllFilter" onclick="selectAllByFilter()">Chọn tất cả</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">Bỏ chọn</button>
+        </div>
+    </div>
+    <div class="bulk-bar-actions">
+        <button type="button" class="btn btn-success" id="btnBulkDone" onclick="bulkAction('DONE')"><i class="fa-solid fa-check me-1"></i>Đã xử lý</button>
+        <button type="button" class="btn btn-danger" id="btnBulkDelete" onclick="bulkAction('DELETE')"><i class="fa-regular fa-trash-can me-1"></i>Xóa</button>
+    </div>
+</div>
+
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp"/>
 </body>
 </html>

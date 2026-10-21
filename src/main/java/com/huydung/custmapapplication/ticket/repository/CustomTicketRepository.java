@@ -17,6 +17,17 @@ public interface CustomTicketRepository {
     // Tổng số ca đang mở thỏa bộ lọc (để tính số trang)
     long countTicketsCustom(TicketFilter filter);
 
+    // --- Thao tác hàng loạt (ADMIN) ---
+
+    // Chỉ lấy ID của các ca đang mở thỏa bộ lọc (nhẹ hơn nhiều so với lấy cả entity)
+    List<Long> findTicketIdsCustom(TicketFilter filter);
+
+    // Chuyển các ca đang mở trong danh sách sang Đã xử lý + Lịch sử; trả về số ca thực sự được chuyển
+    int markDoneByIds(Collection<Long> ids, LocalDateTime now);
+
+    // Xóa vĩnh viễn các ca; trả về số ca đã xóa
+    int deleteByIds(Collection<Long> ids);
+
     // Ca ĐÃ LƯU TRỮ (trang Lịch sử), mới lưu trữ nhất lên đầu
     List<CustomerTicketEntity> findHistoryTickets(String assignedStaff,
                                                   String keyword,

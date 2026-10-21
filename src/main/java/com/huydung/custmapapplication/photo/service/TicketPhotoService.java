@@ -18,4 +18,8 @@ public interface TicketPhotoService {
 
     // File ảnh để trả về trình duyệt
     Resource loadPhotoFile(Long ticketId, Long photoId);
+
+    // Xóa toàn bộ ảnh của các ca (dòng trong database + file trên ổ đĩa), dùng khi xóa ca. Trả về số ảnh đã xóa.
+    // File chỉ bị xóa sau khi giao dịch thành công nên nếu bị hủy giữa chừng thì ảnh vẫn còn nguyên.
+    int deleteByTicketIds(java.util.Collection<Long> ticketIds);
 }

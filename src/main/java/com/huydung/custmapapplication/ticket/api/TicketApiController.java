@@ -1,5 +1,7 @@
 package com.huydung.custmapapplication.ticket.api;
 
+import com.huydung.custmapapplication.ticket.dto.BulkActionResultDTO;
+import com.huydung.custmapapplication.ticket.dto.BulkTicketActionRequest;
 import com.huydung.custmapapplication.ticket.dto.TicketImportResultDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
 import com.huydung.custmapapplication.ticket.dto.UpdateTicketActionRequest;
@@ -42,7 +44,15 @@ public class TicketApiController {
         return ResponseEntity.ok(ticketService.updateTicketAction(id, request));
     }
 
-    // 3. Đưa ca từ Lịch sử về danh sách chính
+    // 3. Thao tác hàng loạt (chỉ ADMIN - chặn trong SecurityConfig và kiểm tra lại trong service):
+    //    action = DONE (chuyển Đã xử lý) | DELETE (xóa vĩnh viễn kèm ảnh)
+    //    chọn ca bằng ids HOẶC criteria (+ excludedIds), kèm expectedCount để đối chiếu
+    @PostMapping("/bulk")
+    public ResponseEntity<BulkActionResultDTO> bulkAction(@RequestBody BulkTicketActionRequest request) {
+        return ResponseEntity.ok(ticketService.bulkAction(request));
+    }
+
+    // 4. Đưa ca từ Lịch sử về danh sách chính
     @PutMapping("/{id}/restore")
     public ResponseEntity<TicketResponseDTO> restore(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ticketService.restoreTicket(id));

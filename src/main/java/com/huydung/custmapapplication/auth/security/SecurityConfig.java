@@ -32,8 +32,8 @@ public class SecurityConfig {
                         .requestMatchers("/login", "/css/**", "/js/**", "/images/**").permitAll()
                         // API Quản lý User chỉ dành cho ADMIN
                         .requestMatchers("/api/users/**").hasAuthority("ROLE_ADMIN")
-                        // Import file Excel và danh sách nhân viên chỉ dành cho ADMIN
-                        .requestMatchers("/api/tickets/import", "/api/tickets/staffs").hasAuthority("ROLE_ADMIN")
+                        // Import file Excel, danh sách nhân viên và thao tác hàng loạt (Đã xử lý / Xóa) chỉ dành cho ADMIN
+                        .requestMatchers("/api/tickets/import", "/api/tickets/staffs", "/api/tickets/bulk").hasAuthority("ROLE_ADMIN")
                         // Xuất báo cáo Excel (tạo, danh sách, tải về, xóa) chỉ dành cho ADMIN
                         .requestMatchers("/api/exports/**").hasAuthority("ROLE_ADMIN")
                         // Sửa cấu hình hệ thống (VD: bật/tắt mục in lên ảnh) chỉ dành cho ADMIN; đọc cấu hình thì ai đăng nhập cũng được

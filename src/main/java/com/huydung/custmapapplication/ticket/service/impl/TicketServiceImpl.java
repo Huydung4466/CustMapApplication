@@ -10,7 +10,11 @@ import com.huydung.custmapapplication.common.util.GeoUtils;
 import com.huydung.custmapapplication.kmz.entity.KmzLocationEntity;
 import com.huydung.custmapapplication.kmz.repository.KmzLocationRepository;
 import com.huydung.custmapapplication.photo.repository.TicketPhotoRepository;
+import com.huydung.custmapapplication.photo.service.TicketPhotoService;
 import com.huydung.custmapapplication.ticket.converter.TicketConverter;
+import com.huydung.custmapapplication.ticket.enums.BulkAction;
+import com.huydung.custmapapplication.ticket.dto.BulkActionResultDTO;
+import com.huydung.custmapapplication.ticket.dto.BulkTicketActionRequest;
 import com.huydung.custmapapplication.ticket.dto.TicketImportResultDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketTypeInfoDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
@@ -31,6 +35,8 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +51,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class TicketServiceImpl implements TicketService {
+
+    private static final Logger log = LoggerFactory.getLogger(TicketServiceImpl.class);
 
     private static final String STATUS_DONE = "DA_XU_LY";
     private static final String STATUS_PROCESSING = "DANG_XU_LY";
@@ -64,6 +72,10 @@ public class TicketServiceImpl implements TicketService {
 
     // Phân trang: mặc định 10 ca/trang, tối đa 50
     private static final int DEFAULT_PAGE_SIZE = 10;
+
+    // Thao tác hàng loạt: số ID tối đa mỗi câu lệnh IN (...) và số ca tối đa khi tick riêng lẻ
+    private static final int BULK_CHUNK = 1000;
+    private static final int MAX_BULK_EXPLICIT_IDS = 5000;
     private static final int MAX_PAGE_SIZE = 50;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
@@ -75,19 +87,22 @@ public class TicketServiceImpl implements TicketService {
     private final TicketConverter ticketConverter;
     private final TicketPhotoRepository ticketPhotoRepository;
     private final List<TicketFileFormat> fileFormats;
+    private final TicketPhotoService ticketPhotoService;
 
     public TicketServiceImpl(TicketRepository ticketRepository,
                              KmzLocationRepository kmzLocationRepository,
                              AuthService authService,
                              TicketConverter ticketConverter,
                              TicketPhotoRepository ticketPhotoRepository,
-                             List<TicketFileFormat> fileFormats) {
+                             List<TicketFileFormat> fileFormats,
+                             TicketPhotoService ticketPhotoService) {
         this.ticketRepository = ticketRepository;
         this.kmzLocationRepository = kmzLocationRepository;
         this.authService = authService;
         this.ticketConverter = ticketConverter;
         this.ticketPhotoRepository = ticketPhotoRepository;
         this.fileFormats = fileFormats;
+        this.ticketPhotoService = ticketPhotoService;
     }
 
     // ===================== IMPORT =====================
@@ -474,6 +489,99 @@ public class TicketServiceImpl implements TicketService {
         }
         entity.setUpdatedAt(LocalDateTime.now());
         return ticketConverter.toActionResponseDTO(ticketRepository.save(entity));
+    }
+
+    // ===================== THAO TÁC HÀNG LOẠT (ADMIN) =====================
+
+    @Override
+    @Transactional
+    public BulkActionResultDTO bulkAction(BulkTicketActionRequest request) {
+        assertAdmin();
+        if (request == null || request.getAction() == null) {
+            throw new IllegalArgumentException("Thiếu loại thao tác (DONE hoặc DELETE)");
+        }
+
+        List<Long> ids = resolveBulkIds(request);
+        if (ids.isEmpty()) {
+            throw new IllegalArgumentException("Không có ca nào để thao tác");
+        }
+
+        String admin = authService.getCurrentLoggedUser().getUsername();
+        int affected = 0;
+        String message;
+
+        if (request.getAction() == BulkAction.DONE) {
+            LocalDateTime now = LocalDateTime.now();
+            for (List<Long> chunk : partition(ids, BULK_CHUNK)) {
+                affected += ticketRepository.markDoneByIds(chunk, now);
+            }
+            log.info("ADMIN {} chuyển Đã xử lý {}/{} ca", admin, affected, ids.size());
+            message = String.format("Đã chuyển %d/%d ca sang Lịch sử (Đã xử lý).", affected, ids.size());
+        } else if (request.getAction() == BulkAction.DELETE) {
+            // Xóa ảnh hiện trường trước (bảng ảnh không có khóa ngoại tới ca nên phải xóa tay)
+            int photos = ticketPhotoService.deleteByTicketIds(ids);
+            for (List<Long> chunk : partition(ids, BULK_CHUNK)) {
+                affected += ticketRepository.deleteByIds(chunk);
+            }
+            log.warn("ADMIN {} XÓA VĨNH VIỄN {}/{} ca và {} ảnh", admin, affected, ids.size(), photos);
+            message = String.format("Đã xóa vĩnh viễn %d ca%s.", affected, photos > 0 ? " và " + photos + " ảnh hiện trường" : "");
+        } else {
+            throw new IllegalArgumentException("Thao tác không được hỗ trợ");
+        }
+        return new BulkActionResultDTO(request.getAction().name(), ids.size(), affected, message);
+    }
+
+    // Xác định danh sách ID cần thao tác: hoặc ids được tick riêng, hoặc "tất cả theo bộ lọc" trừ các ca bỏ tick.
+    // Luôn đối chiếu với expectedCount để không thao tác lên số ca khác với số người dùng đã thấy.
+    private List<Long> resolveBulkIds(BulkTicketActionRequest request) {
+        boolean hasIds = request.getIds() != null && !request.getIds().isEmpty();
+        boolean hasCriteria = request.getCriteria() != null;
+        if (hasIds == hasCriteria) {
+            throw new IllegalArgumentException("Chỉ gửi MỘT trong hai: danh sách ca (ids) hoặc bộ lọc (criteria)");
+        }
+        if (request.getExpectedCount() == null) {
+            throw new IllegalArgumentException("Thiếu số ca dự kiến (expectedCount)");
+        }
+
+        List<Long> ids;
+        if (hasIds) {
+            ids = request.getIds().stream().filter(Objects::nonNull).distinct().collect(Collectors.toCollection(ArrayList::new));
+            if (ids.size() > MAX_BULK_EXPLICIT_IDS) {
+                throw new IllegalArgumentException("Chọn riêng lẻ tối đa " + MAX_BULK_EXPLICIT_IDS
+                        + " ca; hãy dùng \"Chọn tất cả theo bộ lọc\" cho số lượng lớn");
+            }
+        } else {
+            TicketSearchCriteria c = request.getCriteria();
+            // Cùng bộ lọc với danh sách chính trên dashboard (ca đang mở, không gồm ca đã hẹn)
+            TicketFilter filter = new TicketFilter(
+                    resolveEffectiveStaffFilter(c.getStaffFilter()),
+                    c.getKeyword(),
+                    c.getAppStatus(),
+                    c.getOnlyPinned(),
+                    c.getArea(),
+                    c.getCabinetPrefix(),
+                    c.getPriority(),
+                    false,
+                    resolveTypes(c));
+            ids = new ArrayList<>(ticketRepository.findTicketIdsCustom(filter));
+            if (request.getExcludedIds() != null && !request.getExcludedIds().isEmpty()) {
+                ids.removeAll(new HashSet<>(request.getExcludedIds()));
+            }
+        }
+
+        if (ids.size() != request.getExpectedCount().intValue()) {
+            throw new IllegalArgumentException("Số ca thực tế (" + ids.size() + ") khác số ca bạn đã chọn ("
+                    + request.getExpectedCount() + "): dữ liệu đã thay đổi. Hãy tải lại danh sách rồi chọn lại.");
+        }
+        return ids;
+    }
+
+    private static List<List<Long>> partition(List<Long> list, int size) {
+        List<List<Long>> parts = new ArrayList<>();
+        for (int i = 0; i < list.size(); i += size) {
+            parts.add(list.subList(i, Math.min(i + size, list.size())));
+        }
+        return parts;
     }
 
     // ===================== CẬP NHẬT CA =====================

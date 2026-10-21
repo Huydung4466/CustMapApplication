@@ -32,6 +32,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -225,6 +227,58 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
         if (source == null) return null;
         String s = source.trim().toUpperCase();
         return ADDRESS_SOURCES.contains(s) ? s : null;
+    }
+
+    @Override
+    @Transactional
+    public int deleteByTicketIds(Collection<Long> ticketIds) {
+        if (ticketIds == null || ticketIds.isEmpty()) return 0;
+
+        List<Long> all = new ArrayList<>(ticketIds);
+        List<TicketPhotoEntity> photos = new ArrayList<>();
+        for (int i = 0; i < all.size(); i += 1000) {
+            photos.addAll(photoRepository.findByTicketIdInOrderByIdAsc(all.subList(i, Math.min(i + 1000, all.size()))));
+        }
+        if (photos.isEmpty()) return 0;
+
+        // Lấy đường dẫn file trước khi xóa dòng database
+        List<Path> files = new ArrayList<>();
+        for (TicketPhotoEntity p : photos) {
+            try {
+                files.add(resolveSafe(p.getFilePath()));
+            } catch (IllegalStateException e) {
+                log.warn("Bỏ qua file ảnh có đường dẫn không hợp lệ: {}", p.getFilePath());
+            }
+        }
+
+        for (int i = 0; i < photos.size(); i += 500) {
+            photoRepository.deleteAllInBatch(photos.subList(i, Math.min(i + 500, photos.size())));
+        }
+        deleteFilesAfterCommit(files);
+        return photos.size();
+    }
+
+    // Chỉ xóa file khi giao dịch đã commit thành công (nếu bị hủy thì ảnh vẫn còn đủ cả file lẫn dòng database)
+    private void deleteFilesAfterCommit(List<Path> files) {
+        Runnable deleteAll = () -> {
+            for (Path f : files) {
+                try {
+                    Files.deleteIfExists(f);
+                } catch (IOException e) {
+                    log.warn("Không xóa được file ảnh {}", f, e);
+                }
+            }
+        };
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    deleteAll.run();
+                }
+            });
+        } else {
+            deleteAll.run();
+        }
     }
 
     // Ghép đường dẫn tương đối với thư mục gốc và chắc chắn kết quả không thoát ra ngoài thư mục gốc

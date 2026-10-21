@@ -1,6 +1,8 @@
 package com.huydung.custmapapplication.ticket.service;
 
 import com.huydung.custmapapplication.common.dto.AbstractDTO;
+import com.huydung.custmapapplication.ticket.dto.BulkActionResultDTO;
+import com.huydung.custmapapplication.ticket.dto.BulkTicketActionRequest;
 import com.huydung.custmapapplication.ticket.dto.TicketImportResultDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketTypeInfoDTO;
@@ -27,6 +29,9 @@ public interface TicketService {
                                                             Integer page, Integer size);
 
     TicketResponseDTO updateTicketAction(Long ticketId, UpdateTicketActionRequest request);
+
+    // Thao tác hàng loạt (chỉ ADMIN): chuyển Đã xử lý hoặc xóa vĩnh viễn các ca được chọn
+    BulkActionResultDTO bulkAction(BulkTicketActionRequest request);
 
     // Đưa ca từ Lịch sử về danh sách chính
     TicketResponseDTO restoreTicket(Long ticketId);
