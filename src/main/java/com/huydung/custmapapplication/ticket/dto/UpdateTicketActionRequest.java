@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdateTicketActionRequest {
-    private String appStatus;       // DANG_XU_LY, HEN_GIO, KLL, HEN_KHAC, DA_XU_LY
+    private String appStatus;       // tên một giá trị của TicketStatus (DANG_XU_LY, HEN_GIO, HEN_KHAC, KLL, DA_XU_LY)
     private String appointmentTime; // Chuỗi hiển thị giờ hẹn (server tự tạo nếu có appointmentStart)
     private String callNote;        // VD: "Đã chốt hẹn lúc 14:00 - 15:00 (gọi lúc 09:39)"
     private Boolean isPinned;       // true / false

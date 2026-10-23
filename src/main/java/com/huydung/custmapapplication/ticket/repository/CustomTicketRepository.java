@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
+import com.huydung.custmapapplication.ticket.enums.HistoryTab;
 import com.huydung.custmapapplication.ticket.enums.TicketType;
 
 public interface CustomTicketRepository {
@@ -28,18 +29,21 @@ public interface CustomTicketRepository {
     // Xóa vĩnh viễn các ca; trả về số ca đã xóa
     int deleteByIds(Collection<Long> ids);
 
-    // Ca ĐÃ LƯU TRỮ (trang Lịch sử), mới lưu trữ nhất lên đầu
+    // Ca ĐÃ LƯU TRỮ (các trang Lịch sử), mới lưu trữ nhất lên đầu.
+    // tab != null: chỉ lấy ca có lý do lưu trữ thuộc trang đó (đã hoàn thành / không liên lạc được và vấn đề khác); null: lấy tất cả
     List<CustomerTicketEntity> findHistoryTickets(String assignedStaff,
                                                   String keyword,
                                                   LocalDateTime from,
                                                   LocalDateTime toExclusive,
+                                                  HistoryTab tab,
                                                   int offset,
                                                   int limit);
 
     long countHistoryTickets(String assignedStaff,
                              String keyword,
                              LocalDateTime from,
-                             LocalDateTime toExclusive);
+                             LocalDateTime toExclusive,
+                             HistoryTab tab);
 
     // Số ca đang mở (chưa hẹn) theo từng loại, trong phạm vi nhân viên (để hiện số trên tab)
     Map<TicketType, Long> countOpenByType(String assignedStaff);

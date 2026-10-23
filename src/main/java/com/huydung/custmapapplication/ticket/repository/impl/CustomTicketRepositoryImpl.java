@@ -12,6 +12,8 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.huydung.custmapapplication.ticket.enums.HistoryTab;
+import com.huydung.custmapapplication.ticket.enums.TicketStatus;
 import com.huydung.custmapapplication.ticket.enums.TicketType;
 
 @Repository
@@ -38,10 +40,11 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
 
         // Ca đã hẹn (Hẹn giờ / Hẹn khác) chuyển sang trang "Đã hẹn", không hiện ở danh sách chính
         if (f.appointed()) {
-            q.where.append("AND t.appStatus IN ('HEN_GIO', 'HEN_KHAC') ");
+            q.where.append("AND t.appStatus IN :appointed ");
         } else {
-            q.where.append("AND (t.appStatus IS NULL OR t.appStatus NOT IN ('HEN_GIO', 'HEN_KHAC')) ");
+            q.where.append("AND (t.appStatus IS NULL OR t.appStatus NOT IN :appointed) ");
         }
+        q.params.put("appointed", TicketStatus.appointedCodes());
 
         if (f.keyword() != null && !f.keyword().trim().isEmpty()) {
             q.where.append("""
@@ -96,7 +99,8 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
         return q;
     }
 
-    private QueryParts buildHistoryWhere(String assignedStaff, String keyword, LocalDateTime from, LocalDateTime toExclusive) {
+    private QueryParts buildHistoryWhere(String assignedStaff, String keyword, LocalDateTime from, LocalDateTime toExclusive,
+                                         HistoryTab tab) {
         QueryParts q = new QueryParts("WHERE t.archivedAt IS NOT NULL ");
 
         appendStaffFilter(q.where, q.params, assignedStaff);
@@ -111,6 +115,16 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
                       OR LOWER(t.ticketCode) LIKE LOWER(:kw))
                     """);
             q.params.put("kw", "%" + keyword.trim() + "%");
+        }
+        // Lọc theo trang Lịch sử: chỉ lấy ca có lý do lưu trữ thuộc trang đó
+        if (tab != null) {
+            if (tab.isIncludesUnknownReason()) {
+                // Ca lưu trữ từ dữ liệu cũ chưa ghi lý do coi như đã hoàn thành
+                q.where.append("AND (t.archiveReason IN :reasons OR t.archiveReason IS NULL) ");
+            } else {
+                q.where.append("AND t.archiveReason IN :reasons ");
+            }
+            q.params.put("reasons", tab.reasonCodes());
         }
         if (from != null) {
             q.where.append("AND t.archivedAt >= :fromTime ");
@@ -157,9 +171,11 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
         if (ids == null || ids.isEmpty()) return 0;
         return entityManager.createQuery("""
                         UPDATE CustomerTicketEntity t
-                        SET t.appStatus = 'DA_XU_LY', t.archivedAt = :now, t.archiveReason = 'DONE', t.updatedAt = :now
+                        SET t.appStatus = :doneStatus, t.archivedAt = :now, t.archiveReason = :doneReason, t.updatedAt = :now
                         WHERE t.id IN :ids AND t.archivedAt IS NULL
                         """)
+                .setParameter("doneStatus", TicketStatus.DA_XU_LY.name())
+                .setParameter("doneReason", TicketStatus.DA_XU_LY.getArchiveReason().name())
                 .setParameter("now", now)
                 .setParameter("ids", ids)
                 .executeUpdate();
@@ -185,8 +201,9 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
     @Override
     public List<CustomerTicketEntity> findHistoryTickets(String assignedStaff, String keyword,
                                                          LocalDateTime from, LocalDateTime toExclusive,
+                                                         HistoryTab tab,
                                                          int offset, int limit) {
-        QueryParts q = buildHistoryWhere(assignedStaff, keyword, from, toExclusive);
+        QueryParts q = buildHistoryWhere(assignedStaff, keyword, from, toExclusive, tab);
         TypedQuery<CustomerTicketEntity> query = entityManager.createQuery(
                 "SELECT t FROM CustomerTicketEntity t " + q.where + "ORDER BY t.archivedAt DESC, t.id DESC",
                 CustomerTicketEntity.class);
@@ -199,8 +216,9 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
     }
 
     @Override
-    public long countHistoryTickets(String assignedStaff, String keyword, LocalDateTime from, LocalDateTime toExclusive) {
-        QueryParts q = buildHistoryWhere(assignedStaff, keyword, from, toExclusive);
+    public long countHistoryTickets(String assignedStaff, String keyword, LocalDateTime from, LocalDateTime toExclusive,
+                                    HistoryTab tab) {
+        QueryParts q = buildHistoryWhere(assignedStaff, keyword, from, toExclusive, tab);
         TypedQuery<Long> query = entityManager.createQuery(
                 "SELECT COUNT(t) FROM CustomerTicketEntity t " + q.where, Long.class);
         q.params.forEach(query::setParameter);
@@ -211,8 +229,9 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
     public Map<TicketType, Long> countOpenByType(String assignedStaff) {
         StringBuilder jpql = new StringBuilder(
                 "SELECT t.ticketType, COUNT(t) FROM CustomerTicketEntity t WHERE t.archivedAt IS NULL "
-                        + "AND (t.appStatus IS NULL OR t.appStatus NOT IN ('HEN_GIO', 'HEN_KHAC')) ");
+                        + "AND (t.appStatus IS NULL OR t.appStatus NOT IN :appointed) ");
         Map<String, Object> params = new HashMap<>();
+        params.put("appointed", TicketStatus.appointedCodes());
         appendStaffFilter(jpql, params, assignedStaff);
         jpql.append("GROUP BY t.ticketType");
 

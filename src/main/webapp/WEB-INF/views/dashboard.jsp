@@ -25,14 +25,6 @@
             overflow-x: hidden;
         }
 
-        .top-navbar {
-            background: #ffffff;
-            border-bottom: 1px solid var(--card-border);
-            position: sticky;
-            top: 0;
-            z-index: 1030;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
 
         .container-app {
             max-width: 740px;
@@ -273,20 +265,6 @@
             margin-bottom: 10px;
         }
 
-        /* Thanh trên cùng: luôn một hàng vừa mọi cỡ màn hình điện thoại.
-           Bên trái co lại được (tên dài thì hiện dấu ...), bên phải là các nút tròn cỡ cố định. */
-        .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: nowrap; }
-        .nav-left { display: flex; align-items: center; gap: 6px; flex: 1 1 0; min-width: 0; }
-        .nav-user { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; }
-        .nav-kmz { flex: 0 0 auto; white-space: nowrap; }
-        .nav-right { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
-        .nav-icon-btn {
-            width: 34px; height: 34px; padding: 0;
-            display: inline-flex; align-items: center; justify-content: center;
-            border-radius: 50%;
-        }
-        @media (max-width: 420px) { .nav-kmz-label { display: none; } }
-
         /* Hàng nút: gọi điện bên trái, chụp ảnh + xử lý bên phải; hẹp quá thì nhóm bên phải xuống dòng */
         .action-buttons-grid {
             display: flex;
@@ -353,63 +331,15 @@
 </head>
 <body class="vt-app">
 
-<!-- TOP NAVBAR -->
-<div class="top-navbar py-2 mb-3">
-    <div class="container-app nav-inner">
-        <div class="nav-left">
-            <span class="badge bg-primary rounded-pill px-3 py-1 nav-user">
-                <i class="fa-solid fa-user-shield me-1"></i><span id="currentUserFullName">Đang tải...</span>
-            </span>
-            <span class="badge bg-light text-secondary border small nav-kmz" title="Số tủ đã có tọa độ KMZ">
-                <i class="fa-solid fa-server text-primary me-1"></i><span class="nav-kmz-label">KMZ: </span><b id="kmzTotalCount">0</b>
-            </span>
-        </div>
-        <div class="nav-right">
-            <button class="btn btn-sm btn-outline-primary nav-icon-btn" type="button" data-bs-toggle="collapse" data-bs-target="#importPanel" title="Import file" aria-label="Import file">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-            </button>
-            <a href="${pageContext.request.contextPath}/history" class="btn btn-sm btn-outline-success nav-icon-btn" title="Lịch sử ca đã làm" aria-label="Lịch sử ca đã làm">
-                <i class="fa-solid fa-clock-rotate-left"></i>
-            </a>
-            <a href="${pageContext.request.contextPath}/change-password" class="btn btn-sm btn-outline-secondary nav-icon-btn" title="Đổi mật khẩu" aria-label="Đổi mật khẩu">
-                <i class="fa-solid fa-key"></i>
-            </a>
-            <a href="${pageContext.request.contextPath}/logout" class="btn btn-sm btn-outline-danger nav-icon-btn" title="Đăng xuất" aria-label="Đăng xuất">
-                <i class="fa-solid fa-power-off"></i>
-            </a>
-        </div>
-    </div>
-</div>
+<!-- TOP NAVBAR (dùng chung: fragments/top-navbar.jsp) -->
+<jsp:include page="/WEB-INF/views/fragments/top-navbar.jsp">
+    <jsp:param name="navTitle" value="Danh sách ca"/>
+    <jsp:param name="navIcon" value="fa-solid fa-list-check"/>
+    <jsp:param name="navBack" value="false"/>
+    <jsp:param name="navKmz" value="true"/>
+</jsp:include>
 
 <div class="container-app">
-
-    <!-- KHUNG IMPORT (COLLAPSE) -->
-    <div class="collapse mb-3" id="importPanel">
-        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
-            <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-file-arrow-up me-1"></i>Nạp dữ liệu hệ thống</h6>
-            <div class="row g-2">
-                <div class="col-md-6 d-none" id="excelImportCol">
-                    <div class="p-2 border rounded-3 bg-light">
-                        <label class="form-label small fw-bold text-success mb-1">File dữ liệu (.xlsx) - phản ánh hoặc hạ tầng, tự nhận diện</label>
-                        <input type="file" id="excelFileInput" accept=".xlsx,.xls" class="form-control form-control-sm mb-2">
-                        <button class="btn btn-sm btn-success w-100 fw-semibold" onclick="uploadExcelFile()" id="btnUploadExcel">
-                            <i class="fa-solid fa-upload me-1"></i>Import Excel
-                        </button>
-                    </div>
-                </div>
-                <div class="col-md-6" id="kmzImportCol">
-                    <div class="p-2 border rounded-3 bg-light">
-                        <label class="form-label small fw-bold text-primary mb-1">File Tọa độ Tủ (.kmz / .kml)</label>
-                        <input type="file" id="kmzFileInput" accept=".kmz,.kml" class="form-control form-control-sm mb-2">
-                        <button class="btn btn-sm btn-primary w-100 fw-semibold" onclick="uploadKmzFile()" id="btnUploadKmz">
-                            <i class="fa-solid fa-upload me-1"></i>Import KMZ
-                        </button>
-                    </div>
-                </div>
-            </div>
-            <div id="importResultAlert" class="mt-2"></div>
-        </div>
-    </div>
 
     <!-- ================= TAB NHÓM + CHIP LOẠI (dựng từ /api/tickets/types) ================= -->
     <div class="group-tabs" id="groupTabs"></div>
@@ -522,13 +452,8 @@
                 <input type="hidden" id="modalTicketId">
                 <div class="mb-2">
                     <label class="form-label small fw-bold">Trạng thái</label>
-                    <select id="modalStatusSelect" class="form-select form-select-sm">
-                        <option value="DANG_XU_LY">Đang xử lý</option>
-                        <option value="HEN_GIO">Hẹn giờ</option>
-                        <option value="HEN_KHAC">Hẹn khác</option>
-                        <option value="KLL">Không liên lạc được (KLL) - chuyển vào Lịch sử</option>
-                        <option value="DA_XU_LY">Đã xử lý hoàn tất - chuyển vào Lịch sử</option>
-                    </select>
+                    <!-- Các lựa chọn do server cấp từ enum TicketStatus / StatusContext.MAIN (xem loadStatusMeta) -->
+                    <select id="modalStatusSelect" class="form-select form-select-sm"></select>
                 </div>
                 <div class="mb-2">
                     <label class="form-label small fw-bold">Giờ hẹn từ</label>
@@ -563,35 +488,29 @@
     let myPosition = null;
     let currentGroup = 'PHAN_ANH'; // nhóm đang xem (tab)
     let currentType = '';          // loại đang lọc trong nhóm ('' = tất cả loại của nhóm)
+    let statusMeta = { statuses: [], statusOptions: {}, archiveReasons: [], historyTabs: [] }; // lấy từ /api/tickets/meta
     let typeInfos = [];            // danh sách loại + số ca, lấy từ /api/tickets/types
 
     document.addEventListener('DOMContentLoaded', async () => {
         actionModalInstance = new bootstrap.Modal(document.getElementById('actionModal'));
+        await loadStatusMeta();
         await initCurrentUserAndStaffFilter();
         // await loadFilterDropdowns();
-        await loadKmzCount();
         await loadTypeTabs(true);
         await loadTickets();
     });
 
-    // Chỉ ADMIN mới thấy ô import XLSX; STAFF chỉ thấy ô KMZ (full chiều ngang)
-    function applyImportPermissions() {
-        const excelCol = document.getElementById('excelImportCol');
-        const kmzCol = document.getElementById('kmzImportCol');
+    // Chỉ ADMIN mới thấy nút chọn nhiều ca để thao tác hàng loạt (phần import file đã chuyển sang trang Cá nhân)
+    function applyAdminPermissions() {
         if (currentUser && currentUser.admin) {
-            if (excelCol) excelCol.classList.remove('d-none');
             document.getElementById('bulkToggleRow').classList.remove('d-none');
-        } else if (kmzCol) {
-            kmzCol.classList.replace('col-md-6', 'col-md-12');
         }
     }
 
     async function initCurrentUserAndStaffFilter() {
         try {
-            const res = await fetch(`\${CTX}/api/auth/me`);
-            currentUser = await res.json();
-            document.getElementById('currentUserFullName').textContent = `\${currentUser.fullName}`;
-            applyImportPermissions();
+            currentUser = await AppNav.getMe();   // thanh trên cùng (top-navbar) đã lấy sẵn và hiện tên
+            applyAdminPermissions();
 
             const staffSelect = document.getElementById('staffFilterSelect');
             staffSelect.innerHTML = '';
@@ -670,15 +589,6 @@
         await loadCabinetDropdownForStaff(staff, area);
         loadTickets();
     }
-
-    async function loadKmzCount() {
-        try {
-            const res = await fetch(`\${CTX}/api/kmz/count`);
-            const data = await res.json();
-            document.getElementById('kmzTotalCount').textContent = data.totalLocations || 0;
-        } catch (e) { console.error(e); }
-    }
-
 
     // ===================== TAB NHÓM + CHIP LOẠI =====================
     // Mọi loại / nhóm đều lấy từ server (enum TicketType): thêm loại mới ở đó là tab và chip tự có thêm.
@@ -1142,19 +1052,36 @@
         return 'background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;';
     }
 
+    // Trạng thái xử lý (nhãn, biểu tượng, màu, các lựa chọn trong hộp "Cập nhật xử lý ca") do server khai báo
+    // bằng enum TicketStatus + StatusContext; giao diện chỉ việc đọc từ /api/tickets/meta
+    async function loadStatusMeta() {
+        try {
+            statusMeta = await apiFetch(CTX + '/api/tickets/meta');
+            const sel = document.getElementById('modalStatusSelect');
+            sel.innerHTML = '';
+            (statusMeta.statusOptions.MAIN || []).forEach(function (o) {
+                const opt = document.createElement('option');
+                opt.value = o.code;
+                opt.textContent = o.label;
+                sel.appendChild(opt);
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    function findStatus(code) {
+        return statusMeta.statuses.find(function (s) { return s.code === code; });
+    }
+
     // Chỉ chấp nhận các trạng thái đã biết khi đưa vào thuộc tính onclick
-    const VALID_STATUSES = ['DANG_XU_LY', 'HEN_GIO', 'HEN_KHAC', 'KLL', 'DA_XU_LY'];
     function safeStatus(s) {
-        return VALID_STATUSES.includes(s) ? s : 'DANG_XU_LY';
+        return findStatus(s) ? s : 'DANG_XU_LY';
     }
 
     function renderStatusBadge(status) {
-        switch(status) {
-            case 'HEN_GIO': return `<span class="status-badge status-hen-gio"><i class="fa-solid fa-circle-check"></i>Hẹn giờ</span>`;
-            case 'KLL': return `<span class="status-badge status-kll"><i class="fa-solid fa-phone-slash"></i>KLL</span>`;
-            case 'DA_XU_LY': return `<span class="status-badge status-da-xu-ly"><i class="fa-solid fa-check"></i>Đã xử lý</span>`;
-            default: return `<span class="status-badge status-dang-xu-ly"><i class="fa-solid fa-spinner fa-spin"></i>Đang xử lý</span>`;
-        }
+        const info = findStatus(status) || findStatus('DANG_XU_LY');
+        if (!info) return '';
+        return '<span class="status-badge ' + escapeHtml(info.badgeClass) + '"><i class="' + escapeHtml(info.icon) + '"></i>'
+            + escapeHtml(info.label) + '</span>';
     }
 
     // "2026-10-18T14:00:00" -> "2026-10-18T14:00" cho ô datetime-local
@@ -1209,51 +1136,6 @@
     async function togglePin(id, isPinned) {
         await sendTicketAction(id, { isPinned });
         loadTickets(true);
-    }
-
-    async function uploadExcelFile(confirmArchive) {
-        const file = document.getElementById('excelFileInput').files[0];
-        if (!file) return alert('Chọn file Excel!');
-        const fd = new FormData(); fd.append('file', file);
-        if (confirmArchive === true) fd.append('confirmArchive', 'true');
-        const box = document.getElementById('importResultAlert');
-        try {
-            const d = await apiFetch(`\${CTX}/api/tickets/import`, { method: 'POST', body: fd });
-            box.innerHTML = `<div class="alert alert-success py-1 small">\${escapeHtml(d.message)}</div>`;
-            await refreshFilterDropdowns();
-            loadTickets();
-        } catch (e) {
-            // Server báo file sắp chuyển rất nhiều ca sang Lịch sử: hỏi lại trước khi làm thật
-            if (e.status === 409 && e.data && e.data.code === 'CONFIRM_ARCHIVE') {
-                if (confirm(e.message + '\n\nBấm OK để vẫn import và chuyển các ca này sang Lịch sử.')) {
-                    return uploadExcelFile(true);
-                }
-                box.innerHTML = `<div class="alert alert-warning py-1 small">Đã hủy import, dữ liệu không thay đổi.</div>`;
-                return;
-            }
-            box.innerHTML = `<div class="alert alert-danger py-1 small">\${escapeHtml(e.message)}</div>`;
-        }
-    }
-
-    // Nạp lại dropdown Khu vực + Mã tủ sau khi dữ liệu thay đổi (import)
-    async function refreshFilterDropdowns() {
-        const staff = document.getElementById('staffFilterSelect').value;
-        await Promise.all([loadAreaDropdownForStaff(staff), loadCabinetDropdownForStaff(staff, '')]);
-    }
-
-    async function uploadKmzFile() {
-        const file = document.getElementById('kmzFileInput').files[0];
-        if (!file) return alert('Chọn file KMZ!');
-        const fd = new FormData(); fd.append('file', file);
-        const box = document.getElementById('importResultAlert');
-        try {
-            const d = await apiFetch(`\${CTX}/api/kmz/import`, { method: 'POST', body: fd });
-            box.innerHTML = `<div class="alert alert-primary py-1 small">\${escapeHtml(d.message)}</div>`;
-            loadKmzCount();
-            loadTickets();
-        } catch (e) {
-            box.innerHTML = `<div class="alert alert-danger py-1 small">\${escapeHtml(e.message)}</div>`;
-        }
     }
 
     async function apiFetch(url, options) {

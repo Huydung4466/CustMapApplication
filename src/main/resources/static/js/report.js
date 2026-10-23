@@ -22,7 +22,7 @@ const LEGEND = [
 document.addEventListener('DOMContentLoaded', async function () {
     let admin = false;
     try {
-        const me = await apiFetch(CTX + '/api/auth/me');
+        const me = await AppNav.getMe();
         admin = !!me.admin;
     } catch (e) { console.error(e); }
 

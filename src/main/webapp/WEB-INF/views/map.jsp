@@ -7,28 +7,26 @@
     <title>Bản đồ - Hệ thống Quản lý Phản ánh KH</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <link href="${pageContext.request.contextPath}/css/app-pages.css?v=1" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/css/app-pages.css?v=2" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau CSS của trang để ghi đè màu cũ) -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
 </head>
 <body class="vt-app">
 
-<div class="top-navbar py-2 mb-3">
-    <div class="container-app nav-inner">
-        <div class="nav-left">
-            <a href="${pageContext.request.contextPath}/dashboard" class="btn btn-sm btn-outline-primary nav-icon-btn" title="Về danh sách ca" aria-label="Về danh sách ca">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <span class="nav-title"><i class="fa-solid fa-map-location-dot me-1"></i>Bản đồ tủ (KMZ)</span>
-        </div>
-        <% if (!"".equals(request.getAttribute("myMapsId"))) { %>
-        <a href="https://www.google.com/maps/d/viewer?mid=${myMapsId}" target="_blank" rel="noopener"
-           class="btn btn-sm btn-outline-primary nav-icon-btn" title="Mở trong Google My Maps" aria-label="Mở trong Google My Maps">
-            <i class="fa-solid fa-up-right-from-square"></i>
-        </a>
-        <% } %>
-    </div>
-</div>
+<% if (!"".equals(request.getAttribute("myMapsId"))) { %>
+<jsp:include page="/WEB-INF/views/fragments/top-navbar.jsp">
+    <jsp:param name="navTitle" value="Bản đồ tủ (KMZ)"/>
+    <jsp:param name="navIcon" value="fa-solid fa-map-location-dot"/>
+    <jsp:param name="navExtraHref" value="https://www.google.com/maps/d/viewer?mid=${myMapsId}"/>
+    <jsp:param name="navExtraIcon" value="fa-solid fa-up-right-from-square"/>
+    <jsp:param name="navExtraTitle" value="Mở trong Google My Maps"/>
+</jsp:include>
+<% } else { %>
+<jsp:include page="/WEB-INF/views/fragments/top-navbar.jsp">
+    <jsp:param name="navTitle" value="Bản đồ tủ (KMZ)"/>
+    <jsp:param name="navIcon" value="fa-solid fa-map-location-dot"/>
+</jsp:include>
+<% } %>
 
 <div class="container-app">
 <% if (!"".equals(request.getAttribute("myMapsId"))) { %>

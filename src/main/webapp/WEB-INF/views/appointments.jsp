@@ -7,25 +7,16 @@
     <title>Khách đã hẹn - Hệ thống Quản lý Phản ánh KH</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <link href="${pageContext.request.contextPath}/css/app-pages.css?v=1" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/css/app-pages.css?v=2" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau CSS của trang để ghi đè màu cũ) -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
 </head>
 <body class="vt-app">
 
-<div class="top-navbar py-2 mb-3">
-    <div class="container-app nav-inner">
-        <div class="nav-left">
-            <a href="${pageContext.request.contextPath}/dashboard" class="btn btn-sm btn-outline-primary nav-icon-btn" title="Về danh sách ca" aria-label="Về danh sách ca">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <span class="nav-title"><i class="fa-solid fa-calendar-check me-1"></i>Khách đã hẹn</span>
-        </div>
-        <span class="badge bg-primary rounded-pill px-3 py-1 nav-user">
-            <i class="fa-solid fa-user-shield me-1"></i><span id="currentUserFullName">Đang tải...</span>
-        </span>
-    </div>
-</div>
+<jsp:include page="/WEB-INF/views/fragments/top-navbar.jsp">
+    <jsp:param name="navTitle" value="Khách đã hẹn"/>
+    <jsp:param name="navIcon" value="fa-solid fa-calendar-check"/>
+</jsp:include>
 
 <div class="container-app">
     <div class="filter-panel-bg">
@@ -77,13 +68,8 @@
                 <input type="hidden" id="modalTicketId">
                 <div class="mb-2">
                     <label class="form-label small fw-bold">Trạng thái</label>
-                    <select id="modalStatusSelect" class="form-select form-select-sm">
-                        <option value="HEN_GIO">Hẹn giờ</option>
-                        <option value="HEN_KHAC">Hẹn khác</option>
-                        <option value="DANG_XU_LY">Bỏ hẹn - đưa về danh sách ca chính</option>
-                        <option value="KLL">Không liên lạc được (KLL) - chuyển vào Lịch sử</option>
-                        <option value="DA_XU_LY">Đã xử lý hoàn tất - chuyển vào Lịch sử</option>
-                    </select>
+                    <!-- Các lựa chọn do server cấp từ enum TicketStatus / StatusContext.APPOINTMENT (xem loadStatusMeta) -->
+                    <select id="modalStatusSelect" class="form-select form-select-sm"></select>
                 </div>
                 <div class="mb-2">
                     <label class="form-label small fw-bold">Giờ hẹn từ</label>
@@ -109,7 +95,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>const CTX = '${pageContext.request.contextPath}';</script>
 <script src="${pageContext.request.contextPath}/js/app-common.js?v=1"></script>
-<script src="${pageContext.request.contextPath}/js/appointments.js?v=1"></script>
+<script src="${pageContext.request.contextPath}/js/appointments.js?v=3"></script>
 
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp">
     <jsp:param name="active" value="appointments"/>

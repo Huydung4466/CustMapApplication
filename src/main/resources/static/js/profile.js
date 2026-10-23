@@ -1,6 +1,7 @@
 /*
  * profile.js - Trang Cá nhân.
- *  - Mọi vai trò: xem thông tin tài khoản, sửa số điện thoại, đổi mật khẩu, đăng xuất.
+ *  - Mọi vai trò: xem thông tin tài khoản, sửa số điện thoại, đổi mật khẩu, đăng xuất, import file KMZ.
+ *  - ROLE_ADMIN: thêm import file Excel (phản ánh / hạ tầng).
  *  - ROLE_ADMIN: thêm khu "Quản lý tài khoản" (xem tài khoản khác, tạo tài khoản nhân viên, đặt lại mật khẩu nhân viên).
  * Cần: CTX, app-common.js, Bootstrap.
  */
@@ -17,6 +18,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     createModal = new bootstrap.Modal(document.getElementById('createModal'));
     resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
     await loadProfile();
+    applyImportPermissions();
     if (isAdmin) {
         document.getElementById('adminSection').classList.remove('d-none');
         document.getElementById('cameraSection').classList.remove('d-none');
@@ -35,10 +37,9 @@ function roleBadges(roles) {
 // ===================== THÔNG TIN CỦA TÔI =====================
 async function loadProfile() {
     try {
-        const auth = await apiFetch(CTX + '/api/auth/me');
+        const auth = await AppNav.getMe();   // thanh trên cùng (top-navbar) đã lấy sẵn
         isAdmin = !!auth.admin;
         me = await apiFetch(CTX + '/api/profile');
-        document.getElementById('currentUserFullName').textContent = me.fullName;
         document.getElementById('avatar').textContent = initialsOf(me.fullName);
         document.getElementById('pFullName').textContent = me.fullName;
         document.getElementById('pUsername').textContent = '@' + me.username;
@@ -67,6 +68,106 @@ async function savePhone() {
         showToast(e.message, true);
     } finally {
         btn.disabled = false;
+    }
+}
+
+// ===================== NẠP DỮ LIỆU (IMPORT) =====================
+let importing = false;
+
+// Chỉ ADMIN thấy ô import Excel; nhân viên chỉ có ô KMZ (full chiều ngang)
+function applyImportPermissions() {
+    const excelCol = document.getElementById('excelImportCol');
+    const kmzCol = document.getElementById('kmzImportCol');
+    if (isAdmin) {
+        excelCol.classList.remove('d-none');
+    } else {
+        kmzCol.classList.replace('col-md-6', 'col-md-12');
+    }
+}
+
+// Bật/tắt trạng thái "đang import": khóa ô chọn file + nút, nút đang chạy hiện vòng xoay, hiện thanh chạy
+function setImporting(on, btn, busyText) {
+    importing = on;
+    ['excelFileInput', 'kmzFileInput', 'btnUploadExcel', 'btnUploadKmz'].forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.disabled = on;
+    });
+    document.getElementById('importBusy').classList.toggle('d-none', !on);
+    if (on) document.getElementById('importBusyText').textContent = busyText || 'Đang tải lên và xử lý, vui lòng không đóng trang...';
+    if (btn) {
+        if (on) {
+            btn.dataset.html = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Đang import...';
+        } else if (btn.dataset.html) {
+            btn.innerHTML = btn.dataset.html;
+            delete btn.dataset.html;
+        }
+    }
+}
+
+// Đang import mà đóng/chuyển trang thì hỏi lại, tránh làm gián đoạn
+window.addEventListener('beforeunload', function (e) {
+    if (importing) { e.preventDefault(); e.returnValue = ''; }
+});
+
+function showImportResult(type, message) {
+    document.getElementById('importResultAlert').innerHTML =
+        '<div class="alert alert-' + type + ' py-1 small mb-0">' + escapeHtml(message) + '</div>';
+}
+
+async function uploadExcelFile(confirmArchive) {
+    if (importing) return;
+    const input = document.getElementById('excelFileInput');
+    const file = input.files[0];
+    if (!file) { showToast('Hãy chọn file Excel trước', true); return; }
+    const fd = new FormData();
+    fd.append('file', file);
+    if (confirmArchive === true) fd.append('confirmArchive', 'true');
+    const btn = document.getElementById('btnUploadExcel');
+    document.getElementById('importResultAlert').innerHTML = '';
+    setImporting(true, btn, 'Đang import file Excel, việc này có thể mất vài chục giây...');
+    let retry = false;
+    try {
+        const d = await apiFetch(CTX + '/api/tickets/import', { method: 'POST', body: fd });
+        showImportResult('success', d.message);
+        input.value = '';
+    } catch (e) {
+        // Server báo file sắp chuyển rất nhiều ca sang Lịch sử: hỏi lại trước khi làm thật
+        if (e.status === 409 && e.data && e.data.code === 'CONFIRM_ARCHIVE') {
+            setImporting(false, btn);
+            if (confirm(e.message + '\n\nBấm OK để vẫn import và chuyển các ca này sang Lịch sử.')) {
+                retry = true;
+            } else {
+                showImportResult('warning', 'Đã hủy import, dữ liệu không thay đổi.');
+            }
+        } else {
+            showImportResult('danger', e.message);
+        }
+    } finally {
+        setImporting(false, btn);
+    }
+    if (retry) await uploadExcelFile(true);
+}
+
+async function uploadKmzFile() {
+    if (importing) return;
+    const input = document.getElementById('kmzFileInput');
+    const file = input.files[0];
+    if (!file) { showToast('Hãy chọn file KMZ/KML trước', true); return; }
+    const fd = new FormData();
+    fd.append('file', file);
+    const btn = document.getElementById('btnUploadKmz');
+    document.getElementById('importResultAlert').innerHTML = '';
+    setImporting(true, btn, 'Đang import tọa độ tủ, vui lòng chờ...');
+    try {
+        const d = await apiFetch(CTX + '/api/kmz/import', { method: 'POST', body: fd });
+        showImportResult('primary', d.message);
+        input.value = '';
+        if (window.AppNav) AppNav.refreshKmzCount();
+    } catch (e) {
+        showImportResult('danger', e.message);
+    } finally {
+        setImporting(false, btn);
     }
 }
 

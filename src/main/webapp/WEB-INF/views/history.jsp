@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lịch sử ca đã làm</title>
+    <title>${historyTabLabel} - Lịch sử ca</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <style>
@@ -25,25 +25,6 @@
             overflow-x: hidden;
         }
 
-        .top-navbar {
-            background: #ffffff;
-            border-bottom: 1px solid var(--card-border);
-            position: sticky;
-            top: 0;
-            z-index: 1030;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        /* Thanh trên cùng: luôn một hàng vừa mọi cỡ màn hình điện thoại (chữ dài thì hiện dấu ...) */
-        .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: nowrap; }
-        .nav-left { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 0; }
-        .nav-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95rem; }
-        .nav-user { flex: 0 1 auto; min-width: 0; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; }
-        .nav-icon-btn {
-            width: 34px; height: 34px; padding: 0; flex: 0 0 auto;
-            display: inline-flex; align-items: center; justify-content: center;
-            border-radius: 50%;
-        }
 
         .container-app {
             max-width: 740px;
@@ -294,23 +275,15 @@
 </head>
 <body class="vt-app">
 
-<div class="top-navbar py-2 mb-3">
-    <div class="container-app nav-inner">
-        <div class="nav-left">
-            <a href="${pageContext.request.contextPath}/dashboard" class="btn btn-sm btn-outline-primary nav-icon-btn" title="Về danh sách ca" aria-label="Về danh sách ca">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <span class="fw-bold text-dark nav-title">
-                <i class="fa-solid fa-clock-rotate-left text-success me-1"></i>Lịch sử ca đã làm
-            </span>
-        </div>
-        <span class="badge bg-primary rounded-pill px-3 py-1 nav-user">
-            <i class="fa-solid fa-user-shield me-1"></i><span id="currentUserFullName">Đang tải...</span>
-        </span>
-    </div>
-</div>
+<jsp:include page="/WEB-INF/views/fragments/top-navbar.jsp">
+    <jsp:param name="navTitle" value="${historyTabLabel}"/>
+    <jsp:param name="navIcon" value="${historyTabIcon}"/>
+</jsp:include>
 
 <div class="container-app">
+
+    <!-- Chuyển giữa 2 trang Lịch sử (dựng từ enum HistoryTab qua /api/tickets/meta) -->
+    <div class="btn-group w-100 mb-3" id="historyTabs" role="group" aria-label="Chọn trang lịch sử"></div>
 
     <div class="filter-panel-bg">
         <div class="row g-2">
@@ -361,17 +334,44 @@
     let searchTimer = null;
     let currentPage = 1;
     const PAGE_SIZE = 10;
+    // Trang lịch sử đang xem: COMPLETED (đã hoàn thành) hoặc ISSUES (không liên lạc được & khác), do server gán
+    const HISTORY_TAB = '${historyTab}';
+    let meta = null; // trạng thái / lý do lưu trữ / các trang lịch sử, lấy từ /api/tickets/meta (enum phía server)
 
     document.addEventListener('DOMContentLoaded', async function () {
-        await initUser();
+        await Promise.all([initUser(), initMeta()]);
         loadHistory();
     });
 
+    async function initMeta() {
+        try {
+            meta = await apiFetch(CTX + '/api/tickets/meta');
+            renderHistoryTabs();
+        } catch (e) { console.error(e); }
+    }
+
+    function renderHistoryTabs() {
+        document.getElementById('historyTabs').innerHTML = meta.historyTabs.map(function (t) {
+            const active = t.code === HISTORY_TAB;
+            return '<a href="' + CTX + t.path + '" class="btn btn-sm ' + (active ? 'btn-primary' : 'btn-outline-primary') + '">'
+                + '<i class="' + escapeHtml(t.icon) + ' me-1"></i>' + escapeHtml(t.label) + '</a>';
+        }).join('');
+    }
+
+    function currentTabInfo() {
+        return meta ? meta.historyTabs.find(function (t) { return t.code === HISTORY_TAB; }) : null;
+    }
+
+    // Nhãn lý do lưu trữ; ca lưu trữ từ dữ liệu cũ chưa ghi lý do coi như đã hoàn thành
+    function reasonInfo(code) {
+        const list = meta ? meta.archiveReasons : [];
+        const found = list.find(function (r) { return r.code === (code || 'DONE'); });
+        return found || { label: 'Đã lưu trữ', icon: 'fa-solid fa-box-archive', badgeClass: 'reason-closed' };
+    }
+
     async function initUser() {
         try {
-            const res = await fetch(CTX + '/api/auth/me');
-            currentUser = await res.json();
-            document.getElementById('currentUserFullName').textContent = currentUser.fullName;
+            currentUser = await AppNav.getMe();   // thanh trên cùng (top-navbar) đã lấy sẵn và hiện tên
 
             // ADMIN được xem lịch sử của từng nhân viên; STAFF chỉ xem của chính mình
             if (currentUser.admin) {
@@ -406,6 +406,7 @@
         const to = document.getElementById('toDateInput').value;
         if (from) params.set('fromDate', from);
         if (to) params.set('toDate', to);
+        params.set('tab', HISTORY_TAB);
         params.set('page', currentPage);
         params.set('size', PAGE_SIZE);
 
@@ -444,19 +445,16 @@
     function renderHistory(items) {
         const box = document.getElementById('historyList');
         if (!items || items.length === 0) {
-            box.innerHTML = '<div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white text-muted small">Chưa có ca nào trong lịch sử</div>';
+            const tabInfo = currentTabInfo();
+            box.innerHTML = '<div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white text-muted small">'
+                + escapeHtml(tabInfo ? tabInfo.emptyText : 'Chưa có ca nào trong lịch sử') + '</div>';
             return;
         }
 
         box.innerHTML = items.map(function (item) {
-            let reasonBadge;
-            if (item.archiveReason === 'DONE') {
-                reasonBadge = '<span class="status-badge reason-done"><i class="fa-solid fa-check"></i>Đã xử lý</span>';
-            } else if (item.archiveReason === 'KLL') {
-                reasonBadge = '<span class="status-badge reason-kll"><i class="fa-solid fa-phone-slash"></i>Không liên lạc được</span>';
-            } else {
-                reasonBadge = '<span class="status-badge reason-closed"><i class="fa-solid fa-box-archive"></i>Không còn trong file GNOC</span>';
-            }
+            const reason = reasonInfo(item.archiveReason);
+            const reasonBadge = '<span class="status-badge ' + escapeHtml(reason.badgeClass) + '"><i class="' + escapeHtml(reason.icon) + '"></i>'
+                + escapeHtml(reason.label) + '</span>';
 
             let phones = '';
             if (item.contactPhone) {
