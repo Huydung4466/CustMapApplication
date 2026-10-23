@@ -2,6 +2,7 @@ package com.huydung.custmapapplication.auth.security;
 
 import jakarta.servlet.DispatcherType;
 import org.springframework.http.HttpMethod;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -21,7 +22,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           CustomUserDetailsService userDetailsService,
+                                           @Value("${app.remember-me.key:cust-map-remember-me-key-doi-khi-trien-khai}") String rememberMeKey,
+                                           @Value("${app.remember-me.days:30}") int rememberMeDays) throws Exception {
         http
                 // Tắt CSRF cho các API nội bộ để gọi Ajax/Multipart Upload dễ dàng
                 .csrf(csrf -> csrf.disable())
@@ -49,6 +53,14 @@ public class SecurityConfig {
                         .defaultSuccessUrl("/dashboard", true)
                         .failureUrl("/login?error=true")
                         .permitAll()
+                )
+                // "Ghi nhớ mật khẩu": giữ đăng nhập bằng cookie khi session hết hạn / tắt trình duyệt.
+                // Key cố định để khởi động lại Tomcat không làm mất ghi nhớ; đổi mật khẩu thì cookie cũ tự vô hiệu.
+                .rememberMe(rm -> rm
+                        .key(rememberMeKey)
+                        .rememberMeParameter("remember-me")
+                        .tokenValiditySeconds(rememberMeDays * 24 * 60 * 60)
+                        .userDetailsService(userDetailsService)
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")

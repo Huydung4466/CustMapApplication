@@ -4,7 +4,10 @@ import com.huydung.custmapapplication.auth.dto.CurrentUserResponse;
 import com.huydung.custmapapplication.auth.security.CustomUserDetails;
 import com.huydung.custmapapplication.auth.service.AuthService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,9 +26,16 @@ public class AuthController {
         this.authService = authService;
     }
 
-    // Trả về trang giao diện đăng nhập (login.jsp)
+    // Trả về trang giao diện đăng nhập (login.jsp).
+    // Người đã đăng nhập (kể cả đăng nhập bằng "Ghi nhớ") mà vào lại /login (bấm Back, reload...) thì chuyển về dashboard,
+    // riêng tài khoản bị buộc đổi mật khẩu thì chuyển sang trang đổi mật khẩu.
     @GetMapping("/login")
-    public String loginPage() {
+    public String loginPage(@AuthenticationPrincipal CustomUserDetails user) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        boolean loggedIn = auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken);
+        if (loggedIn && user != null) {
+            return user.isMustChangePassword() ? "redirect:/change-password" : "redirect:/dashboard";
+        }
         return "login";
     }
 
