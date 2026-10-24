@@ -1,0 +1,4 @@
+.legend-chip { display: inline-flex; align-items: center; font-size: .74rem; font-weight: 600; padding: 3px 9px; border-radius: 6px; border: 1px solid rgba(0,0,0,.12); }
+.file-item { border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: #fff; }
+.file-item .countdown { color: #475569; }
+.file-item .countdown.soon { color: #dc2626; font-weight: 700; }

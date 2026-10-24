@@ -7,28 +7,17 @@
     <title>Báo cáo - Hệ thống Quản lý Phản ánh KH</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <link href="${pageContext.request.contextPath}/css/app-pages.css?v=1" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/css/app-pages.css?v=2" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau CSS của trang để ghi đè màu cũ) -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
-    <style>
-        .legend-chip { display: inline-flex; align-items: center; font-size: .74rem; font-weight: 600; padding: 3px 9px; border-radius: 6px; border: 1px solid rgba(0,0,0,.12); }
-        .file-item { border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: #fff; }
-        .file-item .countdown { color: #475569; }
-        .file-item .countdown.soon { color: #dc2626; font-weight: 700; }
-    </style>
+    <link href="${pageContext.request.contextPath}/css/report.css?v=1" rel="stylesheet">
 </head>
 <body class="vt-app">
 
-<div class="top-navbar py-2 mb-3">
-    <div class="container-app nav-inner">
-        <div class="nav-left">
-            <a href="${pageContext.request.contextPath}/dashboard" class="btn btn-sm btn-outline-primary nav-icon-btn" title="Về danh sách ca" aria-label="Về danh sách ca">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <span class="nav-title"><i class="fa-solid fa-chart-column me-1"></i>Báo cáo</span>
-        </div>
-    </div>
-</div>
+<jsp:include page="/WEB-INF/views/fragments/top-navbar.jsp">
+    <jsp:param name="navTitle" value="Báo cáo"/>
+    <jsp:param name="navIcon" value="fa-solid fa-chart-column"/>
+</jsp:include>
 
 <div class="container-app">
 
@@ -84,7 +73,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>const CTX = '${pageContext.request.contextPath}';</script>
 <script src="${pageContext.request.contextPath}/js/app-common.js?v=1"></script>
-<script src="${pageContext.request.contextPath}/js/report.js?v=1"></script>
+<script src="${pageContext.request.contextPath}/js/report.js?v=2"></script>
 
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp">
     <jsp:param name="active" value="report"/>

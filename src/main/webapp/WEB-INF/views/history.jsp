@@ -4,313 +4,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lịch sử ca đã làm</title>
+    <title>${historyTabLabel} - Lịch sử ca</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --primary-color: #2563eb;
-            --success-color: #16a34a;
-            --warning-color: #d97706;
-            --danger-color: #dc2626;
-            --bg-body: #f8fafc;
-            --card-border: #e2e8f0;
-        }
-
-        body {
-            background-color: var(--bg-body);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            color: #1e293b;
-            padding-bottom: 70px;
-            overflow-x: hidden;
-        }
-
-        .top-navbar {
-            background: #ffffff;
-            border-bottom: 1px solid var(--card-border);
-            position: sticky;
-            top: 0;
-            z-index: 1030;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        /* Thanh trên cùng: luôn một hàng vừa mọi cỡ màn hình điện thoại (chữ dài thì hiện dấu ...) */
-        .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: nowrap; }
-        .nav-left { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 0; }
-        .nav-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.95rem; }
-        .nav-user { flex: 0 1 auto; min-width: 0; max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; }
-        .nav-icon-btn {
-            width: 34px; height: 34px; padding: 0; flex: 0 0 auto;
-            display: inline-flex; align-items: center; justify-content: center;
-            border-radius: 50%;
-        }
-
-        .container-app {
-            max-width: 740px;
-            margin: 0 auto;
-            padding: 0 10px;
-        }
-
-        /* Thẻ khách hàng */
-        .ticket-card {
-            background: #ffffff;
-            border: 1px solid var(--card-border);
-            border-radius: 14px;
-            padding: 14px 16px;
-            margin-bottom: 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
-            transition: all 0.2s ease;
-        }
-        .ticket-card:hover {
-            box-shadow: 0 4px 14px rgba(37,99,235,0.08);
-            border-color: #cbd5e1;
-        }
-
-        .card-header-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 8px;
-            margin-bottom: 6px;
-        }
-        .customer-title {
-            font-size: 1.1rem;
-            font-weight: 700;
-            color: #0f172a;
-        }
-        .badge-viettel {
-            background: #fef2f2;
-            color: #ef4444;
-            font-size: 0.72rem;
-            font-weight: 700;
-            padding: 2px 7px;
-            border-radius: 4px;
-            border: 1px solid #fee2e2;
-            vertical-align: middle;
-        }
-
-        .status-badge {
-            font-size: 0.78rem;
-            font-weight: 600;
-            padding: 4px 10px;
-            border-radius: 6px;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            white-space: nowrap;
-        }
-        .status-dang-xu-ly { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
-        .status-hen-gio    { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
-        .status-kll        { background: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
-        .status-da-xu-ly   { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
-
-        .meta-info-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            font-size: 0.85rem;
-            margin-bottom: 8px;
-        }
-        .account-tag {
-            background: #f1f5f9;
-            color: #334155;
-            font-family: monospace;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 4px;
-        }
-        .badge-dup {
-            background: #ef4444;
-            color: #fff;
-            font-size: 0.72rem;
-            font-weight: 700;
-            padding: 1px 6px;
-            border-radius: 4px;
-            margin-left: 5px;
-        }
-
-        .location-section {
-            background: #f8fafc;
-            border-radius: 8px;
-            padding: 8px 10px;
-            margin-bottom: 10px;
-            font-size: 0.88rem;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-        .btn-kmz-map {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.76rem;
-            font-weight: 700;
-            padding: 3px 8px;
-            border-radius: 6px;
-            text-decoration: none;
-            width: fit-content;
-        }
-        .has-kmz { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
-        .no-kmz  { background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1; }
-
-        .complaint-box {
-            font-size: 0.88rem;
-            color: #334155;
-            line-height: 1.4;
-            margin-bottom: 10px;
-            border-left: 3px solid #3b82f6;
-            padding-left: 8px;
-        }
-        .complaint-collapsed {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .see-more-link {
-            font-size: 0.8rem;
-            color: #2563eb;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-        }
-
-        .action-buttons-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr auto;
-            gap: 6px;
-            margin-bottom: 10px;
-        }
-        .btn-call-phone {
-            background: #15803d;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 7px 10px;
-            font-size: 0.82rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            text-decoration: none;
-            white-space: nowrap;
-        }
-        .btn-call-phone:hover { background: #166534; color: #fff; }
-        .btn-call-report { background: #0f766e; }
-        .btn-call-report:hover { background: #115e59; }
-
-        .btn-action-trigger {
-            background: #2563eb;
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            padding: 7px 14px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            white-space: nowrap;
-        }
-        .btn-action-trigger:hover { background: #1d4ed8; }
-
-        .quick-toolbar {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 5px;
-            padding-top: 8px;
-            border-top: 1px dashed var(--card-border);
-        }
-        .btn-quick-item {
-            background: #fff;
-            border: 1px solid var(--card-border);
-            border-radius: 6px;
-            padding: 5px;
-            font-size: 0.78rem;
-            font-weight: 600;
-            color: #475569;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            cursor: pointer;
-        }
-        .btn-quick-item:hover { background: #f1f5f9; color: #0f172a; }
-        .btn-quick-item.active-hengio { border-color: #15803d; color: #15803d; background: #f0fdf4; }
-        .btn-quick-item.active-kll    { border-color: #d97706; color: #d97706; background: #fffbeb; }
-        .btn-quick-item.pinned        { border-color: #2563eb; color: #2563eb; background: #eff6ff; font-weight: 700; }
-
-        .card-footer-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.78rem;
-            color: #64748b;
-            margin-top: 8px;
-            padding-top: 6px;
-            border-top: 1px solid #f1f5f9;
-        }
-
-        .filter-panel-bg {
-            background: #ffffff;
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 14px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
-        }
-
-        /* Ca quá giờ hẹn */
-        .ticket-card.overdue {
-            border-color: #ef4444;
-            box-shadow: 0 0 0 2px rgba(239,68,68,0.15);
-        }
-        .badge-distance {
-            background: #ecfeff;
-            color: #0e7490;
-            border: 1px solid #cffafe;
-            font-size: 0.72rem;
-            font-weight: 700;
-            padding: 2px 7px;
-            border-radius: 6px;
-            margin-right: 6px;
-            white-space: nowrap;
-        }
-        .reminder-banner {
-            border-radius: 12px;
-            padding: 8px 12px;
-            font-size: 0.8rem;
-            margin-bottom: 10px;
-        }
-
-        .history-card { opacity: 0.97; }
-        .reason-done { background:#f0fdf4; color:#15803d; border:1px solid #dcfce7; }
-        .reason-closed { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
-        .reason-kll { background:#fffbeb; color:#b45309; border:1px solid #fde68a; }
-    </style>
+    <link href="${pageContext.request.contextPath}/css/history.css?v=1" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
 </head>
 <body class="vt-app">
 
-<div class="top-navbar py-2 mb-3">
-    <div class="container-app nav-inner">
-        <div class="nav-left">
-            <a href="${pageContext.request.contextPath}/dashboard" class="btn btn-sm btn-outline-primary nav-icon-btn" title="Về danh sách ca" aria-label="Về danh sách ca">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <span class="fw-bold text-dark nav-title">
-                <i class="fa-solid fa-clock-rotate-left text-success me-1"></i>Lịch sử ca đã làm
-            </span>
-        </div>
-        <span class="badge bg-primary rounded-pill px-3 py-1 nav-user">
-            <i class="fa-solid fa-user-shield me-1"></i><span id="currentUserFullName">Đang tải...</span>
-        </span>
-    </div>
-</div>
+<jsp:include page="/WEB-INF/views/fragments/top-navbar.jsp">
+    <jsp:param name="navTitle" value="${historyTabLabel}"/>
+    <jsp:param name="navIcon" value="${historyTabIcon}"/>
+</jsp:include>
 
 <div class="container-app">
+
+    <!-- Chuyển giữa 2 trang Lịch sử (dựng từ enum HistoryTab qua /api/tickets/meta) -->
+    <div class="btn-group w-100 mb-3" id="historyTabs" role="group" aria-label="Chọn trang lịch sử"></div>
 
     <div class="filter-panel-bg">
         <div class="row g-2">
@@ -361,17 +72,133 @@
     let searchTimer = null;
     let currentPage = 1;
     const PAGE_SIZE = 10;
+    // Trang lịch sử đang xem: COMPLETED (đã hoàn thành) hoặc ISSUES (không liên lạc được & khác), do server gán
+    const HISTORY_TAB = '${historyTab}';
+    let meta = null; // trạng thái / lý do lưu trữ / các trang lịch sử, lấy từ /api/tickets/meta (enum phía server)
+
+    // ===================== NỘP BÁO CÁO (Google Form) =====================
+    // Form "BÁO CÁO KẾT QUẢ CÔNG VIỆC HẰNG NGÀY – ĐỘI KỸ THUẬT". Mã entry lấy từ chính form (đổi form thì cập nhật lại các mã này).
+    const REPORT_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfCOYYflGscdYCRIoTd71J4twFHl3KqTMzANM20Ps2FjeQHzA/viewform';
+    const REPORT_ENTRY = {
+        date: '232984631',
+        staff: '1386363437',
+        area: '977003287',
+        serviceType: '1313171066',
+        account: '2037624764',
+        customerName: '1327480577',
+        phone: '464690292',
+        address: '1666902213',
+        cabinet: '1383431432',
+        contractor: '1226051476'
+    };
+
+    // 24 địa bàn trong form (phải ghi đúng như trong form thì Google mới nhận)
+    const REPORT_AREAS = ['Buôn Ma Thuột', 'Ea Hleo', 'Ea Súp', 'Krông Năng', 'Krông Búk', 'Buôn Đôn', 'Cư Mgar', 'Ea Kar',
+        'Mđrắk', 'Krông Pắk', 'Krông A Na', 'Krông Bông', 'Lắk', 'Cư Kuin', 'Buôn Hồ', 'Tuy Hòa', 'Đồng Xuân', 'Sông Cầu',
+        'Tuy An', 'Sơn Hòa', 'Sông Hinh', 'Phú Hòa', 'Tây Hòa', 'Đông Hòa'];
+
+    // Bỏ dấu, chữ thường, bỏ khoảng trắng / dấu nháy để so khớp (VD "Cư M'gar" = "Cư Mgar", "Ea H'leo" = "Ea Hleo")
+    function normalizeText(str) {
+        return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    // Tìm địa bàn của form khớp với khu vực của ca; thử lần lượt: khu vực, cụm xã, xã. Không khớp thì trả null (nhân viên tự chọn)
+    function guessReportArea(item) {
+        const candidates = [item.area, item.communeCluster, item.commune];
+        // Tên dài xét trước để "Tuy An" không bị nhầm với "Tuy An..." khác, "Sơn Hòa"/"Phú Hòa"... đúng từng cái
+        const sorted = REPORT_AREAS.slice().sort(function (x, y) { return normalizeText(y).length - normalizeText(x).length; });
+        for (let i = 0; i < candidates.length; i++) {
+            const text = normalizeText(candidates[i]);
+            if (!text) continue;
+            for (let j = 0; j < sorted.length; j++) {
+                if (text.indexOf(normalizeText(sorted[j])) !== -1) return sorted[j];
+            }
+        }
+        return null;
+    }
+
+    // Chỉ ca "Đã xử lý" (nằm trang Đã hoàn thành) mới có nút nộp báo cáo; ca KLL / không còn trong file thì không
+    function canSubmitReport(item) {
+        return !item.archiveReason || item.archiveReason === 'DONE';
+    }
+
+    // Loại dịch vụ điền sẵn theo loại ca hạ tầng (khai báo ở TicketType phía server)
+    const SERVICE_BY_TICKET_TYPE = {
+        PORT_KEM: 'FTTH',              // Port kém GPON
+        LAN_HOMEWIFI_KEM: 'Mesh',      // LAN / HomeWifi kém
+        LAP_THIEU_HOMEWIFI: 'Mesh'     // Lắp thiếu HomeWifi
+    };
+
+    // Ca hạ tầng: theo bảng trên. Ca phản ánh: đoán từ "Tên dịch vụ" (cột H trong file Excel), không đoán được thì để trống
+    function guessServiceTypes(item) {
+        const byType = SERVICE_BY_TICKET_TYPE[item.ticketType];
+        if (byType) return [byType];
+        const result = [];
+        const t = (item.serviceName || '').toLowerCase();
+        if (/ftth|internet|cáp quang|cap quang|fiber|gpon/.test(t)) result.push('FTTH');
+        if (/truyền hình|truyen hinh|\btv\b|mytv|nexttv/.test(t)) result.push('Truyền hình');
+        if (/\bmesh\b|homewifi|home wifi/.test(t)) result.push('Mesh');
+        if (/camera/.test(t)) result.push('Camera');
+        return result;
+    }
+
+    function buildReportUrl(item) {
+        const params = new URLSearchParams();
+        params.set('usp', 'pp_url');
+        const add = function (entry, value) {
+            if (value !== null && value !== undefined && String(value).trim() !== '') params.append('entry.' + entry, String(value).trim());
+        };
+        // Ngày thực hiện = ngày ca được xử lý xong (chuyển vào lịch sử), dạng yyyy-mm-dd
+        const d = item.archivedAt ? new Date(item.archivedAt) : new Date();
+        const pad = function (n) { return String(n).padStart(2, '0'); };
+        add(REPORT_ENTRY.date, d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()));
+        add(REPORT_ENTRY.staff, item.assignedStaff || (currentUser && currentUser.fullName));
+        add(REPORT_ENTRY.area, guessReportArea(item));
+        guessServiceTypes(item).forEach(function (v) { add(REPORT_ENTRY.serviceType, v); });
+        add(REPORT_ENTRY.account, item.subscriberAccount);
+        add(REPORT_ENTRY.customerName, item.customerName);
+        add(REPORT_ENTRY.phone, item.contactPhone || item.reportPhone);
+        add(REPORT_ENTRY.address, item.installAddress);
+        add(REPORT_ENTRY.cabinet, item.cabinetCode);
+        add(REPORT_ENTRY.contractor, item.techStaffName);
+        return REPORT_FORM_URL + '?' + params.toString();
+    }
 
     document.addEventListener('DOMContentLoaded', async function () {
-        await initUser();
+        await Promise.all([initUser(), initMeta()]);
         loadHistory();
     });
 
+    async function initMeta() {
+        try {
+            meta = await apiFetch(CTX + '/api/tickets/meta');
+            renderHistoryTabs();
+        } catch (e) { console.error(e); }
+    }
+
+    function renderHistoryTabs() {
+        document.getElementById('historyTabs').innerHTML = meta.historyTabs.map(function (t) {
+            const active = t.code === HISTORY_TAB;
+            return '<a href="' + CTX + t.path + '" class="btn btn-sm ' + (active ? 'btn-primary' : 'btn-outline-primary') + '">'
+                + '<i class="' + escapeHtml(t.icon) + ' me-1"></i>' + escapeHtml(t.label) + '</a>';
+        }).join('');
+    }
+
+    function currentTabInfo() {
+        return meta ? meta.historyTabs.find(function (t) { return t.code === HISTORY_TAB; }) : null;
+    }
+
+    // Nhãn lý do lưu trữ; ca lưu trữ từ dữ liệu cũ chưa ghi lý do coi như đã hoàn thành
+    function reasonInfo(code) {
+        const list = meta ? meta.archiveReasons : [];
+        const found = list.find(function (r) { return r.code === (code || 'DONE'); });
+        return found || { label: 'Đã lưu trữ', icon: 'fa-solid fa-box-archive', badgeClass: 'reason-closed' };
+    }
+
     async function initUser() {
         try {
-            const res = await fetch(CTX + '/api/auth/me');
-            currentUser = await res.json();
-            document.getElementById('currentUserFullName').textContent = currentUser.fullName;
+            currentUser = await AppNav.getMe();   // thanh trên cùng (top-navbar) đã lấy sẵn và hiện tên
 
             // ADMIN được xem lịch sử của từng nhân viên; STAFF chỉ xem của chính mình
             if (currentUser.admin) {
@@ -406,6 +233,7 @@
         const to = document.getElementById('toDateInput').value;
         if (from) params.set('fromDate', from);
         if (to) params.set('toDate', to);
+        params.set('tab', HISTORY_TAB);
         params.set('page', currentPage);
         params.set('size', PAGE_SIZE);
 
@@ -444,19 +272,16 @@
     function renderHistory(items) {
         const box = document.getElementById('historyList');
         if (!items || items.length === 0) {
-            box.innerHTML = '<div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white text-muted small">Chưa có ca nào trong lịch sử</div>';
+            const tabInfo = currentTabInfo();
+            box.innerHTML = '<div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white text-muted small">'
+                + escapeHtml(tabInfo ? tabInfo.emptyText : 'Chưa có ca nào trong lịch sử') + '</div>';
             return;
         }
 
         box.innerHTML = items.map(function (item) {
-            let reasonBadge;
-            if (item.archiveReason === 'DONE') {
-                reasonBadge = '<span class="status-badge reason-done"><i class="fa-solid fa-check"></i>Đã xử lý</span>';
-            } else if (item.archiveReason === 'KLL') {
-                reasonBadge = '<span class="status-badge reason-kll"><i class="fa-solid fa-phone-slash"></i>Không liên lạc được</span>';
-            } else {
-                reasonBadge = '<span class="status-badge reason-closed"><i class="fa-solid fa-box-archive"></i>Không còn trong file GNOC</span>';
-            }
+            const reason = reasonInfo(item.archiveReason);
+            const reasonBadge = '<span class="status-badge ' + escapeHtml(reason.badgeClass) + '"><i class="' + escapeHtml(reason.icon) + '"></i>'
+                + escapeHtml(reason.label) + '</span>';
 
             let phones = '';
             if (item.contactPhone) {
@@ -484,7 +309,10 @@
                 +   (item.callNote ? '<div class="text-muted fst-italic mt-1" style="font-size:0.78rem;"><i class="fa-regular fa-note-sticky me-1"></i>' + escapeHtml(item.callNote) + '</div>' : '')
                 + '</div>'
                 + '<div class="action-buttons-grid">' + phones
-                +   '<button type="button" class="btn-action-trigger ms-auto" onclick="restoreTicket(' + item.id + ')"><i class="fa-solid fa-rotate-left"></i>Đưa về danh sách</button>'
+                +   (canSubmitReport(item)
+                    ? '<a class="btn-report-submit ms-auto" href="' + escapeHtml(buildReportUrl(item)) + '" target="_blank" rel="noopener"><i class="fa-solid fa-file-signature"></i>Nộp báo cáo</a>'
+                    : '')
+                +   '<button type="button" class="btn-action-trigger' + (canSubmitReport(item) ? '' : ' ms-auto') + '" onclick="restoreTicket(' + item.id + ')"><i class="fa-solid fa-rotate-left"></i>Đưa về danh sách</button>'
                 + '</div>'
                 + '<div class="card-footer-info"><span>Khu vực: <b>' + escapeHtml(item.area || '') + '</b></span>' + staffInfo + '</div>'
                 + '</div>';
