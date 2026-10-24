@@ -83,6 +83,7 @@
     <div id="alertBox"></div>
 
     <form action="${pageContext.request.contextPath}/do-login" method="post">
+        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}">
         <div class="mb-3">
             <label class="form-label fw-semibold small text-secondary">Tài khoản (Username)</label>
             <div class="input-group">
@@ -111,10 +112,13 @@
 
 </div>
 
+<script src="${pageContext.request.contextPath}/js/csrf.js?v=1"></script>
 <script>
     const params = new URLSearchParams(window.location.search);
     const alertBox = document.getElementById('alertBox');
-    if (params.has('error')) {
+    if (params.has('locked')) {
+        alertBox.innerHTML = '<div class="alert alert-warning py-2 small"><i class="fa-solid fa-lock me-1"></i>Đăng nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.</div>';
+    } else if (params.has('error')) {
         alertBox.innerHTML = '<div class="alert alert-danger py-2 small"><i class="fa-solid fa-triangle-exclamation me-1"></i>Sai tài khoản hoặc mật khẩu!</div>';
     } else if (params.has('pwchanged')) {
         alertBox.innerHTML = '<div class="alert alert-success py-2 small"><i class="fa-solid fa-check me-1"></i>Đổi mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới.</div>';
