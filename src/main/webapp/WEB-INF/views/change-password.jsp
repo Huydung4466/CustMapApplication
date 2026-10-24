@@ -96,6 +96,7 @@
     </div>
 </div>
 
+<script src="${pageContext.request.contextPath}/js/csrf.js?v=1"></script>
 <script>
     const CTX = '${pageContext.request.contextPath}';
     const FORCED = ${forced ? 'true' : 'false'};
