@@ -56,4 +56,5 @@
         </div>
     </div>
 </div>
+<script src="<%= ctx %>/js/csrf.js?v=1"></script>
 <script src="<%= ctx %>/js/app-nav.js?v=1"></script>

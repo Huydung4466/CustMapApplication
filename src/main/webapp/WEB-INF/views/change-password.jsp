@@ -7,50 +7,7 @@
     <title>Đổi mật khẩu - Hệ thống Quản lý Phản ánh KH</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            padding: 16px;
-        }
-        .pw-card {
-            background: #ffffff;
-            border-radius: 16px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
-            width: 100%;
-            max-width: 440px;
-            padding: 32px 28px;
-        }
-        .brand-badge {
-            background: #ffe4e6;
-            color: #e11d48;
-            font-weight: 700;
-            font-size: 0.85rem;
-            padding: 4px 12px;
-            border-radius: 999px;
-            display: inline-block;
-            margin-bottom: 8px;
-        }
-        .btn-submit {
-            background: #2563eb;
-            border: none;
-            border-radius: 10px;
-            padding: 12px;
-            font-weight: 600;
-        }
-        .btn-submit:hover { background: #1d4ed8; }
-        .rule-box {
-            font-size: 0.78rem;
-            background: #f8fafc;
-            border: 1px dashed #cbd5e1;
-            border-radius: 10px;
-            padding: 8px 12px;
-        }
-    </style>
+    <link href="${pageContext.request.contextPath}/css/change-password.css?v=1" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
 </head>

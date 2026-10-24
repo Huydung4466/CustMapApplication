@@ -10,12 +10,7 @@
     <link href="${pageContext.request.contextPath}/css/app-pages.css?v=2" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau CSS của trang để ghi đè màu cũ) -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
-    <style>
-        .legend-chip { display: inline-flex; align-items: center; font-size: .74rem; font-weight: 600; padding: 3px 9px; border-radius: 6px; border: 1px solid rgba(0,0,0,.12); }
-        .file-item { border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: #fff; }
-        .file-item .countdown { color: #475569; }
-        .file-item .countdown.soon { color: #dc2626; font-weight: 700; }
-    </style>
+    <link href="${pageContext.request.contextPath}/css/report.css?v=1" rel="stylesheet">
 </head>
 <body class="vt-app">
 
