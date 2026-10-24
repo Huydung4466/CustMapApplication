@@ -12,6 +12,10 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.huydung.custmapapplication.ticket.enums.HistoryTab;
+import com.huydung.custmapapplication.ticket.enums.TicketStatus;
+import com.huydung.custmapapplication.ticket.enums.TicketType;
+
 @Repository
 public class CustomTicketRepositoryImpl implements CustomTicketRepository {
 
@@ -34,6 +38,14 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
 
         appendStaffFilter(q.where, q.params, f.assignedStaff());
 
+        // Ca đã hẹn (Hẹn giờ / Hẹn khác) chuyển sang trang "Đã hẹn", không hiện ở danh sách chính
+        if (f.appointed()) {
+            q.where.append("AND t.appStatus IN :appointed ");
+        } else {
+            q.where.append("AND (t.appStatus IS NULL OR t.appStatus NOT IN :appointed) ");
+        }
+        q.params.put("appointed", TicketStatus.appointedCodes());
+
         if (f.keyword() != null && !f.keyword().trim().isEmpty()) {
             q.where.append("""
                     AND (LOWER(t.customerName) LIKE LOWER(:kw)
@@ -46,6 +58,16 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
                       OR LOWER(t.techStaffName) LIKE LOWER(:kw))
                     """);
             q.params.put("kw", "%" + f.keyword().trim() + "%");
+        }
+
+        // Lọc theo loại ca (dữ liệu cũ chưa có loại coi như PHAN_ANH)
+        if (f.types() != null && !f.types().isEmpty()) {
+            if (f.types().contains(TicketType.PHAN_ANH)) {
+                q.where.append("AND (t.ticketType IN :types OR t.ticketType IS NULL) ");
+            } else {
+                q.where.append("AND t.ticketType IN :types ");
+            }
+            q.params.put("types", f.types());
         }
 
         // Lọc theo Khu vực
@@ -77,7 +99,8 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
         return q;
     }
 
-    private QueryParts buildHistoryWhere(String assignedStaff, String keyword, LocalDateTime from, LocalDateTime toExclusive) {
+    private QueryParts buildHistoryWhere(String assignedStaff, String keyword, LocalDateTime from, LocalDateTime toExclusive,
+                                         HistoryTab tab) {
         QueryParts q = new QueryParts("WHERE t.archivedAt IS NOT NULL ");
 
         appendStaffFilter(q.where, q.params, assignedStaff);
@@ -92,6 +115,16 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
                       OR LOWER(t.ticketCode) LIKE LOWER(:kw))
                     """);
             q.params.put("kw", "%" + keyword.trim() + "%");
+        }
+        // Lọc theo trang Lịch sử: chỉ lấy ca có lý do lưu trữ thuộc trang đó
+        if (tab != null) {
+            if (tab.isIncludesUnknownReason()) {
+                // Ca lưu trữ từ dữ liệu cũ chưa ghi lý do coi như đã hoàn thành
+                q.where.append("AND (t.archiveReason IN :reasons OR t.archiveReason IS NULL) ");
+            } else {
+                q.where.append("AND t.archiveReason IN :reasons ");
+            }
+            q.params.put("reasons", tab.reasonCodes());
         }
         if (from != null) {
             q.where.append("AND t.archivedAt >= :fromTime ");
@@ -110,8 +143,8 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
 
         // Ca đã ghim luôn lên đầu; t.id ở cuối để thứ tự ổn định khi phân trang
         String orderBy = sortByAppointment
-                ? "ORDER BY t.isPinned DESC, CASE WHEN t.appointmentStart IS NULL THEN 1 ELSE 0 END ASC, t.appointmentStart ASC, t.id ASC"
-                : "ORDER BY t.isPinned DESC, t.id ASC";
+                ? "ORDER BY COALESCE(t.isPinned, false) DESC, CASE WHEN t.appointmentStart IS NULL THEN 1 ELSE 0 END ASC, t.appointmentStart ASC, t.id ASC"
+                : "ORDER BY COALESCE(t.isPinned, false) DESC, t.id ASC";
 
         TypedQuery<CustomerTicketEntity> query = entityManager.createQuery(
                 "SELECT t FROM CustomerTicketEntity t " + q.where + orderBy, CustomerTicketEntity.class);
@@ -121,6 +154,39 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
             query.setMaxResults(limit);
         }
         return query.getResultList();
+    }
+
+    @Override
+    public List<Long> findTicketIdsCustom(TicketFilter filter) {
+        QueryParts q = buildOpenTicketWhere(filter);
+        TypedQuery<Long> query = entityManager.createQuery(
+                "SELECT t.id FROM CustomerTicketEntity t " + q.where + "ORDER BY t.id ASC", Long.class);
+        q.params.forEach(query::setParameter);
+        return query.getResultList();
+    }
+
+    // updated_at phải gán tay vì câu UPDATE hàng loạt không qua @PreUpdate của entity
+    @Override
+    public int markDoneByIds(Collection<Long> ids, LocalDateTime now) {
+        if (ids == null || ids.isEmpty()) return 0;
+        return entityManager.createQuery("""
+                        UPDATE CustomerTicketEntity t
+                        SET t.appStatus = :doneStatus, t.archivedAt = :now, t.archiveReason = :doneReason, t.updatedAt = :now
+                        WHERE t.id IN :ids AND t.archivedAt IS NULL
+                        """)
+                .setParameter("doneStatus", TicketStatus.DA_XU_LY.name())
+                .setParameter("doneReason", TicketStatus.DA_XU_LY.getArchiveReason().name())
+                .setParameter("now", now)
+                .setParameter("ids", ids)
+                .executeUpdate();
+    }
+
+    @Override
+    public int deleteByIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) return 0;
+        return entityManager.createQuery("DELETE FROM CustomerTicketEntity t WHERE t.id IN :ids")
+                .setParameter("ids", ids)
+                .executeUpdate();
     }
 
     @Override
@@ -135,8 +201,9 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
     @Override
     public List<CustomerTicketEntity> findHistoryTickets(String assignedStaff, String keyword,
                                                          LocalDateTime from, LocalDateTime toExclusive,
+                                                         HistoryTab tab,
                                                          int offset, int limit) {
-        QueryParts q = buildHistoryWhere(assignedStaff, keyword, from, toExclusive);
+        QueryParts q = buildHistoryWhere(assignedStaff, keyword, from, toExclusive, tab);
         TypedQuery<CustomerTicketEntity> query = entityManager.createQuery(
                 "SELECT t FROM CustomerTicketEntity t " + q.where + "ORDER BY t.archivedAt DESC, t.id DESC",
                 CustomerTicketEntity.class);
@@ -149,12 +216,35 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
     }
 
     @Override
-    public long countHistoryTickets(String assignedStaff, String keyword, LocalDateTime from, LocalDateTime toExclusive) {
-        QueryParts q = buildHistoryWhere(assignedStaff, keyword, from, toExclusive);
+    public long countHistoryTickets(String assignedStaff, String keyword, LocalDateTime from, LocalDateTime toExclusive,
+                                    HistoryTab tab) {
+        QueryParts q = buildHistoryWhere(assignedStaff, keyword, from, toExclusive, tab);
         TypedQuery<Long> query = entityManager.createQuery(
                 "SELECT COUNT(t) FROM CustomerTicketEntity t " + q.where, Long.class);
         q.params.forEach(query::setParameter);
         return query.getSingleResult();
+    }
+
+    @Override
+    public Map<TicketType, Long> countOpenByType(String assignedStaff) {
+        StringBuilder jpql = new StringBuilder(
+                "SELECT t.ticketType, COUNT(t) FROM CustomerTicketEntity t WHERE t.archivedAt IS NULL "
+                        + "AND (t.appStatus IS NULL OR t.appStatus NOT IN :appointed) ");
+        Map<String, Object> params = new HashMap<>();
+        params.put("appointed", TicketStatus.appointedCodes());
+        appendStaffFilter(jpql, params, assignedStaff);
+        jpql.append("GROUP BY t.ticketType");
+
+        TypedQuery<Object[]> query = entityManager.createQuery(jpql.toString(), Object[].class);
+        params.forEach(query::setParameter);
+
+        Map<TicketType, Long> result = new EnumMap<>(TicketType.class);
+        for (Object[] row : query.getResultList()) {
+            // Dòng cũ chưa có loại tính vào PHAN_ANH
+            TicketType type = row[0] == null ? TicketType.PHAN_ANH : (TicketType) row[0];
+            result.merge(type, ((Number) row[1]).longValue(), Long::sum);
+        }
+        return result;
     }
 
     @Override
@@ -178,11 +268,13 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
                 SELECT t.subscriberAccount, COUNT(t.id)
                 FROM CustomerTicketEntity t
                 WHERE t.subscriberAccount IN :accounts
+                  AND (t.ticketType = :phanAnh OR t.ticketType IS NULL)
                 GROUP BY t.subscriberAccount
                 """;
 
         List<Object[]> rows = entityManager.createQuery(jpql, Object[].class)
                 .setParameter("accounts", validAccounts)
+                .setParameter("phanAnh", TicketType.PHAN_ANH)
                 .getResultList();
 
         Map<String, Integer> countMap = new HashMap<>();

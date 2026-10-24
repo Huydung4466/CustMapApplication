@@ -1,9 +1,13 @@
 package com.huydung.custmapapplication.ticket.converter;
 
+import com.huydung.custmapapplication.constant.ComplaintExcelConstant;
 import com.huydung.custmapapplication.kmz.entity.KmzLocationEntity;
+import com.huydung.custmapapplication.ticket.dto.TicketAttributeView;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
 import com.huydung.custmapapplication.ticket.dto.UpdateTicketActionRequest;
 import com.huydung.custmapapplication.ticket.entity.CustomerTicketEntity;
+import com.huydung.custmapapplication.ticket.type.TicketAttribute;
+import com.huydung.custmapapplication.ticket.enums.TicketType;
 import org.apache.poi.ss.usermodel.*;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +15,9 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class TicketConverter {
@@ -31,6 +38,7 @@ public class TicketConverter {
         // Gán số lần trùng lặp của Thuê bao phản ánh (x2, x3...)
         dto.setDuplicateCount(duplicateCount);
         dto.setIsPinned(Boolean.TRUE.equals(entity.getIsPinned()));
+        applyTypeInfo(entity, dto);
 
         // Nối tọa độ từ bảng KMZ để tạo link mở Google Maps
         if (kmzLocation != null && kmzLocation.getLatitude() != null && kmzLocation.getLongitude() != null) {
@@ -58,34 +66,58 @@ public class TicketConverter {
         if (entity == null) {
             return null;
         }
-        return modelMapper.map(entity, TicketResponseDTO.class);
+        TicketResponseDTO dto = modelMapper.map(entity, TicketResponseDTO.class);
+        applyTypeInfo(entity, dto);
+        return dto;
     }
 
-    // 4. Đọc dòng dữ liệu từ Sheet "chi tiêt" của file Excel (.xlsx) vào Entity
+    // Điền loại ca và danh sách thuộc tính (nhãn lấy từ khai báo trong TicketType) cho giao diện
+    private void applyTypeInfo(CustomerTicketEntity entity, TicketResponseDTO dto) {
+        TicketType type = entity.getTicketType() != null ? entity.getTicketType() : TicketType.PHAN_ANH;
+        dto.setTicketType(type.name());
+        dto.setTicketTypeLabel(type.getLabel());
+        dto.setTicketGroup(type.getGroup().name());
+        dto.setTicketTypeColor(type.getColor());
+
+        List<TicketAttributeView> items = new ArrayList<>();
+        Map<String, String> attrs = entity.getAttributes();
+        if (attrs != null) {
+            for (TicketAttribute a : type.getAttributes()) {
+                String v = attrs.get(a.key());
+                if (v != null && !v.isBlank()) {
+                    items.add(new TicketAttributeView(a.label(), v, a.unit()));
+                }
+            }
+        }
+        dto.setAttributeItems(items);
+    }
+
+    // 4. Đọc dòng dữ liệu từ sheet chi tiết của file phản ánh (.xlsx) vào Entity.
+    //    Vị trí từng cột khai báo trong ComplaintExcelConstant
     public void mapExcelRowToEntity(Row row, CustomerTicketEntity entity, DataFormatter formatter) {
-        entity.setAssignedStaff(getCellString(row, 0, formatter));                   // Cột A: Giao nhân viên
-        entity.setArea(getCellString(row, 2, formatter));                            // Cột C: Khu vực
-        entity.setCommuneCluster(getCellString(row, 3, formatter));                  // Cột D: Cụm xã
-        entity.setCommune(getCellString(row, 4, formatter));                         // Cột E: Xã
-        entity.setLocalStaffCode(getCellString(row, 5, formatter));                  // Cột F: Nhân viên địa bàn
-        entity.setServiceName(getCellString(row, 7, formatter));                     // Cột H: Tên dịch vụ
-        entity.setCustomerName(getCellString(row, 8, formatter));                    // Cột I: Tên KH
-        entity.setContactPhone(normalizePhone(getCellString(row, 9, formatter)));    // Cột J: SĐT liên hệ KH
-        entity.setInstallAddress(getCellString(row, 10, formatter));                 // Cột K: Địa chỉ lắp đặt
-        entity.setReportPhone(normalizePhone(getCellString(row, 11, formatter)));    // Cột L: Số liên hệ nhập phản ánh
-        entity.setCategory(getCellString(row, 13, formatter));                       // Cột N: Thể loại
-        entity.setPriorityLevel(getCellString(row, 18, formatter));                  // Cột S: Mức ưu tiên SCKN
-        entity.setTechStaffName(getCellString(row, 21, formatter));                  // Cột V: NV kỹ thuật được giao WO
-        entity.setTechStaffPhone(normalizePhone(getCellString(row, 22, formatter))); // Cột W: SĐT của NV kỹ thuật
-        entity.setComplaintContent(getCellString(row, 23, formatter));               // Cột X: Nội dung khiếu nại
-        entity.setGnocProgress(getCellString(row, 25, formatter));                   // Cột Z: Tiến độ của GNOC
-        entity.setSubscriberAccount(getCellString(row, 28, formatter));              // Cột AC: Thuê bao phản ánh
-        entity.setCabinetCode(getCellString(row, 30, formatter).toUpperCase());      // Cột AE: Mã tủ
+        entity.setAssignedStaff(getCellString(row, ComplaintExcelConstant.COL_ASSIGNED_STAFF, formatter));
+        entity.setArea(getCellString(row, ComplaintExcelConstant.COL_AREA, formatter));
+        entity.setCommuneCluster(getCellString(row, ComplaintExcelConstant.COL_COMMUNE_CLUSTER, formatter));
+        entity.setCommune(getCellString(row, ComplaintExcelConstant.COL_COMMUNE, formatter));
+        entity.setLocalStaffCode(getCellString(row, ComplaintExcelConstant.COL_LOCAL_STAFF_CODE, formatter));
+        entity.setServiceName(getCellString(row, ComplaintExcelConstant.COL_SERVICE_NAME, formatter));
+        entity.setCustomerName(getCellString(row, ComplaintExcelConstant.COL_CUSTOMER_NAME, formatter));
+        entity.setContactPhone(normalizePhone(getCellString(row, ComplaintExcelConstant.COL_CONTACT_PHONE, formatter)));
+        entity.setInstallAddress(getCellString(row, ComplaintExcelConstant.COL_INSTALL_ADDRESS, formatter));
+        entity.setReportPhone(normalizePhone(getCellString(row, ComplaintExcelConstant.COL_REPORT_PHONE, formatter)));
+        entity.setCategory(getCellString(row, ComplaintExcelConstant.COL_CATEGORY, formatter));
+        entity.setPriorityLevel(getCellString(row, ComplaintExcelConstant.COL_PRIORITY_LEVEL, formatter));
+        entity.setTechStaffName(getCellString(row, ComplaintExcelConstant.COL_TECH_STAFF_NAME, formatter));
+        entity.setTechStaffPhone(normalizePhone(getCellString(row, ComplaintExcelConstant.COL_TECH_STAFF_PHONE, formatter)));
+        entity.setComplaintContent(getCellString(row, ComplaintExcelConstant.COL_COMPLAINT_CONTENT, formatter));
+        entity.setGnocProgress(getCellString(row, ComplaintExcelConstant.COL_GNOC_PROGRESS, formatter));
+        entity.setSubscriberAccount(getCellString(row, ComplaintExcelConstant.COL_SUBSCRIBER_ACCOUNT, formatter));
+        entity.setCabinetCode(getCellString(row, ComplaintExcelConstant.COL_CABINET_CODE, formatter).toUpperCase());
         entity.setUpdatedAt(LocalDateTime.now());
     }
 
     public String extractTicketCode(Row row, DataFormatter formatter) {
-        return getCellString(row, 1, formatter); // Cột B: Mã phản ánh
+        return getCellString(row, ComplaintExcelConstant.COL_REPORT_CODE, formatter);
     }
 
     public String getCellString(Row row, int cellIndex, DataFormatter formatter) {
@@ -95,13 +127,19 @@ public class TicketConverter {
             double num = cell.getNumericCellValue();
             return BigDecimal.valueOf(num).stripTrailingZeros().toPlainString().trim();
         }
-        return formatter.formatCellValue(cell).trim();
+        return cleanPlaceholder(formatter.formatCellValue(cell).trim());
+    }
+
+    // File nguồn hay có "#N/A" (tra cứu lỗi) hoặc chữ "NULL" ở ô không có dữ liệu: coi như ô trống
+    private String cleanPlaceholder(String value) {
+        if (value.equalsIgnoreCase("#N/A") || value.equalsIgnoreCase("NULL")) return "";
+        return value;
     }
 
     public String normalizePhone(String rawPhone) {
         if (rawPhone == null || rawPhone.isBlank()) return "";
         String cleaned = rawPhone.replaceAll("[^0-9]", "");
-        if (cleaned.isEmpty()) return "";
+        if (cleaned.isEmpty() || cleaned.matches("0+")) return "";
         if (cleaned.length() == 9 && !cleaned.startsWith("0")) {
             return "0" + cleaned;
         }

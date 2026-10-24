@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lịch sử ca đã làm</title>
+    <title>${historyTabLabel} - Lịch sử ca</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <style>
@@ -22,16 +22,9 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             color: #1e293b;
             padding-bottom: 70px;
+            overflow-x: hidden;
         }
 
-        .top-navbar {
-            background: #ffffff;
-            border-bottom: 1px solid var(--card-border);
-            position: sticky;
-            top: 0;
-            z-index: 1030;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
 
         .container-app {
             max-width: 740px;
@@ -202,6 +195,21 @@
             white-space: nowrap;
         }
         .btn-action-trigger:hover { background: #1d4ed8; }
+        .btn-report-submit {
+            background: #15803d;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .btn-report-submit:hover { background: #166534; color: #fff; }
 
         .quick-toolbar {
             display: grid;
@@ -275,27 +283,22 @@
         .history-card { opacity: 0.97; }
         .reason-done { background:#f0fdf4; color:#15803d; border:1px solid #dcfce7; }
         .reason-closed { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+        .reason-kll { background:#fffbeb; color:#b45309; border:1px solid #fde68a; }
     </style>
+    <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
+    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
 </head>
-<body>
+<body class="vt-app">
 
-<div class="top-navbar py-2 mb-3">
-    <div class="container-app d-flex justify-content-between align-items-center">
-        <div class="d-flex align-items-center gap-2">
-            <a href="${pageContext.request.contextPath}/dashboard" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                <i class="fa-solid fa-arrow-left me-1"></i>Danh sách ca
-            </a>
-            <span class="fw-bold text-dark" style="font-size:0.95rem;">
-                <i class="fa-solid fa-clock-rotate-left text-success me-1"></i>Lịch sử ca đã làm
-            </span>
-        </div>
-        <span class="badge bg-primary rounded-pill px-3 py-1.5" style="font-size: 0.85rem;">
-            <i class="fa-solid fa-user-shield me-1"></i><span id="currentUserFullName">Đang tải...</span>
-        </span>
-    </div>
-</div>
+<jsp:include page="/WEB-INF/views/fragments/top-navbar.jsp">
+    <jsp:param name="navTitle" value="${historyTabLabel}"/>
+    <jsp:param name="navIcon" value="${historyTabIcon}"/>
+</jsp:include>
 
 <div class="container-app">
+
+    <!-- Chuyển giữa 2 trang Lịch sử (dựng từ enum HistoryTab qua /api/tickets/meta) -->
+    <div class="btn-group w-100 mb-3" id="historyTabs" role="group" aria-label="Chọn trang lịch sử"></div>
 
     <div class="filter-panel-bg">
         <div class="row g-2">
@@ -346,17 +349,133 @@
     let searchTimer = null;
     let currentPage = 1;
     const PAGE_SIZE = 10;
+    // Trang lịch sử đang xem: COMPLETED (đã hoàn thành) hoặc ISSUES (không liên lạc được & khác), do server gán
+    const HISTORY_TAB = '${historyTab}';
+    let meta = null; // trạng thái / lý do lưu trữ / các trang lịch sử, lấy từ /api/tickets/meta (enum phía server)
+
+    // ===================== NỘP BÁO CÁO (Google Form) =====================
+    // Form "BÁO CÁO KẾT QUẢ CÔNG VIỆC HẰNG NGÀY – ĐỘI KỸ THUẬT". Mã entry lấy từ chính form (đổi form thì cập nhật lại các mã này).
+    const REPORT_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfCOYYflGscdYCRIoTd71J4twFHl3KqTMzANM20Ps2FjeQHzA/viewform';
+    const REPORT_ENTRY = {
+        date: '232984631',
+        staff: '1386363437',
+        area: '977003287',
+        serviceType: '1313171066',
+        account: '2037624764',
+        customerName: '1327480577',
+        phone: '464690292',
+        address: '1666902213',
+        cabinet: '1383431432',
+        contractor: '1226051476'
+    };
+
+    // 24 địa bàn trong form (phải ghi đúng như trong form thì Google mới nhận)
+    const REPORT_AREAS = ['Buôn Ma Thuột', 'Ea Hleo', 'Ea Súp', 'Krông Năng', 'Krông Búk', 'Buôn Đôn', 'Cư Mgar', 'Ea Kar',
+        'Mđrắk', 'Krông Pắk', 'Krông A Na', 'Krông Bông', 'Lắk', 'Cư Kuin', 'Buôn Hồ', 'Tuy Hòa', 'Đồng Xuân', 'Sông Cầu',
+        'Tuy An', 'Sơn Hòa', 'Sông Hinh', 'Phú Hòa', 'Tây Hòa', 'Đông Hòa'];
+
+    // Bỏ dấu, chữ thường, bỏ khoảng trắng / dấu nháy để so khớp (VD "Cư M'gar" = "Cư Mgar", "Ea H'leo" = "Ea Hleo")
+    function normalizeText(str) {
+        return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+            .replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    // Tìm địa bàn của form khớp với khu vực của ca; thử lần lượt: khu vực, cụm xã, xã. Không khớp thì trả null (nhân viên tự chọn)
+    function guessReportArea(item) {
+        const candidates = [item.area, item.communeCluster, item.commune];
+        // Tên dài xét trước để "Tuy An" không bị nhầm với "Tuy An..." khác, "Sơn Hòa"/"Phú Hòa"... đúng từng cái
+        const sorted = REPORT_AREAS.slice().sort(function (x, y) { return normalizeText(y).length - normalizeText(x).length; });
+        for (let i = 0; i < candidates.length; i++) {
+            const text = normalizeText(candidates[i]);
+            if (!text) continue;
+            for (let j = 0; j < sorted.length; j++) {
+                if (text.indexOf(normalizeText(sorted[j])) !== -1) return sorted[j];
+            }
+        }
+        return null;
+    }
+
+    // Chỉ ca "Đã xử lý" (nằm trang Đã hoàn thành) mới có nút nộp báo cáo; ca KLL / không còn trong file thì không
+    function canSubmitReport(item) {
+        return !item.archiveReason || item.archiveReason === 'DONE';
+    }
+
+    // Loại dịch vụ điền sẵn theo loại ca hạ tầng (khai báo ở TicketType phía server)
+    const SERVICE_BY_TICKET_TYPE = {
+        PORT_KEM: 'FTTH',              // Port kém GPON
+        LAN_HOMEWIFI_KEM: 'Mesh',      // LAN / HomeWifi kém
+        LAP_THIEU_HOMEWIFI: 'Mesh'     // Lắp thiếu HomeWifi
+    };
+
+    // Ca hạ tầng: theo bảng trên. Ca phản ánh: đoán từ "Tên dịch vụ" (cột H trong file Excel), không đoán được thì để trống
+    function guessServiceTypes(item) {
+        const byType = SERVICE_BY_TICKET_TYPE[item.ticketType];
+        if (byType) return [byType];
+        const result = [];
+        const t = (item.serviceName || '').toLowerCase();
+        if (/ftth|internet|cáp quang|cap quang|fiber|gpon/.test(t)) result.push('FTTH');
+        if (/truyền hình|truyen hinh|\btv\b|mytv|nexttv/.test(t)) result.push('Truyền hình');
+        if (/\bmesh\b|homewifi|home wifi/.test(t)) result.push('Mesh');
+        if (/camera/.test(t)) result.push('Camera');
+        return result;
+    }
+
+    function buildReportUrl(item) {
+        const params = new URLSearchParams();
+        params.set('usp', 'pp_url');
+        const add = function (entry, value) {
+            if (value !== null && value !== undefined && String(value).trim() !== '') params.append('entry.' + entry, String(value).trim());
+        };
+        // Ngày thực hiện = ngày ca được xử lý xong (chuyển vào lịch sử), dạng yyyy-mm-dd
+        const d = item.archivedAt ? new Date(item.archivedAt) : new Date();
+        const pad = function (n) { return String(n).padStart(2, '0'); };
+        add(REPORT_ENTRY.date, d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()));
+        add(REPORT_ENTRY.staff, item.assignedStaff || (currentUser && currentUser.fullName));
+        add(REPORT_ENTRY.area, guessReportArea(item));
+        guessServiceTypes(item).forEach(function (v) { add(REPORT_ENTRY.serviceType, v); });
+        add(REPORT_ENTRY.account, item.subscriberAccount);
+        add(REPORT_ENTRY.customerName, item.customerName);
+        add(REPORT_ENTRY.phone, item.contactPhone || item.reportPhone);
+        add(REPORT_ENTRY.address, item.installAddress);
+        add(REPORT_ENTRY.cabinet, item.cabinetCode);
+        add(REPORT_ENTRY.contractor, item.techStaffName);
+        return REPORT_FORM_URL + '?' + params.toString();
+    }
 
     document.addEventListener('DOMContentLoaded', async function () {
-        await initUser();
+        await Promise.all([initUser(), initMeta()]);
         loadHistory();
     });
 
+    async function initMeta() {
+        try {
+            meta = await apiFetch(CTX + '/api/tickets/meta');
+            renderHistoryTabs();
+        } catch (e) { console.error(e); }
+    }
+
+    function renderHistoryTabs() {
+        document.getElementById('historyTabs').innerHTML = meta.historyTabs.map(function (t) {
+            const active = t.code === HISTORY_TAB;
+            return '<a href="' + CTX + t.path + '" class="btn btn-sm ' + (active ? 'btn-primary' : 'btn-outline-primary') + '">'
+                + '<i class="' + escapeHtml(t.icon) + ' me-1"></i>' + escapeHtml(t.label) + '</a>';
+        }).join('');
+    }
+
+    function currentTabInfo() {
+        return meta ? meta.historyTabs.find(function (t) { return t.code === HISTORY_TAB; }) : null;
+    }
+
+    // Nhãn lý do lưu trữ; ca lưu trữ từ dữ liệu cũ chưa ghi lý do coi như đã hoàn thành
+    function reasonInfo(code) {
+        const list = meta ? meta.archiveReasons : [];
+        const found = list.find(function (r) { return r.code === (code || 'DONE'); });
+        return found || { label: 'Đã lưu trữ', icon: 'fa-solid fa-box-archive', badgeClass: 'reason-closed' };
+    }
+
     async function initUser() {
         try {
-            const res = await fetch(CTX + '/api/auth/me');
-            currentUser = await res.json();
-            document.getElementById('currentUserFullName').textContent = currentUser.fullName;
+            currentUser = await AppNav.getMe();   // thanh trên cùng (top-navbar) đã lấy sẵn và hiện tên
 
             // ADMIN được xem lịch sử của từng nhân viên; STAFF chỉ xem của chính mình
             if (currentUser.admin) {
@@ -391,6 +510,7 @@
         const to = document.getElementById('toDateInput').value;
         if (from) params.set('fromDate', from);
         if (to) params.set('toDate', to);
+        params.set('tab', HISTORY_TAB);
         params.set('page', currentPage);
         params.set('size', PAGE_SIZE);
 
@@ -429,15 +549,16 @@
     function renderHistory(items) {
         const box = document.getElementById('historyList');
         if (!items || items.length === 0) {
-            box.innerHTML = '<div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white text-muted small">Chưa có ca nào trong lịch sử</div>';
+            const tabInfo = currentTabInfo();
+            box.innerHTML = '<div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white text-muted small">'
+                + escapeHtml(tabInfo ? tabInfo.emptyText : 'Chưa có ca nào trong lịch sử') + '</div>';
             return;
         }
 
         box.innerHTML = items.map(function (item) {
-            const isDone = item.archiveReason === 'DONE';
-            const reasonBadge = isDone
-                ? '<span class="status-badge reason-done"><i class="fa-solid fa-check"></i>Đã xử lý</span>'
-                : '<span class="status-badge reason-closed"><i class="fa-solid fa-box-archive"></i>Không còn trong file GNOC</span>';
+            const reason = reasonInfo(item.archiveReason);
+            const reasonBadge = '<span class="status-badge ' + escapeHtml(reason.badgeClass) + '"><i class="' + escapeHtml(reason.icon) + '"></i>'
+                + escapeHtml(reason.label) + '</span>';
 
             let phones = '';
             if (item.contactPhone) {
@@ -465,7 +586,10 @@
                 +   (item.callNote ? '<div class="text-muted fst-italic mt-1" style="font-size:0.78rem;"><i class="fa-regular fa-note-sticky me-1"></i>' + escapeHtml(item.callNote) + '</div>' : '')
                 + '</div>'
                 + '<div class="action-buttons-grid">' + phones
-                +   '<button type="button" class="btn-action-trigger ms-auto" onclick="restoreTicket(' + item.id + ')"><i class="fa-solid fa-rotate-left"></i>Đưa về danh sách</button>'
+                +   (canSubmitReport(item)
+                    ? '<a class="btn-report-submit ms-auto" href="' + escapeHtml(buildReportUrl(item)) + '" target="_blank" rel="noopener"><i class="fa-solid fa-file-signature"></i>Nộp báo cáo</a>'
+                    : '')
+                +   '<button type="button" class="btn-action-trigger' + (canSubmitReport(item) ? '' : ' ms-auto') + '" onclick="restoreTicket(' + item.id + ')"><i class="fa-solid fa-rotate-left"></i>Đưa về danh sách</button>'
                 + '</div>'
                 + '<div class="card-footer-info"><span>Khu vực: <b>' + escapeHtml(item.area || '') + '</b></span>' + staffInfo + '</div>'
                 + '</div>';
@@ -529,5 +653,6 @@
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 </script>
+<jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp"/>
 </body>
 </html>

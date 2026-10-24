@@ -1,9 +1,11 @@
 package com.huydung.custmapapplication.user.service.impl;
 
+import com.huydung.custmapapplication.common.exception.ResourceNotFoundException;
 import com.huydung.custmapapplication.user.converter.UserConverter;
 import com.huydung.custmapapplication.user.dto.ChangePasswordRequest;
 import com.huydung.custmapapplication.user.dto.CreateUserRequest;
 import com.huydung.custmapapplication.user.dto.ResetPasswordRequest;
+import com.huydung.custmapapplication.user.dto.UpdateProfileRequest;
 import com.huydung.custmapapplication.user.dto.UserDTO;
 import com.huydung.custmapapplication.user.entity.RoleEntity;
 import com.huydung.custmapapplication.user.entity.UserEntity;
@@ -13,6 +15,7 @@ import com.huydung.custmapapplication.user.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,15 +55,28 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserDTO createUser(CreateUserRequest request) {
-        if (request.getUsername() == null || request.getUsername().trim().isEmpty()) {
+        if (request == null) {
+            throw new IllegalArgumentException("Thiếu dữ liệu tạo tài khoản");
+        }
+        String username = request.getUsername() == null ? "" : request.getUsername().trim();
+        if (username.isEmpty()) {
             throw new IllegalArgumentException("Username không được để trống");
         }
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new IllegalArgumentException("Username đã tồn tại: " + request.getUsername());
+        if (userRepository.existsByUsername(username)) {
+            throw new IllegalArgumentException("Username đã tồn tại: " + username);
         }
-        validateNewPassword(request.getPassword(), request.getUsername());
+        String fullName = request.getFullName() == null ? "" : request.getFullName().trim();
+        if (fullName.isEmpty()) {
+            throw new IllegalArgumentException("Họ tên không được để trống");
+        }
+        // Ca phản ánh được ghép với nhân viên theo họ tên, nên không cho hai tài khoản trùng họ tên
+        if (userRepository.findByNormalizedFullName(fullName).isPresent()) {
+            throw new IllegalArgumentException("Đã có tài khoản khác dùng họ tên này: " + fullName);
+        }
+        validateNewPassword(request.getPassword(), username);
 
         UserEntity user = userConverter.toEntity(request);
+        user.setPhone(normalizePhone(request.getPhone()));
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         // Mật khẩu do admin đặt nên người dùng phải đổi ở lần đăng nhập đầu tiên
         user.setMustChangePassword(true);
@@ -72,11 +88,35 @@ public class UserServiceImpl implements UserService {
             roles.add(staffRole);
         } else {
             for (String code : request.getRoleCodes()) {
-                roleRepository.findByCode(code).ifPresent(roles::add);
+                // Mã quyền sai thì báo lỗi, tránh tạo tài khoản không có quyền nào
+                RoleEntity role = roleRepository.findByCode(code == null ? "" : code.trim())
+                        .orElseThrow(() -> new IllegalArgumentException("Mã quyền không tồn tại"));
+                roles.add(role);
             }
         }
         user.setRoles(roles);
 
+        return userConverter.toDTO(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserDTO getProfile(Long userId) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản"));
+        return userConverter.toDTO(user);
+    }
+
+    @Override
+    @Transactional
+    public UserDTO updateProfile(Long userId, UpdateProfileRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Thiếu dữ liệu cập nhật");
+        }
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản"));
+        // Chỉ cho sửa số điện thoại: họ tên dùng để ghép ca với nhân viên nên không để người dùng tự đổi
+        user.setPhone(normalizePhone(request.getPhone()));
         return userConverter.toDTO(userRepository.save(user));
     }
 
@@ -125,6 +165,12 @@ public class UserServiceImpl implements UserService {
         }
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy tài khoản ID: " + userId));
+
+        // ADMIN chỉ được đặt lại mật khẩu cho tài khoản nhân viên (ROLE_STAFF), không đụng tới tài khoản quản trị
+        Set<String> roleCodes = user.getRoles().stream().map(RoleEntity::getCode).collect(Collectors.toSet());
+        if (!roleCodes.contains("ROLE_STAFF") || roleCodes.contains("ROLE_ADMIN")) {
+            throw new AccessDeniedException("Chỉ được đặt lại mật khẩu cho tài khoản nhân viên (ROLE_STAFF)");
+        }
 
         validateNewPassword(request.getNewPassword(), user.getUsername());
 
@@ -200,6 +246,21 @@ public class UserServiceImpl implements UserService {
                 log.info("Tài khoản '{}' đang dùng mật khẩu mặc định -> buộc đổi mật khẩu ở lần đăng nhập tới", user.getUsername());
             }
         }
+    }
+
+    // Chuẩn hóa số điện thoại: bỏ khoảng trắng/dấu chấm/gạch/ngoặc; rỗng thì trả null; sai định dạng thì báo lỗi
+    private String normalizePhone(String phone) {
+        if (phone == null) {
+            return null;
+        }
+        String s = phone.replaceAll("[\\s.\\-()]", "");
+        if (s.isEmpty()) {
+            return null;
+        }
+        if (!s.matches("\\+?\\d{8,15}")) {
+            throw new IllegalArgumentException("Số điện thoại không hợp lệ (8 - 15 chữ số)");
+        }
+        return s;
     }
 
     // Quy tắc mật khẩu: >= 8 ký tự, có cả chữ và số, không trùng username, không trùng mật khẩu khởi tạo

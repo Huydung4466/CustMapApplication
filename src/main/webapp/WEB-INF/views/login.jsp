@@ -67,8 +67,10 @@
             font-weight: 600;
         }
     </style>
+    <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
+    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
 </head>
-<body>
+<body class="vt-auth">
 
 <div class="login-card">
     <div class="text-center mb-4">
@@ -89,12 +91,17 @@
             </div>
         </div>
 
-        <div class="mb-4">
+        <div class="mb-3">
             <label class="form-label fw-semibold small text-secondary">Mật khẩu</label>
             <div class="input-group">
                 <span class="input-group-text bg-light"><i class="fa-solid fa-lock text-secondary"></i></span>
                 <input type="password" id="passwordInput" name="password" class="form-control" placeholder="Nhập mật khẩu" required>
             </div>
+        </div>
+
+        <div class="form-check mb-4">
+            <input class="form-check-input" type="checkbox" id="rememberMe" name="remember-me" checked>
+            <label class="form-check-label small text-secondary" for="rememberMe">Ghi nhớ đăng nhập</label>
         </div>
 
         <button type="submit" class="btn btn-primary btn-login w-100 text-white">
@@ -114,6 +121,11 @@
     } else if (params.has('logout')) {
         alertBox.innerHTML = '<div class="alert alert-success py-2 small"><i class="fa-solid fa-check me-1"></i>Đã đăng xuất thành công.</div>';
     }
+
+    // Bấm Back từ dashboard có thể khôi phục trang login từ bộ nhớ đệm của trình duyệt -> tải lại để server chuyển hướng
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted) window.location.reload();
+    });
 </script>
 </body>
 </html>

@@ -6,8 +6,14 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import com.huydung.custmapapplication.ticket.enums.TicketStatus;
+import com.huydung.custmapapplication.ticket.enums.TicketType;
+import com.huydung.custmapapplication.ticket.type.TicketTypeConverter;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Entity
 @Table(name = "customer_tickets", indexes = {
@@ -15,7 +21,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_ticket_assigned_staff", columnList = "assigned_staff"),
         @Index(name = "idx_ticket_subscriber", columnList = "subscriber_account"),
         @Index(name = "idx_ticket_cabinet", columnList = "cabinet_code"),
-        @Index(name = "idx_ticket_archived", columnList = "archived_at")
+        @Index(name = "idx_ticket_archived", columnList = "archived_at"),
+        @Index(name = "idx_ticket_type", columnList = "ticket_type")
 })
 @Getter
 @Setter
@@ -25,6 +32,16 @@ public class CustomerTicketEntity extends BaseEntity {
 
     @Column(name = "ticket_code", unique = true, nullable = false, length = 100)
     private String ticketCode;
+
+    // Loại ca (xem TicketType). Lưu dạng chuỗi qua converter, KHÔNG dùng @Enumerated để thêm loại mới không dính check constraint.
+    @Convert(converter = TicketTypeConverter.class)
+    @Column(name = "ticket_type", length = 30)
+    private TicketType ticketType = TicketType.PHAN_ANH;
+
+    // Thuộc tính riêng của từng loại (công suất thu, số HomeWifi thiếu...), key khai báo trong TicketType
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "attributes", columnDefinition = "jsonb")
+    private Map<String, String> attributes;
 
     @Column(name = "assigned_staff", columnDefinition = "TEXT")
     private String assignedStaff;
@@ -81,8 +98,9 @@ public class CustomerTicketEntity extends BaseEntity {
     @Column(name = "cabinet_code", length = 255)
     private String cabinetCode;
 
+    // Trạng thái xử lý: tên một giá trị của TicketStatus (lưu dạng chuỗi nên thêm trạng thái mới không cần đổi DB)
     @Column(name = "app_status", length = 50)
-    private String appStatus = "DANG_XU_LY";
+    private String appStatus = TicketStatus.DANG_XU_LY.name();
 
     @Column(name = "appointment_time", columnDefinition = "TEXT")
     private String appointmentTime;
@@ -104,7 +122,8 @@ public class CustomerTicketEntity extends BaseEntity {
     @Column(name = "archived_at")
     private LocalDateTime archivedAt;
 
-    // DONE (bấm Đã xử lý) | NOT_IN_IMPORT (không còn trong file import mới)
+    // Tên một giá trị của ArchiveReason: DONE (bấm Đã xử lý) | KLL (không liên lạc được) | NOT_IN_IMPORT (không còn trong file import mới).
+    // Lý do quyết định ca hiện ở trang Lịch sử nào (xem HistoryTab)
     @Column(name = "archive_reason", length = 20)
     private String archiveReason;
 }

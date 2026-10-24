@@ -17,6 +17,10 @@ public class TicketSearchCriteria {
     private String cabinetPrefix;
     private String priority;
 
+    // Lọc theo loại: ticketType (PORT_KEM...) ưu tiên hơn ticketGroup (PHAN_ANH | HA_TANG); bỏ trống cả hai = mọi loại
+    private String ticketType;
+    private String ticketGroup;
+
     // DEFAULT (ghim trước, theo ID) | APPOINTMENT (theo giờ hẹn) | NEAREST (gần vị trí hiện tại nhất)
     private String sort;
     private Double lat;

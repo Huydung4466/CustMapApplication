@@ -1,15 +1,19 @@
 package com.huydung.custmapapplication.user.controller;
 
-import com.huydung.custmapapplication.user.dto.CreateUserRequest;
-import com.huydung.custmapapplication.user.dto.ResetPasswordRequest;
 import com.huydung.custmapapplication.user.dto.UserDTO;
 import com.huydung.custmapapplication.user.service.UserService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 
+/**
+ * Chỉ chứa các API HIỂN THỊ danh sách tài khoản (ADMIN - chặn trong SecurityConfig: /api/users/**).
+ * API tạo tài khoản / đặt lại mật khẩu (thay đổi dữ liệu) nằm ở package user.api.
+ */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
@@ -25,19 +29,5 @@ public class UserController {
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Integer status) {
         return ResponseEntity.ok(userService.getAllUsers(keyword, status));
-    }
-
-    @PostMapping
-    public ResponseEntity<UserDTO> createUser(@RequestBody CreateUserRequest request) {
-        return ResponseEntity.ok(userService.createUser(request));
-    }
-
-    // ADMIN đặt lại mật khẩu cho nhân viên quên mật khẩu (đã nằm trong nhóm /api/users/** chỉ ADMIN)
-    @PostMapping("/{id}/reset-password")
-    public ResponseEntity<Map<String, String>> resetPassword(@PathVariable("id") Long id,
-                                                             @RequestBody ResetPasswordRequest request) {
-        userService.resetPassword(id, request);
-        return ResponseEntity.ok(Map.of("message",
-                "Đã đặt lại mật khẩu. Người dùng sẽ phải đổi mật khẩu ở lần đăng nhập tới."));
     }
 }

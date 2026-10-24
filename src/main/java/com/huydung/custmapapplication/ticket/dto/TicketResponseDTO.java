@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -14,12 +15,20 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class TicketResponseDTO extends BaseDTO {
     private String ticketCode;
+
+    // Loại ca và thuộc tính riêng đã định dạng sẵn để hiển thị (xem TicketType)
+    private String ticketType;       // PHAN_ANH | PORT_KEM | ...
+    private String ticketTypeLabel;
+    private String ticketGroup;      // PHAN_ANH | HA_TANG
+    private String ticketTypeColor;  // màu badge Bootstrap
+    private List<TicketAttributeView> attributeItems;
     private String assignedStaff;
     private String area;
     private String communeCluster;
     private String commune;
     private String localStaffCode;
 
+    private String serviceName; // Tên dịch vụ của khách (dùng gợi ý "Loại dịch vụ" khi nộp báo cáo)
     private String customerName;
     private String subscriberAccount;
     private int duplicateCount; // Nếu >= 2 sẽ hiển thị "Trùng x2", "Trùng x3"... trên giao diện
@@ -53,7 +62,10 @@ public class TicketResponseDTO extends BaseDTO {
     private String callNote;
     private Boolean isPinned;
 
+    // Số ảnh hiện trường đã chụp của ca (hiện trên nút camera)
+    private Integer photoCount;
+
     // Lưu trữ / lịch sử
     private LocalDateTime archivedAt;
-    private String archiveReason; // DONE (bấm Đã xử lý) | NOT_IN_IMPORT (không còn trong file import mới)
+    private String archiveReason; // DONE (bấm Đã xử lý) | KLL (không liên lạc được) | NOT_IN_IMPORT (không còn trong file import mới)
 }

@@ -1,6 +1,8 @@
 package com.huydung.custmapapplication.auth.security;
 
 import jakarta.servlet.DispatcherType;
+import org.springframework.http.HttpMethod;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,19 +22,26 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http,
+                                           CustomUserDetailsService userDetailsService,
+                                           @Value("${app.remember-me.key:cust-map-remember-me-key-doi-khi-trien-khai}") String rememberMeKey,
+                                           @Value("${app.remember-me.days:30}") int rememberMeDays) throws Exception {
         http
                 // Tắt CSRF cho các API nội bộ để gọi Ajax/Multipart Upload dễ dàng
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // Cho phép forward tới các file JSP trong WEB-INF/views
-                        .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
+                        // Cho phép forward/include tới các file JSP trong WEB-INF/views (kể cả fragment thanh điều hướng)
+                        .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.INCLUDE, DispatcherType.ERROR).permitAll()
                         // Cho phép truy cập trang login và tài nguyên tĩnh
                         .requestMatchers("/login", "/css/**", "/js/**", "/images/**").permitAll()
                         // API Quản lý User chỉ dành cho ADMIN
                         .requestMatchers("/api/users/**").hasAuthority("ROLE_ADMIN")
-                        // Cac Trang Import chi co Admin la duoc phep su dung
-                        .requestMatchers("/api/tickets/import", "/api/tickets/staffs").hasAuthority("ROLE_ADMIN")
+                        // Import file Excel, danh sách nhân viên và thao tác hàng loạt (Đã xử lý / Xóa) chỉ dành cho ADMIN
+                        .requestMatchers("/api/tickets/import", "/api/tickets/staffs", "/api/tickets/bulk").hasAuthority("ROLE_ADMIN")
+                        // Xuất báo cáo Excel (tạo, danh sách, tải về, xóa) chỉ dành cho ADMIN
+                        .requestMatchers("/api/exports/**").hasAuthority("ROLE_ADMIN")
+                        // Sửa cấu hình hệ thống (VD: bật/tắt mục in lên ảnh) chỉ dành cho ADMIN; đọc cấu hình thì ai đăng nhập cũng được
+                        .requestMatchers(HttpMethod.PUT, "/api/settings/**").hasAuthority("ROLE_ADMIN")
                         // Các trang và API còn lại yêu cầu phải đăng nhập
                         .anyRequest().authenticated()
                 )
@@ -44,6 +53,14 @@ public class SecurityConfig {
                         .defaultSuccessUrl("/dashboard", true)
                         .failureUrl("/login?error=true")
                         .permitAll()
+                )
+                // "Ghi nhớ mật khẩu": giữ đăng nhập bằng cookie khi session hết hạn / tắt trình duyệt.
+                // Key cố định để khởi động lại Tomcat không làm mất ghi nhớ; đổi mật khẩu thì cookie cũ tự vô hiệu.
+                .rememberMe(rm -> rm
+                        .key(rememberMeKey)
+                        .rememberMeParameter("remember-me")
+                        .tokenValiditySeconds(rememberMeDays * 24 * 60 * 60)
+                        .userDetailsService(userDetailsService)
                 )
                 .logout(logout -> logout
                         .logoutUrl("/logout")
