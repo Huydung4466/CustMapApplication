@@ -1,6 +1,5 @@
 package com.huydung.custmapapplication.auth.security;
 
-import com.huydung.custmapapplication.constant.LoginAttemptServiceConstant;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
@@ -12,6 +11,13 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Component
 public class LoginAttemptService {
+
+    static final int MAX_FAILS = 5;
+    static final int WINDOW_MINUTES = 15;
+    static final int LOCK_MINUTES = 15;
+    private static final long WINDOW_MS = WINDOW_MINUTES * 60_000L;
+    private static final long LOCK_MS = LOCK_MINUTES * 60_000L;
+    private static final int PURGE_THRESHOLD = 10_000;
 
     private static final class Entry {
         int fails;
@@ -31,17 +37,17 @@ public class LoginAttemptService {
 
     public void recordFailure(String username, String ip) {
         long now = System.currentTimeMillis();
-        if (attempts.size() > LoginAttemptServiceConstant.PURGE_THRESHOLD) purge(now);
+        if (attempts.size() > PURGE_THRESHOLD) purge(now);
         Entry e = attempts.computeIfAbsent(key(username, ip), k -> new Entry());
         synchronized (e) {
             if (e.lockedUntil > now) return;
-            if (e.firstFailAt == 0 || now - e.firstFailAt > LoginAttemptServiceConstant.WINDOW_MS) {
+            if (e.firstFailAt == 0 || now - e.firstFailAt > WINDOW_MS) {
                 e.fails = 0;
                 e.firstFailAt = now;
             }
             e.fails++;
-            if (e.fails >= LoginAttemptServiceConstant.MAX_FAILS) {
-                e.lockedUntil = now + LoginAttemptServiceConstant.LOCK_MS;
+            if (e.fails >= MAX_FAILS) {
+                e.lockedUntil = now + LOCK_MS;
                 e.fails = 0;
                 e.firstFailAt = 0;
             }
@@ -58,7 +64,7 @@ public class LoginAttemptService {
             Entry e = en.getValue();
             synchronized (e) {
                 boolean lockExpired = e.lockedUntil != 0 && e.lockedUntil <= now;
-                boolean windowExpired = e.lockedUntil == 0 && now - e.firstFailAt > LoginAttemptServiceConstant.WINDOW_MS;
+                boolean windowExpired = e.lockedUntil == 0 && now - e.firstFailAt > WINDOW_MS;
                 return lockExpired || windowExpired;
             }
         });

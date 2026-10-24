@@ -238,3 +238,13 @@ body {
     margin-bottom: 14px;
     box-shadow: 0 2px 6px rgba(0,0,0,0.02);
 }
+
+/* ===== Class tiện ích thay cho style="..." viết thẳng trong JSP ===== */
+.vt-fs-70 { font-size: 0.7rem !important; }
+.vt-fs-72 { font-size: 0.72rem !important; }
+.vt-fs-74 { font-size: 0.74rem !important; }
+.vt-fs-75 { font-size: 0.75rem !important; }
+.vt-fs-78 { font-size: 0.78rem !important; }
+.vt-fs-80 { font-size: 0.8rem !important; }
+.vt-fs-85 { font-size: 0.85rem !important; }
+.vt-h-8 { height: 8px !important; }
