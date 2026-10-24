@@ -24,8 +24,10 @@ public interface TicketService {
     // Danh sách ca ĐÃ HẸN (Hẹn giờ / Hẹn khác), xếp theo giờ hẹn gần nhất, có phân trang
     AbstractDTO<TicketResponseDTO> getAppointmentsForCurrentUser(TicketSearchCriteria criteria);
 
+    // tab = COMPLETED (ca đã hoàn thành) | ISSUES (không liên lạc được và vấn đề khác); null = cả hai
     AbstractDTO<TicketResponseDTO> getHistoryForCurrentUser(String staffFilter, String keyword,
                                                             LocalDate fromDate, LocalDate toDate,
+                                                            String tab,
                                                             Integer page, Integer size);
 
     TicketResponseDTO updateTicketAction(Long ticketId, UpdateTicketActionRequest request);

@@ -1,6 +1,7 @@
 package com.huydung.custmapapplication.ticket.controller;
 
 import com.huydung.custmapapplication.common.dto.AbstractDTO;
+import com.huydung.custmapapplication.ticket.dto.TicketMetaDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketSearchCriteria;
 import com.huydung.custmapapplication.ticket.dto.TicketTypeInfoDTO;
@@ -43,16 +44,24 @@ public class TicketController {
         return ResponseEntity.ok(ticketService.getAppointmentsForCurrentUser(criteria));
     }
 
-    // 3. Danh sách ca đã làm / đã lưu trữ (trang Lịch sử)
+    // 3. Danh sách ca đã lưu trữ (các trang Lịch sử): tab = COMPLETED (đã hoàn thành) | ISSUES (không liên lạc được và vấn đề khác)
     @GetMapping("/history")
     public ResponseEntity<AbstractDTO<TicketResponseDTO>> getHistory(
+            @RequestParam(value = "tab", required = false) String tab,
             @RequestParam(value = "staffFilter", required = false) String staffFilter,
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "fromDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(value = "toDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate,
             @RequestParam(value = "page", required = false) Integer page,
             @RequestParam(value = "size", required = false) Integer size) {
-        return ResponseEntity.ok(ticketService.getHistoryForCurrentUser(staffFilter, keyword, fromDate, toDate, page, size));
+        return ResponseEntity.ok(ticketService.getHistoryForCurrentUser(staffFilter, keyword, fromDate, toDate, tab, page, size));
+    }
+
+    // Danh mục trạng thái xử lý, lý do lưu trữ và các trang Lịch sử (sinh từ enum TicketStatus / ArchiveReason / HistoryTab):
+    // giao diện dựng hộp "Cập nhật xử lý ca", nhãn trạng thái và nút chuyển trang Lịch sử từ đây
+    @GetMapping("/meta")
+    public ResponseEntity<TicketMetaDTO> getMeta() {
+        return ResponseEntity.ok(TicketMetaDTO.build());
     }
 
     // Các loại ca (PHAN_ANH, PORT_KEM...) kèm số ca đang mở: giao diện dựng tab và bộ lọc loại từ đây

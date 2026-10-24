@@ -9,17 +9,46 @@ let currentPage = 1;
 let searchTimer = null;
 let actionModalInstance = null;
 const PAGE_SIZE = 10;
+let statusMeta = { statuses: [], statusOptions: {}, archiveReasons: [], historyTabs: [] }; // lấy từ /api/tickets/meta
 
 document.addEventListener('DOMContentLoaded', async function () {
     actionModalInstance = new bootstrap.Modal(document.getElementById('actionModal'));
+    await loadStatusMeta();
     await initUser();
     loadTickets();
 });
 
+// Trạng thái xử lý (nhãn, biểu tượng, màu, các lựa chọn trong hộp "Cập nhật lịch hẹn") do server khai báo
+// bằng enum TicketStatus + StatusContext; giao diện chỉ việc đọc từ /api/tickets/meta
+async function loadStatusMeta() {
+    try {
+        statusMeta = await apiFetch(CTX + '/api/tickets/meta');
+        const sel = document.getElementById('modalStatusSelect');
+        sel.innerHTML = '';
+        (statusMeta.statusOptions.APPOINTMENT || []).forEach(function (o) {
+            const opt = document.createElement('option');
+            opt.value = o.code;
+            opt.textContent = o.label;
+            sel.appendChild(opt);
+        });
+    } catch (e) { console.error(e); }
+}
+
+function findStatus(code) {
+    return statusMeta.statuses.find(function (s) { return s.code === code; });
+}
+
+// Thông báo sau khi chuyển ca vào Lịch sử, kèm tên trang Lịch sử chứa ca đó (Đã hoàn thành / Không liên lạc được & khác)
+function archiveMessage(statusCode) {
+    const info = findStatus(statusCode);
+    const reason = info && statusMeta.archiveReasons.find(function (r) { return r.code === info.archiveReason; });
+    const tab = reason && statusMeta.historyTabs.find(function (t) { return t.code === reason.tab; });
+    return 'Đã chuyển ca vào Lịch sử' + (tab ? ' › ' + tab.label : '');
+}
+
 async function initUser() {
     try {
-        currentUser = await apiFetch(CTX + '/api/auth/me');
-        document.getElementById('currentUserFullName').textContent = currentUser.fullName;
+        currentUser = await AppNav.getMe();   // thanh trên cùng (top-navbar) đã lấy sẵn và hiện tên
         // ADMIN xem được ca đã hẹn của từng nhân viên; STAFF chỉ thấy ca của chính mình
         if (currentUser.admin) {
             const staffs = await apiFetch(CTX + '/api/tickets/staffs');
@@ -94,10 +123,11 @@ function renderTickets(tickets) {
 }
 
 function statusBadge(status) {
-    if (status === 'HEN_KHAC') {
-        return '<span class="status-badge status-hen-khac"><i class="fa-regular fa-calendar"></i>Hẹn khác</span>';
-    }
-    return '<span class="status-badge status-hen-gio"><i class="fa-solid fa-circle-check"></i>Hẹn giờ</span>';
+    // Trang này chỉ có ca đã hẹn; trạng thái lạ coi như Hẹn giờ
+    const info = findStatus(status) || findStatus('HEN_GIO');
+    if (!info) return '';
+    return '<span class="status-badge ' + escapeHtml(info.badgeClass) + '"><i class="' + escapeHtml(info.icon) + '"></i>'
+        + escapeHtml(info.label) + '</span>';
 }
 
 function cardHtml(item) {
@@ -268,7 +298,7 @@ async function submitModalAction() {
     }
     let message = 'Đã cập nhật ca';
     if (status === 'DANG_XU_LY') message = 'Đã bỏ hẹn, ca quay về danh sách chính';
-    else if (status === 'KLL' || status === 'DA_XU_LY') message = 'Đã chuyển ca vào Lịch sử';
+    else if (findStatus(status) && findStatus(status).archives) message = archiveMessage(status);
     if (await sendTicketAction(id, payload, message)) {
         actionModalInstance.hide();
     }
@@ -283,12 +313,12 @@ async function quickBackToList(id) {
 
 async function quickKLL(id) {
     if (!confirm('Không liên lạc được khách hàng này? Ca sẽ được chuyển vào Lịch sử.')) return;
-    await sendTicketAction(id, { appStatus: 'KLL', callNote: 'Không liên lạc được' }, 'Đã chuyển ca vào Lịch sử');
+    await sendTicketAction(id, { appStatus: 'KLL', callNote: 'Không liên lạc được' }, archiveMessage('KLL'));
     loadTickets(true);
 }
 
 async function quickDone(id) {
     if (!confirm('Đã xử lý xong ca này? Ca sẽ được chuyển vào Lịch sử.')) return;
-    await sendTicketAction(id, { appStatus: 'DA_XU_LY' }, 'Đã chuyển ca vào Lịch sử');
+    await sendTicketAction(id, { appStatus: 'DA_XU_LY' }, archiveMessage('DA_XU_LY'));
     loadTickets(true);
 }

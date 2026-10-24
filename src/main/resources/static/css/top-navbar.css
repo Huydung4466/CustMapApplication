@@ -1,0 +1,18 @@
+/*
+ * top-navbar.css - Bố cục thanh trên cùng dùng chung (fragments/top-navbar.jsp).
+ * Chỉ có bố cục; màu nền / màu chữ do viettel-theme.css quyết định.
+ * Luôn một hàng vừa mọi cỡ màn hình điện thoại: bên trái co lại được (tiêu đề dài thì hiện dấu ...),
+ * bên phải là các nút tròn cỡ cố định và nhãn tên người dùng.
+ */
+.top-navbar { background: #fff; position: sticky; top: 0; z-index: 1030; box-shadow: 0 1px 3px rgba(0, 0, 0, .05); }
+.top-navbar .nav-inner { max-width: 740px; margin: 0 auto; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: nowrap; }
+.top-navbar .nav-left { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 0; }
+.top-navbar .nav-right { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; }
+.top-navbar .nav-title { min-width: 0; font-size: 1rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-navbar .nav-user { min-width: 0; max-width: 48vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .85rem; }
+.top-navbar .nav-kmz { flex: 0 0 auto; white-space: nowrap; }
+.top-navbar .nav-icon-btn {
+    width: 34px; height: 34px; padding: 0; flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
+}
+@media (max-width: 420px) { .top-navbar .nav-kmz-label { display: none; } }

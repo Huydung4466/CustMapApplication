@@ -31,7 +31,10 @@ import com.huydung.custmapapplication.ticket.importer.TicketRowReader;
 import com.huydung.custmapapplication.ticket.repository.TicketFilter;
 import com.huydung.custmapapplication.ticket.repository.TicketRepository;
 import com.huydung.custmapapplication.ticket.service.TicketService;
+import com.huydung.custmapapplication.ticket.enums.ArchiveReason;
+import com.huydung.custmapapplication.ticket.enums.HistoryTab;
 import com.huydung.custmapapplication.ticket.enums.TicketGroup;
+import com.huydung.custmapapplication.ticket.enums.TicketStatus;
 import com.huydung.custmapapplication.ticket.enums.TicketType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
@@ -57,16 +60,7 @@ public class TicketServiceImpl implements TicketService {
 
     private static final Logger log = LoggerFactory.getLogger(TicketServiceImpl.class);
 
-    private static final String STATUS_DONE = "DA_XU_LY";
-    private static final String STATUS_PROCESSING = "DANG_XU_LY";
-    private static final String STATUS_KLL = "KLL";
-    private static final String REASON_DONE = "DONE";
-    private static final String REASON_KLL = "KLL";
-    private static final String REASON_NOT_IN_IMPORT = "NOT_IN_IMPORT";
-
-    // Các trạng thái hợp lệ mà giao diện được phép gán cho ca (chặn giá trị tùy ý từ client)
-    private static final Set<String> ALLOWED_STATUSES =
-            Set.of("DANG_XU_LY", "HEN_GIO", "HEN_KHAC", "KLL", "DA_XU_LY");
+    // Trạng thái xử lý (TicketStatus) và lý do lưu trữ (ArchiveReason) khai báo trong package ticket.enums
     private static final int MAX_CALL_NOTE_LENGTH = 2000;
 
     // Nếu một lần import làm biến mất từ ngần này ca VÀ vượt quá tỉ lệ này so với số ca đang mở -> hỏi xác nhận
@@ -188,13 +182,13 @@ public class TicketServiceImpl implements TicketService {
                 if (isNew) {
                     entity = new CustomerTicketEntity();
                     entity.setTicketCode(ticketCode);
-                    entity.setAppStatus(STATUS_PROCESSING);
+                    entity.setAppStatus(TicketStatus.DANG_XU_LY.name());
                     entity.setIsPinned(false);
                     inserted++;
                 } else if (firstOccurrence) {
                     updated++;
                     // Ca từng bị lưu trữ vì "không còn trong file" nay xuất hiện lại -> đưa về danh sách chính
-                    if (entity.getArchivedAt() != null && REASON_NOT_IN_IMPORT.equals(entity.getArchiveReason())) {
+                    if (entity.getArchivedAt() != null && ArchiveReason.NOT_IN_IMPORT.name().equals(entity.getArchiveReason())) {
                         entity.setArchivedAt(null);
                         entity.setArchiveReason(null);
                         restored++;
@@ -219,7 +213,7 @@ public class TicketServiceImpl implements TicketService {
         List<CustomerTicketEntity> archiveMissing = new ArrayList<>();
         for (CustomerTicketEntity t : existingMap.values()) {
             if (t.getArchivedAt() != null) continue;
-            if (STATUS_DONE.equals(t.getAppStatus()) || STATUS_KLL.equals(t.getAppStatus())) {
+            if (TicketStatus.isArchiving(t.getAppStatus())) {
                 archiveDone.add(t);
             } else if (scope.contains(typeOf(t)) && !codesInFile.contains(t.getTicketCode())) {
                 archiveMissing.add(t);
@@ -236,11 +230,11 @@ public class TicketServiceImpl implements TicketService {
         LocalDateTime now = LocalDateTime.now();
         for (CustomerTicketEntity t : archiveDone) {
             t.setArchivedAt(now);
-            t.setArchiveReason(STATUS_KLL.equals(t.getAppStatus()) ? REASON_KLL : REASON_DONE);
+            t.setArchiveReason(TicketStatus.fromCode(t.getAppStatus()).getArchiveReason().name());
         }
         for (CustomerTicketEntity t : archiveMissing) {
             t.setArchivedAt(now);
-            t.setArchiveReason(REASON_NOT_IN_IMPORT);
+            t.setArchiveReason(ArchiveReason.NOT_IN_IMPORT.name());
         }
 
         ticketRepository.saveAll(toSaveList);
@@ -369,10 +363,8 @@ public class TicketServiceImpl implements TicketService {
     @Transactional(readOnly = true)
     public AbstractDTO<TicketResponseDTO> getAppointmentsForCurrentUser(TicketSearchCriteria criteria) {
         // Chỉ nhận lọc riêng theo HEN_GIO hoặc HEN_KHAC; giá trị khác coi như lấy cả hai loại
-        String status = criteria.getAppStatus() == null ? null : criteria.getAppStatus().trim().toUpperCase();
-        if (!"HEN_GIO".equals(status) && !"HEN_KHAC".equals(status)) {
-            status = null;
-        }
+        TicketStatus parsed = TicketStatus.fromCode(criteria.getAppStatus());
+        String status = (parsed != null && parsed.isAppointed()) ? parsed.name() : null;
 
         TicketFilter filter = new TicketFilter(
                 resolveEffectiveStaffFilter(criteria.getStaffFilter()),
@@ -443,17 +435,23 @@ public class TicketServiceImpl implements TicketService {
     @Transactional(readOnly = true)
     public AbstractDTO<TicketResponseDTO> getHistoryForCurrentUser(String staffFilter, String keyword,
                                                                    LocalDate fromDate, LocalDate toDate,
+                                                                   String tabCode,
                                                                    Integer pageParam, Integer sizeParam) {
         String effectiveStaff = resolveEffectiveStaffFilter(staffFilter);
+        // tab = COMPLETED (ca đã hoàn thành) | ISSUES (không liên lạc được và vấn đề khác); bỏ trống = cả hai
+        HistoryTab tab = HistoryTab.fromCode(tabCode);
+        if (tabCode != null && !tabCode.isBlank() && tab == null) {
+            throw new IllegalArgumentException("Trang lịch sử không hợp lệ");
+        }
         LocalDateTime from = fromDate != null ? fromDate.atStartOfDay() : null;
         LocalDateTime toExclusive = toDate != null ? toDate.plusDays(1).atStartOfDay() : null;
 
         int size = normalizeSize(sizeParam);
-        long totalItem = ticketRepository.countHistoryTickets(effectiveStaff, keyword, from, toExclusive);
+        long totalItem = ticketRepository.countHistoryTickets(effectiveStaff, keyword, from, toExclusive, tab);
         int page = clampPage(pageParam, totalItem, size);
 
         List<TicketResponseDTO> items = ticketRepository
-                .findHistoryTickets(effectiveStaff, keyword, from, toExclusive, (page - 1) * size, size)
+                .findHistoryTickets(effectiveStaff, keyword, from, toExclusive, tab, (page - 1) * size, size)
                 .stream()
                 .map(ticketConverter::toActionResponseDTO)
                 .collect(Collectors.toList());
@@ -488,8 +486,8 @@ public class TicketServiceImpl implements TicketService {
 
         entity.setArchivedAt(null);
         entity.setArchiveReason(null);
-        if (STATUS_DONE.equals(entity.getAppStatus()) || STATUS_KLL.equals(entity.getAppStatus())) {
-            entity.setAppStatus(STATUS_PROCESSING);
+        if (TicketStatus.isArchiving(entity.getAppStatus())) {
+            entity.setAppStatus(TicketStatus.DANG_XU_LY.name());
         }
         entity.setUpdatedAt(LocalDateTime.now());
         return ticketConverter.toActionResponseDTO(ticketRepository.save(entity));
@@ -610,15 +608,12 @@ public class TicketServiceImpl implements TicketService {
         ticketConverter.updateEntityFromRequest(request, entity);
         applyAppointment(request, entity);
 
-        // Bấm "Đã xử lý" hoặc "KLL" (không liên lạc được) thì chuyển ca sang Lịch sử ngay
-        if (entity.getArchivedAt() == null) {
-            if (STATUS_DONE.equals(entity.getAppStatus())) {
-                entity.setArchivedAt(LocalDateTime.now());
-                entity.setArchiveReason(REASON_DONE);
-            } else if (STATUS_KLL.equals(entity.getAppStatus())) {
-                entity.setArchivedAt(LocalDateTime.now());
-                entity.setArchiveReason(REASON_KLL);
-            }
+        // Trạng thái có archiveReason (Đã xử lý -> DONE, KLL -> KLL) thì chuyển ca sang Lịch sử ngay,
+        // trang Lịch sử nào chứa ca do lý do đó quyết định (xem ArchiveReason / HistoryTab)
+        TicketStatus newStatus = TicketStatus.fromCode(entity.getAppStatus());
+        if (entity.getArchivedAt() == null && newStatus != null && newStatus.archives()) {
+            entity.setArchivedAt(LocalDateTime.now());
+            entity.setArchiveReason(newStatus.getArchiveReason().name());
         }
 
         return ticketConverter.toActionResponseDTO(ticketRepository.save(entity));
@@ -647,13 +642,14 @@ public class TicketServiceImpl implements TicketService {
             throw new IllegalArgumentException("Thiếu dữ liệu cập nhật");
         }
         if (request.getAppStatus() != null) {
-            String status = request.getAppStatus().trim().toUpperCase();
-            if (status.isEmpty()) {
+            if (request.getAppStatus().isBlank()) {
                 request.setAppStatus(null);
-            } else if (!ALLOWED_STATUSES.contains(status)) {
-                throw new IllegalArgumentException("Trạng thái không hợp lệ");
             } else {
-                request.setAppStatus(status);
+                TicketStatus status = TicketStatus.fromCode(request.getAppStatus());
+                if (status == null) {
+                    throw new IllegalArgumentException("Trạng thái không hợp lệ");
+                }
+                request.setAppStatus(status.name());
             }
         }
         if (request.getCallNote() != null && request.getCallNote().length() > MAX_CALL_NOTE_LENGTH) {

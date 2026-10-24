@@ -24,6 +24,10 @@
     var MAX_BYTES = 7 * 1024 * 1024;        // server nhận tối đa 8 MB; nếu vượt thì nén thêm
     var MAX_PHOTO_AGE_MS = 30 * 60 * 1000;  // chỉ nhận ảnh chụp trong vòng 30 phút (tránh chọn nhầm ảnh cũ trong thư viện)
     var GOOD_ACCURACY_M = 50;       // GPS sai số <= ngưỡng này thì báo xanh
+    var TARGET_ACCURACY_M = 25;     // sai số <= ngưỡng này thì cho chụp ngay
+    var MAX_WAIT_MS = 15000;        // chờ GPS chính xác tối đa bấy lâu rồi chụp bằng điểm tốt nhất hiện có
+    var KEEP_BEST_MS = 10000;       // điểm GPS tốt nhất được giữ tối đa bấy lâu (sau đó nhận điểm mới dù kém hơn)
+    var NEAR_TICKET_M = 300;        // đứng cách tủ cáp của ca trong bán kính này thì in địa chỉ theo thông tin ca
     var GEOCODE_MIN_MOVE_M = 30;    // chỉ dò lại địa chỉ khi đã di chuyển quá ngần này
     var GEOCODE_RETRY_MS = 5000;
     var GEOCODE_MAX_FAILS = 3;
@@ -120,7 +124,17 @@
     function safeName(s) { return String(s || 'anh').replace(/[^A-Za-z0-9_\-]/g, '_'); }
 
     // ===================== NỘI DUNG CHỮ IN LÊN ẢNH =====================
+    // Đang đứng gần tủ cáp của ca (theo KMZ) và ca có địa chỉ lắp đặt -> dùng địa chỉ của ca (đúng số nhà),
+    // vì địa chỉ dò theo GPS/OpenStreetMap hay lệch vài căn hoặc thiếu số nhà
+    function preferTicketAddress(s) {
+        var t = s && s.ticket;
+        if (!t || !s.pos || !String(t.installAddress || '').trim()) return false;
+        if (typeof t.latitude !== 'number' || typeof t.longitude !== 'number') return false;
+        return distanceM(s.pos.lat, s.pos.lng, t.latitude, t.longitude) <= NEAR_TICKET_M;
+    }
+
     function currentAddress(s) {
+        if (preferTicketAddress(s)) return { text: String(s.ticket.installAddress).trim(), source: 'TICKET' };
         if (s.geoAddress) return { text: s.geoAddress, source: 'GEOCODE' };
         var t = String(s.ticket.installAddress || '').trim();
         if (t) return { text: t, source: 'TICKET' };
@@ -401,7 +415,8 @@
         setChip(ui.gpsDot, ui.gpsText, g.level, g.text);
 
         var a;
-        if (s.geoAddress) a = { level: 'ok', text: 'Địa chỉ theo GPS' };
+        if (preferTicketAddress(s)) a = { level: 'ok', text: 'Địa chỉ theo thông tin ca' };
+        else if (s.geoAddress) a = { level: 'ok', text: 'Địa chỉ theo GPS' };
         else if (s.geoBusy && s.pos) a = { level: '', text: 'Đang dò địa chỉ…' };
         else if (String(s.ticket.installAddress || '').trim()) a = { level: 'warn', text: 'Địa chỉ theo thông tin ca' };
         else a = { level: 'bad', text: 'Chưa có địa chỉ' };
@@ -412,9 +427,19 @@
         var s = state;
         if (!window.isSecureContext) { s.gpsStatus = 'insecure'; return; }
         if (!navigator.geolocation) { s.gpsStatus = 'unavailable'; return; }
+        s.gpsStartedAt = Date.now();
+        // Hết thời gian chờ thì mở lại nút Chụp dù GPS chưa đạt ngưỡng
+        setTimeout(function () { if (state === s) { updateChips(); updateShoot(); } }, MAX_WAIT_MS + 200);
         s.watchId = navigator.geolocation.watchPosition(function (p) {
             if (state !== s) return;
-            s.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: p.coords.accuracy || 0 };
+            var now = Date.now();
+            var acc = p.coords.accuracy || 0;
+            var cur = s.pos;
+            // Chỉ nhận điểm mới nếu: chính xác hơn, hoặc điểm cũ đã cũ, hoặc người dùng đã di chuyển xa
+            var moved = cur ? distanceM(cur.lat, cur.lng, p.coords.latitude, p.coords.longitude) > (cur.acc + acc) : false;
+            if (!cur || acc <= cur.acc || now - cur.at > KEEP_BEST_MS || moved) {
+                s.pos = { lat: p.coords.latitude, lng: p.coords.longitude, acc: acc, at: now };
+            }
             s.gpsStatus = 'ok';
             maybeGeocode();
             updateChips(); updateShoot(); updatePreview();
@@ -423,7 +448,7 @@
             if (!s.pos) s.gpsStatus = (err && err.code === 1) ? 'denied' : 'error';
             else if (err && err.code === 1) { s.gpsStatus = 'denied'; s.pos = null; }
             updateChips(); updateShoot(); updatePreview();
-        }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+        }, { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 });
     }
 
     // Dò địa chỉ từ tọa độ bằng OpenStreetMap Nominatim (miễn phí, cần giữ tần suất thấp)
@@ -443,10 +468,14 @@
         if (!s || !s.pos || s.geoBusy || s.geoFails >= GEOCODE_MAX_FAILS) return;
         var now = Date.now();
         if (now - s.geoLastTry < GEOCODE_RETRY_MS) return;
-        if (s.geoAddress && s.geoFrom &&
+        // Địa chỉ đã dò từ điểm thô: nếu sau đó GPS chính xác hơn rõ rệt thì dò lại (tối đa 3 lần)
+        var improved = s.geoFrom && s.geoFrom.acc && s.pos.acc &&
+            s.pos.acc < s.geoFrom.acc * 0.6 && (s.geoFrom.acc - s.pos.acc) >= 10 && (s.geoRefines || 0) < 3;
+        if (s.geoAddress && s.geoFrom && !improved &&
             distanceM(s.geoFrom.lat, s.geoFrom.lng, s.pos.lat, s.pos.lng) < GEOCODE_MIN_MOVE_M) return;
 
-        var from = { lat: s.pos.lat, lng: s.pos.lng };
+        var from = { lat: s.pos.lat, lng: s.pos.lng, acc: s.pos.acc };
+        if (improved) s.geoRefines = (s.geoRefines || 0) + 1;
         s.geoBusy = true;
         s.geoLastTry = now;
         reverseGeocode(from.lat, from.lng).then(function (text) {
@@ -468,8 +497,11 @@
         var s = state;
         if (!s) return;
         var waiting = s.gpsStatus === 'waiting';
-        ui.shoot.disabled = !(s.mode === 'ready' && !waiting && !s.busy);
-        btnLabel(ui.shoot, waiting ? 'Đang chờ GPS…' : (s.busy ? 'Đang xử lý ảnh…' : 'Chụp ảnh'));
+        // Có tọa độ nhưng còn thô: chờ thêm tới MAX_WAIT_MS cho GPS bắt chặt hơn
+        var refining = s.gpsStatus === 'ok' && s.pos && s.pos.acc > TARGET_ACCURACY_M &&
+            (Date.now() - (s.gpsStartedAt || 0)) < MAX_WAIT_MS;
+        ui.shoot.disabled = !(s.mode === 'ready' && !waiting && !refining && !s.busy);
+        btnLabel(ui.shoot, waiting ? 'Đang chờ GPS…' : (refining ? 'Đang làm chính xác GPS…' : (s.busy ? 'Đang xử lý ảnh…' : 'Chụp ảnh')));
     }
 
     // ===================== XỬ LÝ ẢNH =====================
@@ -685,7 +717,7 @@
         var s = state = {
             ticketId: ticketId, ticket: ticket, free: free, mode: 'ready', ratio: 3 / 4,
             pos: null, gpsStatus: 'waiting', watchId: null,
-            geoAddress: '', geoFrom: null, geoBusy: false, geoLastTry: 0, geoFails: 0,
+            geoAddress: '', geoFrom: null, geoBusy: false, geoLastTry: 0, geoFails: 0, geoRefines: 0, gpsStartedAt: 0,
             captured: null, busy: false, savedCount: 0, timer: null
         };
 

@@ -7,25 +7,16 @@
     <title>Cá nhân - Hệ thống Quản lý Phản ánh KH</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <link href="${pageContext.request.contextPath}/css/app-pages.css?v=1" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/css/app-pages.css?v=2" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau CSS của trang để ghi đè màu cũ) -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
 </head>
 <body class="vt-app">
 
-<div class="top-navbar py-2 mb-3">
-    <div class="container-app nav-inner">
-        <div class="nav-left">
-            <a href="${pageContext.request.contextPath}/dashboard" class="btn btn-sm btn-outline-primary nav-icon-btn" title="Về danh sách ca" aria-label="Về danh sách ca">
-                <i class="fa-solid fa-arrow-left"></i>
-            </a>
-            <span class="nav-title"><i class="fa-solid fa-user me-1"></i>Cá nhân</span>
-        </div>
-        <span class="badge bg-primary rounded-pill px-3 py-1 nav-user">
-            <i class="fa-solid fa-user-shield me-1"></i><span id="currentUserFullName">Đang tải...</span>
-        </span>
-    </div>
-</div>
+<jsp:include page="/WEB-INF/views/fragments/top-navbar.jsp">
+    <jsp:param name="navTitle" value="Cá nhân"/>
+    <jsp:param name="navIcon" value="fa-solid fa-user"/>
+</jsp:include>
 
 <div class="container-app">
 
@@ -56,9 +47,46 @@
 
         <div class="d-grid gap-2">
             <a href="${pageContext.request.contextPath}/change-password" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-key me-1"></i>Đổi mật khẩu</a>
-            <a href="${pageContext.request.contextPath}/history" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-clock-rotate-left me-1"></i>Lịch sử ca đã làm</a>
+            <a href="${pageContext.request.contextPath}/history" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-circle-check me-1"></i>Lịch sử: ca đã hoàn thành</a>
+            <a href="${pageContext.request.contextPath}/history/issues" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-phone-slash me-1"></i>Lịch sử: không liên lạc được &amp; khác</a>
             <a href="${pageContext.request.contextPath}/logout" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-power-off me-1"></i>Đăng xuất</a>
         </div>
+    </div>
+
+    <!-- ===== NẠP DỮ LIỆU HỆ THỐNG (import Excel chỉ ROLE_ADMIN; KMZ mọi tài khoản) ===== -->
+    <div class="card border-0 shadow-sm rounded-4 bg-white p-3 mb-3" id="importSection">
+        <h6 class="fw-bold text-primary mb-3"><i class="fa-solid fa-file-arrow-up me-1"></i>Nạp dữ liệu hệ thống</h6>
+        <div class="row g-2">
+            <div class="col-12 col-md-6 d-none" id="excelImportCol">
+                <div class="p-2 border rounded-3 bg-light h-100">
+                    <label class="form-label small fw-bold text-success mb-1" for="excelFileInput">File dữ liệu (.xlsx) - phản ánh hoặc hạ tầng, tự nhận diện</label>
+                    <input type="file" id="excelFileInput" accept=".xlsx,.xls" class="form-control form-control-sm mb-2">
+                    <button type="button" class="btn btn-sm btn-success w-100 fw-semibold" onclick="uploadExcelFile()" id="btnUploadExcel">
+                        <i class="fa-solid fa-upload me-1"></i>Import Excel
+                    </button>
+                </div>
+            </div>
+            <div class="col-12 col-md-6" id="kmzImportCol">
+                <div class="p-2 border rounded-3 bg-light h-100">
+                    <label class="form-label small fw-bold text-primary mb-1" for="kmzFileInput">File Tọa độ Tủ (.kmz / .kml)</label>
+                    <input type="file" id="kmzFileInput" accept=".kmz,.kml" class="form-control form-control-sm mb-2">
+                    <button type="button" class="btn btn-sm btn-primary w-100 fw-semibold" onclick="uploadKmzFile()" id="btnUploadKmz">
+                        <i class="fa-solid fa-upload me-1"></i>Import KMZ
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Đang import: thanh chạy liên tục + dòng báo, hiện cho tới khi server xử lý xong -->
+        <div class="d-none mt-3" id="importBusy" role="status" aria-live="polite">
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
+            </div>
+            <div class="small text-muted mt-1">
+                <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                <span id="importBusyText">Đang tải lên và xử lý, vui lòng không đóng trang...</span>
+            </div>
+        </div>
+        <div id="importResultAlert" class="mt-2"></div>
     </div>
 
     <!-- ===== QUẢN LÝ TÀI KHOẢN (chỉ ROLE_ADMIN) ===== -->
@@ -155,7 +183,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>const CTX = '${pageContext.request.contextPath}';</script>
 <script src="${pageContext.request.contextPath}/js/app-common.js?v=1"></script>
-<script src="${pageContext.request.contextPath}/js/profile.js?v=2"></script>
+<script src="${pageContext.request.contextPath}/js/profile.js?v=3"></script>
 
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp">
     <jsp:param name="active" value="profile"/>

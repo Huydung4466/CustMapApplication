@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import com.huydung.custmapapplication.ticket.enums.TicketStatus;
 import com.huydung.custmapapplication.ticket.enums.TicketType;
 import com.huydung.custmapapplication.ticket.type.TicketTypeConverter;
 
@@ -97,8 +98,9 @@ public class CustomerTicketEntity extends BaseEntity {
     @Column(name = "cabinet_code", length = 255)
     private String cabinetCode;
 
+    // Trạng thái xử lý: tên một giá trị của TicketStatus (lưu dạng chuỗi nên thêm trạng thái mới không cần đổi DB)
     @Column(name = "app_status", length = 50)
-    private String appStatus = "DANG_XU_LY";
+    private String appStatus = TicketStatus.DANG_XU_LY.name();
 
     @Column(name = "appointment_time", columnDefinition = "TEXT")
     private String appointmentTime;
@@ -120,7 +122,8 @@ public class CustomerTicketEntity extends BaseEntity {
     @Column(name = "archived_at")
     private LocalDateTime archivedAt;
 
-    // DONE (bấm Đã xử lý) | NOT_IN_IMPORT (không còn trong file import mới)
+    // Tên một giá trị của ArchiveReason: DONE (bấm Đã xử lý) | KLL (không liên lạc được) | NOT_IN_IMPORT (không còn trong file import mới).
+    // Lý do quyết định ca hiện ở trang Lịch sử nào (xem HistoryTab)
     @Column(name = "archive_reason", length = 20)
     private String archiveReason;
 }

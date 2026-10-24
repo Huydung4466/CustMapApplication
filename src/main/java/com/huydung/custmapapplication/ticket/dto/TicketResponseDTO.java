@@ -28,6 +28,7 @@ public class TicketResponseDTO extends BaseDTO {
     private String commune;
     private String localStaffCode;
 
+    private String serviceName; // Tên dịch vụ của khách (dùng gợi ý "Loại dịch vụ" khi nộp báo cáo)
     private String customerName;
     private String subscriberAccount;
     private int duplicateCount; // Nếu >= 2 sẽ hiển thị "Trùng x2", "Trùng x3"... trên giao diện

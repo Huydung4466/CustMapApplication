@@ -8,6 +8,325 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/css/dashboard.css?v=1" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #16a34a;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --bg-body: #f8fafc;
+            --card-border: #e2e8f0;
+        }
+
+        body {
+            background-color: var(--bg-body);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #1e293b;
+            padding-bottom: 70px;
+            overflow-x: hidden;
+        }
+
+
+        .container-app {
+            max-width: 740px;
+            margin: 0 auto;
+            padding: 0 10px;
+        }
+
+        /* Thẻ khách hàng */
+        .ticket-card {
+            background: #ffffff;
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            transition: all 0.2s ease;
+        }
+        .ticket-card:hover {
+            box-shadow: 0 4px 14px rgba(37,99,235,0.08);
+            border-color: #cbd5e1;
+        }
+
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .customer-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        .badge-viettel {
+            background: #fef2f2;
+            color: #ef4444;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 4px;
+            border: 1px solid #fee2e2;
+            vertical-align: middle;
+        }
+
+        .status-badge {
+            font-size: 0.78rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        .status-dang-xu-ly { background: #eff6ff; color: #1d4ed8; border: 1px solid #dbeafe; }
+        .status-hen-gio    { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
+        .status-kll        { background: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
+        .status-da-xu-ly   { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+
+        .meta-info-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+        .account-tag {
+            background: #f1f5f9;
+            color: #334155;
+            font-family: monospace;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .badge-dup {
+            background: #ef4444;
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 4px;
+            margin-left: 5px;
+        }
+
+        .location-section {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-bottom: 10px;
+            font-size: 0.88rem;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .btn-kmz-map {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 6px;
+            text-decoration: none;
+            width: fit-content;
+        }
+        .has-kmz { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+        .no-kmz  { background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1; }
+
+        .complaint-box {
+            font-size: 0.88rem;
+            color: #334155;
+            line-height: 1.4;
+            margin-bottom: 10px;
+            border-left: 3px solid #3b82f6;
+            padding-left: 8px;
+        }
+        .complaint-collapsed {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .see-more-link {
+            font-size: 0.8rem;
+            color: #2563eb;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .action-buttons-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .btn-call-phone {
+            background: #15803d;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 7px 10px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+        .btn-call-phone:hover { background: #166534; color: #fff; }
+        .btn-call-report { background: #0f766e; }
+        .btn-call-report:hover { background: #115e59; }
+
+        .btn-action-trigger {
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 7px 14px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        .btn-action-trigger:hover { background: #1d4ed8; }
+
+        .quick-toolbar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            padding-top: 8px;
+            border-top: 1px dashed var(--card-border);
+        }
+        .btn-quick-item {
+            background: #fff;
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            padding: 5px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+        .btn-quick-item:hover { background: #f1f5f9; color: #0f172a; }
+        .btn-quick-item.active-hengio { border-color: #15803d; color: #15803d; background: #f0fdf4; }
+        .btn-quick-item.active-kll    { border-color: #d97706; color: #d97706; background: #fffbeb; }
+        .btn-quick-item.pinned        { border-color: #2563eb; color: #2563eb; background: #eff6ff; font-weight: 700; }
+
+        .card-footer-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.78rem;
+            color: #64748b;
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px solid #f1f5f9;
+        }
+
+        .filter-panel-bg {
+            background: #ffffff;
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        }
+
+        /* Ca quá giờ hẹn */
+        .ticket-card.overdue {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 2px rgba(239,68,68,0.15);
+        }
+        .badge-distance {
+            background: #ecfeff;
+            color: #0e7490;
+            border: 1px solid #cffafe;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 6px;
+            margin-right: 6px;
+            white-space: nowrap;
+        }
+        .reminder-banner {
+            border-radius: 12px;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            margin-bottom: 10px;
+        }
+
+        /* Hàng nút: gọi điện bên trái, chụp ảnh + xử lý bên phải; hẹp quá thì nhóm bên phải xuống dòng */
+        .action-buttons-grid {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: stretch;
+        }
+        .action-buttons-grid .btn-call-phone { flex: 1 1 190px; min-width: 0; }
+        .action-right { display: flex; gap: 6px; margin-left: auto; }
+        .btn-camera {
+            background: #fff;
+            color: #0f172a;
+            border: 1px solid var(--card-border, #cbd5e1);
+            border-radius: 8px;
+            padding: 7px 12px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .btn-camera:hover { background: #f1f5f9; }
+        .btn-camera .photo-count {
+            background: #2563eb;
+            color: #fff;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            padding: 0 6px;
+            min-width: 18px;
+            text-align: center;
+        }
+
+        /* ===== Tab nhóm (Phản ánh / Hạ tầng) + chip loại + lưới thuộc tính ca hạ tầng ===== */
+        .group-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+        .group-tab { flex: 1; border: 1px solid #e2e8f0; background: #fff; border-radius: 14px; padding: 9px 10px;
+            font-weight: 700; font-size: 0.88rem; color: #475569; display: flex; align-items: center;
+            justify-content: center; gap: 6px; cursor: pointer; }
+        .group-tab .tab-count { background: #f1f5f9; color: #475569; border-radius: 999px; padding: 1px 8px; font-size: 0.75rem; }
+        .group-tab.active { background: #2563eb; border-color: #2563eb; color: #fff; box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25); }
+        .group-tab.active .tab-count { background: rgba(255, 255, 255, 0.25); color: #fff; }
+        .type-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .type-chip { border: 1px solid #e2e8f0; background: #fff; border-radius: 999px; padding: 3px 11px;
+            font-size: 0.78rem; font-weight: 600; color: #475569; cursor: pointer; }
+        .type-chip.active { background: #0f172a; border-color: #0f172a; color: #fff; }
+        .attr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 0.82rem; }
+        .attr-grid .attr-label { display: block; color: #64748b; font-size: 0.72rem; }
+        .attr-grid .attr-value { font-weight: 600; color: #0f172a; word-break: break-word; }
+
+        /* ===== Chọn nhiều + thanh thao tác hàng loạt (ADMIN) ===== */
+        .select-row { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; font-weight: 600;
+            color: #475569; margin-bottom: 8px; cursor: pointer; }
+        .select-row .form-check-input { width: 1.15rem; height: 1.15rem; cursor: pointer; }
+        .ticket-card.is-selected { outline: 2px solid #2563eb; outline-offset: -2px; background: #f8fbff; }
+        .bulk-bar { position: fixed; left: 0; right: 0; bottom: calc(66px + env(safe-area-inset-bottom, 0px)); z-index: 1045;
+            background: #fff; border-top: 1px solid #e2e8f0; box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.12); padding: 10px 12px; }
+        .bulk-bar-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+            gap: 6px; margin-bottom: 8px; font-size: 0.85rem; }
+        .bulk-bar-actions { display: flex; gap: 8px; }
+        .bulk-bar-actions .btn { flex: 1; font-weight: 700; }
+        body.has-bottom-nav.select-mode { padding-bottom: calc(230px + env(safe-area-inset-bottom, 0px)) !important; }
+    </style>
     <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
 </head>
@@ -922,4 +1241,4 @@
 
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp"/>
 </body>
-</html>
+</html>
