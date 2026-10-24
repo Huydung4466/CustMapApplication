@@ -9,7 +9,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/css/app-pages.css?v=2" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau CSS của trang để ghi đè màu cũ) -->
-    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
 </head>
 <body class="vt-app">
 

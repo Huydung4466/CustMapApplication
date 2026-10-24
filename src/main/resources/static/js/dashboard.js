@@ -1,0 +1,738 @@
+let currentUser = null;
+let searchTimer = null;
+let actionModalInstance = null;
+let ticketCache = {};
+let currentPage = 1;
+const PAGE_SIZE = 10; // Số ca mỗi trang (10 - 20 là hợp lý)
+let myPosition = null;
+let currentGroup = 'PHAN_ANH'; // nhóm đang xem (tab)
+let currentType = '';          // loại đang lọc trong nhóm ('' = tất cả loại của nhóm)
+let statusMeta = { statuses: [], statusOptions: {}, archiveReasons: [], historyTabs: [] }; // lấy từ /api/tickets/meta
+let typeInfos = [];            // danh sách loại + số ca, lấy từ /api/tickets/types
+
+document.addEventListener('DOMContentLoaded', async () => {
+    actionModalInstance = new bootstrap.Modal(document.getElementById('actionModal'));
+    await loadStatusMeta();
+    await initCurrentUserAndStaffFilter();
+    // await loadFilterDropdowns();
+    await loadTypeTabs(true);
+    await loadTickets();
+});
+
+// Chỉ ADMIN mới thấy nút chọn nhiều ca để thao tác hàng loạt (phần import file đã chuyển sang trang Cá nhân)
+function applyAdminPermissions() {
+    if (currentUser && currentUser.admin) {
+        document.getElementById('bulkToggleRow').classList.remove('d-none');
+    }
+}
+
+async function initCurrentUserAndStaffFilter() {
+    try {
+        currentUser = await AppNav.getMe();   // thanh trên cùng (top-navbar) đã lấy sẵn và hiện tên
+        applyAdminPermissions();
+
+        const staffSelect = document.getElementById('staffFilterSelect');
+        staffSelect.innerHTML = '';
+
+        if (currentUser.admin) {
+            const staffRes = await fetch(`${CTX}/api/tickets/staffs`);
+            const staffs = await staffRes.json();
+            const optAll = document.createElement('option');
+            optAll.value = 'ALL';
+            optAll.textContent = '-- Tất cả nhân viên --';
+            staffSelect.appendChild(optAll);
+
+            staffs.forEach(name => {
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = `NV: ${name}`;
+                if (name.trim().toUpperCase() === currentUser.fullName.trim().toUpperCase()) opt.selected = true;
+                staffSelect.appendChild(opt);
+            });
+        } else {
+            const opt = document.createElement('option');
+            opt.value = currentUser.fullName;
+            opt.textContent = `Địa bàn: ${currentUser.fullName}`;
+            opt.selected = true;
+            staffSelect.appendChild(opt);
+            staffSelect.disabled = true;
+        }
+        // Load danh sách khu vực phù hợp với nhân viên đang chọn ban đầu
+        await loadAreaDropdownForStaff(staffSelect.value);
+        await loadCabinetDropdownForStaff(staffSelect.value, '');
+    } catch (e) { console.error(e); }
+}
+
+// Chỉ load các khu vực mà nhân viên đó quản lý (VD: Long chỉ có Buôn Hồ và Cư Mgar)
+async function loadAreaDropdownForStaff(staffName) {
+    try {
+        const res = await fetch(`${CTX}/api/tickets/areas?staffName=${encodeURIComponent(staffName)}`);
+        const areas = await res.json();
+        const areaSelect = document.getElementById('areaFilterSelect');
+        areaSelect.innerHTML = '<option value="">-- Tất cả Khu vực của NV --</option>';
+        areas.forEach(area => {
+            if (area) {
+                const opt = document.createElement('option');
+                opt.value = area;
+                opt.textContent = `Khu vực: ${area}`;
+                areaSelect.appendChild(opt);
+            }
+        });
+    } catch (e) { console.error(e); }
+}
+
+async function loadCabinetDropdownForStaff(staffName, area) {
+    try {
+        const res = await fetch(`${CTX}/api/tickets/cabinet-prefixes?staffName=${encodeURIComponent(staffName || '')}&area=${encodeURIComponent(area || '')}`);
+        const prefixes = await res.json();
+        const sel = document.getElementById('cabinetPrefixInput');
+        sel.innerHTML = '<option value="">-- Tất cả --</option>';
+        prefixes.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p;
+            sel.appendChild(opt);
+        });
+    } catch (e) { console.error(e); }
+}
+
+async function onStaffChange() {
+    const staff = document.getElementById('staffFilterSelect').value;
+    await Promise.all([loadAreaDropdownForStaff(staff), loadCabinetDropdownForStaff(staff, '')]);
+    loadTickets();
+}
+
+async function onAreaChange() {
+    const staff = document.getElementById('staffFilterSelect').value;
+    const area = document.getElementById('areaFilterSelect').value;
+    await loadCabinetDropdownForStaff(staff, area);
+    loadTickets();
+}
+
+// ===================== TAB NHÓM + CHIP LOẠI =====================
+// Mọi loại / nhóm đều lấy từ server (enum TicketType): thêm loại mới ở đó là tab và chip tự có thêm.
+async function loadTypeTabs(pickDefault) {
+    try {
+        const staff = document.getElementById('staffFilterSelect').value || '';
+        typeInfos = await apiFetch(`${CTX}/api/tickets/types?staffFilter=${encodeURIComponent(staff)}`);
+    } catch (e) { console.error(e); return; }
+
+    const groups = getGroups();
+    if (pickDefault) {
+        // Mặc định vào tab Phản ánh; nếu tab đó trống mà tab khác có ca thì vào tab có ca
+        const cur = groups.find(g => g.code === currentGroup);
+        if (!cur || (cur.count === 0 && groups.some(g => g.count > 0))) {
+            currentGroup = (groups.find(g => g.count > 0) || groups[0] || { code: currentGroup }).code;
+        }
+    }
+    renderGroupTabs();
+    renderTypeChips();
+    applyGroupUi();
+}
+
+function getGroups() {
+    const groups = [];
+    typeInfos.forEach(t => {
+        let g = groups.find(x => x.code === t.group);
+        if (!g) { g = { code: t.group, label: t.groupLabel, icon: t.groupIcon, count: 0 }; groups.push(g); }
+        g.count += t.openCount;
+    });
+    return groups;
+}
+
+function renderGroupTabs() {
+    document.getElementById('groupTabs').innerHTML = getGroups().map(g => `
+        <button type="button" class="group-tab ${g.code === currentGroup ? 'active' : ''}" onclick="selectGroup('${g.code}')">
+            <i class="fa-solid ${escapeHtml(g.icon)}"></i>${escapeHtml(g.label)}<span class="tab-count">${g.count}</span>
+        </button>`).join('');
+}
+
+function renderTypeChips() {
+    const box = document.getElementById('typeChips');
+    const types = typeInfos.filter(t => t.group === currentGroup);
+    if (types.length <= 1) { box.innerHTML = ''; currentType = ''; return; }
+    if (currentType && !types.some(t => t.code === currentType)) currentType = '';
+    const total = types.reduce((sum, t) => sum + t.openCount, 0);
+    box.innerHTML = `<button type="button" class="type-chip ${currentType === '' ? 'active' : ''}" onclick="selectType('')">Tất cả (${total})</button>`
+        + types.map(t => `<button type="button" class="type-chip ${currentType === t.code ? 'active' : ''}" onclick="selectType('${t.code}')">${escapeHtml(t.label)} (${t.openCount})</button>`).join('');
+}
+
+// Bộ lọc mức ưu tiên chỉ có nghĩa với ca phản ánh nên ẩn ở nhóm hạ tầng
+function applyGroupUi() {
+    const isComplaint = currentGroup === 'PHAN_ANH';
+    document.getElementById('priorityFilterCol').classList.toggle('d-none', !isComplaint);
+    if (!isComplaint) document.getElementById('priorityFilterSelect').value = '';
+    const g = getGroups().find(x => x.code === currentGroup);
+    document.getElementById('ticketCountUnit').textContent = 'ca ' + (g ? g.label.toLowerCase() : '');
+}
+
+function selectGroup(code) {
+    if (code === currentGroup) return;
+    currentGroup = code;
+    currentType = '';
+    renderGroupTabs();
+    renderTypeChips();
+    applyGroupUi();
+    loadTickets();
+}
+
+function selectType(code) {
+    currentType = code;
+    renderTypeChips();
+    loadTickets();
+}
+
+// Thuộc tính riêng của ca hạ tầng (nhãn do server gửi theo TicketType): 6 dòng đầu hiện sẵn, còn lại bấm "xem thêm"
+function renderAttributes(item) {
+    const attrs = item.attributeItems || [];
+    if (attrs.length === 0) return `<div class="text-muted">Chưa có thông số</div>`;
+    const cell = a => `<div><span class="attr-label">${escapeHtml(a.label)}</span><span class="attr-value">${escapeHtml(a.value)}${a.unit ? ' ' + escapeHtml(a.unit) : ''}</span></div>`;
+    const head = attrs.slice(0, 6).map(cell).join('');
+    const rest = attrs.slice(6).map(cell).join('');
+    return `<div class="attr-grid">${head}</div>`
+        + (rest ? `<div class="attr-grid d-none mt-2" id="a-${item.id}">${rest}</div><a class="see-more-link" onclick="toggleAttrs(${Number(item.id)}, this)">...xem thêm</a>` : '');
+}
+
+function toggleAttrs(id, link) {
+    const hidden = document.getElementById(`a-${id}`).classList.toggle('d-none');
+    link.textContent = hidden ? '...xem thêm' : 'thu gọn';
+}
+
+
+// ===================== CHỌN NHANH + THAO TÁC HÀNG LOẠT (chỉ ADMIN) =====================
+// "Chọn tất cả" luôn gắn với BỘ LỌC hiện tại: server tự lấy các ca khớp bộ lọc rồi trừ các ca bỏ tick.
+// Đổi bộ lọc / từ khóa / tab thì lựa chọn bị xóa. Quyền thật sự do server kiểm tra (SecurityConfig + service).
+let selectMode = false;          // đang ở chế độ "Chọn nhiều"
+let selectAllMatching = false;   // true = chọn TOÀN BỘ ca theo bộ lọc hiện tại (mọi trang)
+const selectedIds = new Set();   // ca được tick riêng (khi selectAllMatching = false)
+const excludedIds = new Set();   // ca bỏ tick (khi selectAllMatching = true)
+let totalMatching = 0;           // tổng số ca khớp bộ lọc ở lần tải gần nhất
+let lastTickets = [];            // các ca đang hiển thị ở trang hiện tại
+let lastFilterBody = null;       // bộ lọc của lần tải gần nhất
+
+function isSelected(id) { return selectAllMatching ? !excludedIds.has(id) : selectedIds.has(id); }
+function selectedCount() { return selectAllMatching ? Math.max(0, totalMatching - excludedIds.size) : selectedIds.size; }
+
+function toggleSelectMode() {
+    selectMode = !selectMode;
+    if (!selectMode) clearSelection(true);
+    document.body.classList.toggle('select-mode', selectMode);
+    const btn = document.getElementById('btnBulkMode');
+    btn.classList.toggle('btn-primary', selectMode);
+    btn.classList.toggle('btn-outline-primary', !selectMode);
+    btn.innerHTML = selectMode
+        ? '<i class="fa-solid fa-xmark me-1"></i>Thoát chọn'
+        : '<i class="fa-regular fa-square-check me-1"></i>Chọn nhiều';
+    renderTicketCards(lastTickets);
+    updateBulkBar();
+}
+
+function toggleSelect(id, checkbox) {
+    const on = checkbox.checked;
+    if (selectAllMatching) { if (on) excludedIds.delete(id); else excludedIds.add(id); }
+    else { if (on) selectedIds.add(id); else selectedIds.delete(id); }
+    const card = checkbox.closest('.ticket-card');
+    if (card) card.classList.toggle('is-selected', on);
+    updateBulkBar();
+}
+
+function selectPage() {
+    selectAllMatching = false;
+    excludedIds.clear();
+    selectedIds.clear();
+    lastTickets.forEach(t => selectedIds.add(Number(t.id)));
+    renderTicketCards(lastTickets);
+    updateBulkBar();
+}
+
+function selectAllByFilter() {
+    if (totalMatching === 0) return;
+    selectAllMatching = true;
+    selectedIds.clear();
+    excludedIds.clear();
+    renderTicketCards(lastTickets);
+    updateBulkBar();
+}
+
+// silent = true: chỉ xóa lựa chọn, không vẽ lại giao diện (dùng khi sắp tải lại danh sách)
+function clearSelection(silent) {
+    selectAllMatching = false;
+    selectedIds.clear();
+    excludedIds.clear();
+    if (silent !== true) {
+        renderTicketCards(lastTickets);
+        updateBulkBar();
+    }
+}
+
+function updateBulkBar() {
+    const bar = document.getElementById('bulkBar');
+    if (!bar) return;
+    bar.classList.toggle('d-none', !selectMode);
+    if (!selectMode) return;
+
+    const n = selectedCount();
+    document.getElementById('bulkSelectedCount').textContent = n;
+    const allBtn = document.getElementById('btnSelectAllFilter');
+    allBtn.textContent = `Chọn tất cả ${totalMatching} ca theo bộ lọc`;
+    allBtn.disabled = totalMatching === 0 || (selectAllMatching && excludedIds.size === 0);
+    document.getElementById('bulkScopeNote').textContent = selectAllMatching
+        ? 'Toàn bộ ca theo bộ lọc hiện tại' + (excludedIds.size ? ', trừ ' + excludedIds.size + ' ca bỏ chọn' : '')
+        : 'Chọn riêng lẻ';
+    document.getElementById('btnBulkDone').disabled = n === 0;
+    document.getElementById('btnBulkDelete').disabled = n === 0;
+}
+
+// action: 'DONE' (chuyển Đã xử lý) | 'DELETE' (xóa vĩnh viễn kèm ảnh)
+async function bulkAction(action) {
+    const count = selectedCount();
+    if (count <= 0) { alert('Chưa chọn ca nào'); return; }
+    if (selectAllMatching && !lastFilterBody) { alert('Chưa có bộ lọc, hãy tải lại danh sách'); return; }
+
+    const scope = selectAllMatching
+        ? ' (toàn bộ ca theo bộ lọc hiện tại' + (excludedIds.size ? ', trừ ' + excludedIds.size + ' ca bỏ chọn' : '') + ')'
+        : '';
+    let msg;
+    if (action === 'DELETE') {
+        msg = `XÓA VĨNH VIỄN ${count} ca${scope}?\n\nCa bị xóa cùng ảnh hiện trường sẽ mất hoàn toàn, KHÔNG khôi phục được. `
+            + 'Nếu ca vẫn còn trong file import sau này thì sẽ được nạp lại như ca mới.';
+    } else {
+        msg = `Chuyển ${count} ca${scope} sang ĐÃ XỬ LÝ (vào Lịch sử)?`;
+    }
+    if (!confirm(msg)) return;
+
+    // Xóa nhiều ca: bắt gõ chữ XOA để tránh bấm nhầm
+    if (action === 'DELETE' && count > 20) {
+        const typed = prompt(`Gõ XOA để xác nhận xóa vĩnh viễn ${count} ca:`);
+        if ((typed || '').trim().toUpperCase() !== 'XOA') return;
+    }
+
+    const body = { action: action, expectedCount: count };
+    if (selectAllMatching) {
+        body.criteria = lastFilterBody;
+        body.excludedIds = Array.from(excludedIds);
+    } else {
+        body.ids = Array.from(selectedIds);
+    }
+
+    const btns = [document.getElementById('btnBulkDone'), document.getElementById('btnBulkDelete')];
+    btns.forEach(b => b.disabled = true);
+    try {
+        const result = await apiFetch(`${CTX}/api/tickets/bulk`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        clearSelection(true);
+        flashNotice(result.message);
+        await loadTickets(true);
+    } catch (e) {
+        alert(e.message);
+        updateBulkBar();
+    }
+}
+
+// keepPage = true: giữ nguyên trang hiện tại (sau khi thao tác trên thẻ).
+// Mọi lần đổi bộ lọc / từ khóa / sắp xếp đều gọi không tham số -> tự về trang 1.
+async function loadTickets(keepPage) {
+    if (keepPage !== true) { currentPage = 1; clearSelection(true); } // đổi bộ lọc thì bỏ chọn
+    const keyword = document.getElementById('keywordInput').value.trim();
+    const staffFilter = document.getElementById('staffFilterSelect').value;
+    const statusVal = document.getElementById('statusFilterSelect').value;
+    const area = document.getElementById('areaFilterSelect').value;
+    const cabinetPrefix = document.getElementById('cabinetPrefixInput').value.trim();
+    const priority = document.getElementById('priorityFilterSelect').value;
+
+    let appStatus = 'ALL', onlyPinned = false;
+    if (statusVal === 'PINNED') onlyPinned = true;
+    else appStatus = statusVal;
+
+    const sortSelect = document.getElementById('sortSelect');
+    let sort = sortSelect.value;
+
+    const params = new URLSearchParams({
+        staffFilter: staffFilter || '',
+        keyword,
+        appStatus,
+        onlyPinned,
+        area: area || '',
+        cabinetPrefix: cabinetPrefix || '',
+        priority: priority || '',
+        ticketGroup: currentGroup,
+        ticketType: currentType
+    });
+    // Bộ lọc này được gửi lên server khi "Chọn tất cả theo bộ lọc" (thao tác hàng loạt)
+    lastFilterBody = {
+        staffFilter: staffFilter || '', keyword, appStatus, onlyPinned, area: area || '',
+        cabinetPrefix: cabinetPrefix || '', priority: priority || '',
+        ticketGroup: currentGroup, ticketType: currentType
+    };
+
+    // Sắp xếp "Gần tôi nhất": cần lấy vị trí hiện tại của thiết bị
+    if (sort === 'NEAREST') {
+        try {
+            const pos = await getMyPosition();
+            params.set('lat', pos.lat);
+            params.set('lng', pos.lng);
+        } catch (e) {
+            alert(e.message);
+            sort = 'DEFAULT';
+            sortSelect.value = 'DEFAULT';
+        }
+    }
+    params.set('sort', sort);
+    params.set('page', currentPage);
+    params.set('size', PAGE_SIZE);
+
+    const container = document.getElementById('ticketListContainer');
+    try {
+        const data = await apiFetch(`${CTX}/api/tickets?${params.toString()}`);
+        currentPage = data.page; // server tự đưa về trang hợp lệ nếu trang cũ không còn dữ liệu
+        document.getElementById('ticketCountText').textContent = data.totalItem;
+        lastTickets = data.resultList || [];
+        // Đang "chọn tất cả theo bộ lọc" mà tổng số ca đổi (vd. vừa xử lý một ca) thì bỏ chọn để khỏi thao tác nhầm
+        if (selectAllMatching && data.totalItem !== totalMatching) clearSelection(true);
+        totalMatching = data.totalItem;
+        renderTicketCards(data.resultList);
+        updateBulkBar();
+        renderPagination(data);
+        loadTypeTabs(false); // cập nhật số ca trên tab sau mỗi lần tải / thao tác
+    } catch (e) {
+        container.innerHTML = `<div class="alert alert-danger p-2 small">${escapeHtml(e.message)}</div>`;
+        document.getElementById('paginationBar').innerHTML = '';
+    }
+}
+
+function debounceLoadTickets() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () { loadTickets(); }, 300);
+}
+
+async function resetFilters() {
+    currentType = '';
+    renderTypeChips();
+    document.getElementById('keywordInput').value = '';
+    document.getElementById('areaFilterSelect').value = '';
+    document.getElementById('priorityFilterSelect').value = '';
+    document.getElementById('statusFilterSelect').value = 'ALL';
+    document.getElementById('sortSelect').value = 'DEFAULT';
+    await loadCabinetDropdownForStaff(document.getElementById('staffFilterSelect').value, '');
+    document.getElementById('cabinetPrefixInput').value = '';
+    loadTickets();
+}
+
+function renderTicketCards(tickets) {
+    const container = document.getElementById('ticketListContainer');
+    ticketCache = {};
+    (tickets || []).forEach(t => { ticketCache[t.id] = t; });
+    if (!tickets || tickets.length === 0) {
+        container.innerHTML = `<div class="card border-0 shadow-sm rounded-4 p-4 text-center bg-white text-muted small">Không tìm thấy ca phản ánh phù hợp với bộ lọc</div>`;
+        return;
+    }
+
+    container.innerHTML = tickets.map(item => {
+        const statusBadge = renderStatusBadge(item.appStatus);
+        const dupBadge = (item.duplicateCount && item.duplicateCount >= 2) ? `<span class="badge-dup">Trùng x${item.duplicateCount}</span>` : '';
+        const appTime = (item.appointmentTime) ? `<div class="text-success small fw-bold mb-1"><i class="fa-regular fa-clock me-1"></i>${escapeHtml(item.appointmentTime)}</div>` : '';
+
+        let kmzHtml = '';
+        if (item.cabinetCode) {
+            if (item.googleMapsUrl) {
+                kmzHtml = `<a href="${escapeHtml(item.googleMapsUrl)}" target="_blank" rel="noopener" class="btn-kmz-map has-kmz"><i class="fa-solid fa-map-pin"></i>Tủ: ${escapeHtml(item.cabinetCode)}</a>`;
+            } else {
+                kmzHtml = `<span class="btn-kmz-map no-kmz"><i class="fa-solid fa-server"></i>Tủ: ${escapeHtml(item.cabinetCode)} (Chưa có KMZ)</span>`;
+            }
+        }
+
+        const complaint = escapeHtml(item.complaintContent || 'Không có nội dung');
+        const isLong = complaint.length > 90;
+        const isInfra = item.ticketGroup === 'HA_TANG';
+        // Ca phản ánh: đoạn nội dung khiếu nại; ca hạ tầng: lưới thông số kỹ thuật (xem renderAttributes)
+        const contentHtml = isInfra
+            ? renderAttributes(item)
+            : `<div class="${isLong ? 'complaint-collapsed' : ''}" id="c-${item.id}">${complaint}</div>`
+              + (isLong ? `<a class="see-more-link" onclick="toggleC(${item.id})">...xem thêm</a>` : '');
+        const refLabel = isInfra
+            ? `<span class="badge text-bg-${escapeHtml(item.ticketTypeColor || 'secondary')} vt-fs-72">${escapeHtml(item.ticketTypeLabel)}</span>`
+            : `PA: #${escapeHtml(item.ticketCode)}`;
+
+        let phoneButtons = '';
+        if (item.contactPhone) {
+            phoneButtons += `<a href="tel:${escapeHtml(item.contactPhone)}" class="btn-call-phone"><i class="fa-solid fa-phone"></i>Gọi KH (${escapeHtml(item.contactPhone)})</a>`;
+        }
+        if (item.reportPhone && item.reportPhone !== item.contactPhone) {
+            phoneButtons += `<a href="tel:${escapeHtml(item.reportPhone)}" class="btn-call-phone btn-call-report"><i class="fa-solid fa-phone-volume"></i>Báo cáo</a>`;
+        }
+
+        const isPinned = item.isPinned === true;
+        const distBadge = (item.distanceKm !== null && item.distanceKm !== undefined)
+            ? `<span class="badge-distance"><i class="fa-solid fa-route me-1"></i>${item.distanceKm} km</span>` : '';
+
+        return `
+        <div class="ticket-card ${selectMode && isSelected(Number(item.id)) ? 'is-selected' : ''}">
+            ${selectMode ? `<label class="select-row"><input type="checkbox" class="form-check-input m-0" ${isSelected(Number(item.id)) ? 'checked' : ''} onchange="toggleSelect(${Number(item.id)}, this)"><span>Chọn ca này</span></label>` : ''}
+            <div class="card-header-row">
+                <div>
+                    <span class="customer-title">${escapeHtml(item.customerName || 'Khách hàng')}</span>
+                    <span class="badge-viettel ms-1">Viettel</span>
+                    ${item.priorityLevel ? `<span class="badge ms-1 vt-fs-70" style="${priorityStyle(item.priorityLevel)}">${escapeHtml(item.priorityLevel)}</span>` : ''}
+    </div>
+        <div>${statusBadge}</div>
+    </div>
+
+        <div class="meta-info-row">
+            <div>
+                <span class="account-tag">${escapeHtml(item.subscriberAccount || item.ticketCode)}</span>
+                ${dupBadge}
+            </div>
+            <span class="text-muted vt-fs-78">${refLabel}</span>
+        </div>
+
+        ${appTime}
+
+        <div class="location-section">
+            <div><i class="fa-solid fa-location-dot text-danger me-1"></i>${escapeHtml(item.installAddress || 'Chưa có địa chỉ')}</div>
+            <div>${distBadge}${kmzHtml}</div>
+        </div>
+
+        <div class="complaint-box">
+            ${contentHtml}
+            ${item.callNote ? `<div class="text-muted fst-italic mt-1 vt-fs-78"><i class="fa-regular fa-note-sticky me-1"></i>${escapeHtml(item.callNote)}</div>` : ''}
+        </div>
+
+        <div class="action-buttons-grid">
+            ${phoneButtons}
+            <div class="action-right">
+                <button type="button" class="btn-camera" title="Chụp ảnh hiện trường" onclick="openCamera(${Number(item.id)})">
+                    <i class="fa-solid fa-camera"></i>${item.photoCount > 0 ? `<span class="photo-count">${Number(item.photoCount)}</span>` : ''}
+                </button>
+                <button type="button" class="btn-action-trigger" onclick="openModal(${Number(item.id)}, '${safeStatus(item.appStatus)}')">
+                    <i class="fa-regular fa-pen-to-square"></i>Xử lý
+                </button>
+            </div>
+        </div>
+
+        <div class="quick-toolbar">
+            <button type="button" class="btn-quick-item ${item.appStatus==='HEN_GIO'?'active-hengio':''}" onclick="openModal(${item.id}, 'HEN_GIO')">
+                <i class="fa-regular fa-clock"></i>Hẹn giờ
+            </button>
+            <button type="button" class="btn-quick-item ${item.appStatus==='KLL'?'active-kll':''}" onclick="quickKLL(${item.id})">
+                <i class="fa-solid fa-phone-slash"></i>KLL
+            </button>
+            <button type="button" class="btn-quick-item" onclick="openModal(${item.id}, 'HEN_KHAC')">
+                <i class="fa-regular fa-calendar"></i>Khác
+            </button>
+            <button type="button" class="btn-quick-item ${isPinned?'pinned':''}" onclick="togglePin(${item.id}, ${!isPinned})">
+                <i class="fa-solid fa-star text-warning"></i>${isPinned?'Đã ghim':'Ghim'}
+            </button>
+        </div>
+
+        <div class="card-footer-info">
+            <span>Khu vực: <b>${escapeHtml(item.area || '')}</b></span>
+            <span>${isInfra ? 'NV triển khai' : 'Phụ trách'}: <b class="text-dark">${escapeHtml(item.techStaffName || (isInfra ? '—' : 'Chưa phân công'))}</b></span>
+        </div>
+    </div>`;
+    }).join('');
+}
+
+function renderPagination(data) {
+    const bar = document.getElementById('paginationBar');
+    if (!data || data.totalPage <= 1) {
+        bar.innerHTML = '';
+        return;
+    }
+    const prevDisabled = data.page <= 1 ? ' disabled' : '';
+    const nextDisabled = data.page >= data.totalPage ? ' disabled' : '';
+    bar.innerHTML =
+        '<button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3"' + prevDisabled
+        + ' onclick="goToPage(' + (data.page - 1) + ')"><i class="fa-solid fa-chevron-left me-1"></i>Trước</button>'
+        + '<span class="small text-muted">Trang <b class="text-dark">' + data.page + '</b> / ' + data.totalPage + '</span>'
+        + '<button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3"' + nextDisabled
+        + ' onclick="goToPage(' + (data.page + 1) + ')">Sau<i class="fa-solid fa-chevron-right ms-1"></i></button>';
+}
+
+function goToPage(page) {
+    currentPage = page;
+    loadTickets(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleC(id) {
+    const el = document.getElementById(`c-${id}`);
+    el.classList.toggle('complaint-collapsed');
+}
+
+// Màu nền theo mức ưu tiên: Hot = đỏ, Nguy cơ HOT = vàng, Bình thường = xanh
+function priorityStyle(level) {
+    const v = String(level || '').trim().toUpperCase();
+    if (v.includes('NGUY CƠ')) return 'background:#facc15;color:#422006;';
+    if (v.includes('HOT'))     return 'background:#dc2626;color:#fff;';
+    if (v.includes('BÌNH THƯỜNG')) return 'background:#16a34a;color:#fff;';
+    return 'background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;';
+}
+
+// Trạng thái xử lý (nhãn, biểu tượng, màu, các lựa chọn trong hộp "Cập nhật xử lý ca") do server khai báo
+// bằng enum TicketStatus + StatusContext; giao diện chỉ việc đọc từ /api/tickets/meta
+async function loadStatusMeta() {
+    try {
+        statusMeta = await apiFetch(CTX + '/api/tickets/meta');
+        const sel = document.getElementById('modalStatusSelect');
+        sel.innerHTML = '';
+        (statusMeta.statusOptions.MAIN || []).forEach(function (o) {
+            const opt = document.createElement('option');
+            opt.value = o.code;
+            opt.textContent = o.label;
+            sel.appendChild(opt);
+        });
+    } catch (e) { console.error(e); }
+}
+
+function findStatus(code) {
+    return statusMeta.statuses.find(function (s) { return s.code === code; });
+}
+
+// Chỉ chấp nhận các trạng thái đã biết khi đưa vào thuộc tính onclick
+function safeStatus(s) {
+    return findStatus(s) ? s : 'DANG_XU_LY';
+}
+
+function renderStatusBadge(status) {
+    const info = findStatus(status) || findStatus('DANG_XU_LY');
+    if (!info) return '';
+    return '<span class="status-badge ' + escapeHtml(info.badgeClass) + '"><i class="' + escapeHtml(info.icon) + '"></i>'
+        + escapeHtml(info.label) + '</span>';
+}
+
+// "2026-10-18T14:00:00" -> "2026-10-18T14:00" cho ô datetime-local
+function toInputValue(v) {
+    return v ? String(v).substring(0, 16) : '';
+}
+
+function openModal(id, status) {
+    const item = ticketCache[id] || {};
+    document.getElementById('modalTicketId').value = id;
+    document.getElementById('modalStatusSelect').value = status || 'DANG_XU_LY';
+    document.getElementById('modalApptStart').value = toInputValue(item.appointmentStart);
+    document.getElementById('modalApptEnd').value = toInputValue(item.appointmentEnd);
+    document.getElementById('modalCallNote').value = item.callNote || '';
+    actionModalInstance.show();
+}
+
+async function submitModalAction() {
+    const id = document.getElementById('modalTicketId').value;
+    const startVal = document.getElementById('modalApptStart').value;
+    const endVal = document.getElementById('modalApptEnd').value;
+    if (endVal && !startVal) {
+        return alert('Hãy chọn giờ bắt đầu hẹn trước.');
+    }
+    const payload = {
+        appStatus: document.getElementById('modalStatusSelect').value,
+        callNote: document.getElementById('modalCallNote').value
+    };
+    if (startVal) {
+        payload.appointmentStart = startVal;
+        payload.appointmentEnd = endVal || null;
+    } else if (ticketCache[id] && ticketCache[id].appointmentStart) {
+        // Trước đó có giờ hẹn mà giờ để trống -> xóa giờ hẹn
+        payload.clearAppointment = true;
+    }
+    if (await sendTicketAction(id, payload)) {
+        actionModalInstance.hide();
+        // Ca đã hẹn không còn nằm ở danh sách này mà chuyển sang trang "Đã hẹn"
+        if (payload.appStatus === 'HEN_GIO' || payload.appStatus === 'HEN_KHAC') {
+            flashNotice('Đã chuyển khách sang mục "Đã hẹn"');
+        }
+    }
+    loadTickets(true);
+}
+
+async function quickKLL(id) {
+    if (!confirm('Không liên lạc được khách hàng này? Ca sẽ được chuyển vào Lịch sử.')) return;
+    await sendTicketAction(id, { appStatus: 'KLL', callNote: 'Không liên lạc được' });
+    loadTickets(true);
+}
+
+async function togglePin(id, isPinned) {
+    await sendTicketAction(id, { isPinned });
+    loadTickets(true);
+}
+
+async function apiFetch(url, options) {
+    const res = await fetch(url, options);
+    // Hết phiên đăng nhập: server chuyển hướng sang trang login
+    if (res.redirected && res.url.includes('/login')) {
+        window.location.href = CTX + '/login';
+        throw new Error('Phiên đăng nhập đã hết hạn');
+    }
+    if (!res.ok) {
+        let msg = 'Có lỗi xảy ra (mã ' + res.status + ')';
+        let data = null;
+        if (res.status === 413) {
+            msg = 'File quá lớn, vượt giới hạn cho phép';
+        } else {
+            try {
+                data = await res.json();
+                msg = data.message || data.detail || msg;
+            } catch (_) { /* không có JSON */ }
+        }
+        const error = new Error(msg);
+        error.status = res.status;
+        error.data = data;
+        throw error;
+    }
+    return res.json();
+}
+
+async function sendTicketAction(id, payload) {
+    try {
+        await apiFetch(`${CTX}/api/tickets/${id}/action`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        return true;
+    } catch (e) {
+        alert(e.message);
+        return false;
+    }
+}
+
+// Lấy vị trí hiện tại của thiết bị (chỉ hoạt động trên HTTPS hoặc localhost)
+function getMyPosition() {
+    return new Promise((resolve, reject) => {
+        if (!window.isSecureContext) {
+            return reject(new Error('Trình duyệt chỉ cho lấy vị trí khi mở trang bằng HTTPS hoặc localhost.'));
+        }
+        if (!navigator.geolocation) {
+            return reject(new Error('Thiết bị không hỗ trợ định vị.'));
+        }
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                myPosition = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+                resolve(myPosition);
+            },
+            err => reject(new Error(err.code === 1
+                ? 'Bạn chưa cho phép truy cập vị trí. Hãy bật quyền vị trí cho trang này rồi thử lại.'
+                : 'Không lấy được vị trí hiện tại, vui lòng thử lại sau.')),
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+    });
+}
+
+// Thông báo nhỏ nổi phía trên thanh điều hướng, tự tắt
+function flashNotice(message) {
+    const old = document.getElementById('flashNotice');
+    if (old) old.remove();
+    const el = document.createElement('div');
+    el.id = 'flashNotice';
+    el.textContent = message;
+    el.style.cssText = 'position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);'
+        + 'z-index:1060;max-width:90%;padding:9px 16px;border-radius:10px;font-size:.86rem;text-align:center;'
+        + 'background:rgba(15,23,42,.93);color:#fff;box-shadow:0 6px 18px rgba(0,0,0,.25);';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3000);
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}

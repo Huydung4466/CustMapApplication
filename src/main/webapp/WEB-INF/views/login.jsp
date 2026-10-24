@@ -16,7 +16,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/css/login.css?v=1" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
-    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
 </head>
 <body class="vt-auth">
 
@@ -61,23 +61,6 @@
 </div>
 
 <script src="${pageContext.request.contextPath}/js/csrf.js?v=1"></script>
-<script>
-    const params = new URLSearchParams(window.location.search);
-    const alertBox = document.getElementById('alertBox');
-    if (params.has('locked')) {
-        alertBox.innerHTML = '<div class="alert alert-warning py-2 small"><i class="fa-solid fa-lock me-1"></i>Đăng nhập sai quá nhiều lần. Vui lòng thử lại sau 15 phút.</div>';
-    } else if (params.has('error')) {
-        alertBox.innerHTML = '<div class="alert alert-danger py-2 small"><i class="fa-solid fa-triangle-exclamation me-1"></i>Sai tài khoản hoặc mật khẩu!</div>';
-    } else if (params.has('pwchanged')) {
-        alertBox.innerHTML = '<div class="alert alert-success py-2 small"><i class="fa-solid fa-check me-1"></i>Đổi mật khẩu thành công. Vui lòng đăng nhập bằng mật khẩu mới.</div>';
-    } else if (params.has('logout')) {
-        alertBox.innerHTML = '<div class="alert alert-success py-2 small"><i class="fa-solid fa-check me-1"></i>Đã đăng xuất thành công.</div>';
-    }
-
-    // Bấm Back từ dashboard có thể khôi phục trang login từ bộ nhớ đệm của trình duyệt -> tải lại để server chuyển hướng
-    window.addEventListener('pageshow', function (e) {
-        if (e.persisted) window.location.reload();
-    });
-</script>
+<script src="${pageContext.request.contextPath}/js/login.js?v=1"></script>
 </body>
 </html>
