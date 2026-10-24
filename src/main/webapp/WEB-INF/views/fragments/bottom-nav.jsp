@@ -25,7 +25,7 @@
             </svg>
             <button type="button" class="vt-bnav-center" aria-label="Chụp ảnh nhanh" title="Chụp ảnh nhanh"
                     onclick="if (window.CameraCapture) { CameraCapture.openFree(); }">
-                <i class="fa-solid fa-plus"></i>
+                <i class="fa-solid fa-camera"></i>
             </button>
         </div>
         <div class="vt-bnav-side right">
