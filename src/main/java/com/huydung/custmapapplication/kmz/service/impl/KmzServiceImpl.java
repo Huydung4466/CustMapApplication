@@ -15,6 +15,12 @@ import javax.xml.stream.XMLStreamReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.StringReader;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -103,6 +109,21 @@ public class KmzServiceImpl implements KmzService {
         return baos.toByteArray();
     }
 
+    // Giải mã nội dung KML: thử UTF-8 nghiêm ngặt trước, nếu có byte sai thì dùng Windows-1252 (không mất ký tự)
+    private String decodeKmlBytes(byte[] bytes) {
+        // Bỏ BOM UTF-8 nếu có
+        int offset = (bytes.length >= 3 && (bytes[0] & 0xFF) == 0xEF && (bytes[1] & 0xFF) == 0xBB && (bytes[2] & 0xFF) == 0xBF) ? 3 : 0;
+        ByteBuffer buffer = ByteBuffer.wrap(bytes, offset, bytes.length - offset);
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(buffer).toString();
+        } catch (CharacterCodingException e) {
+            return new String(bytes, offset, bytes.length - offset, Charset.forName("windows-1252"));
+        }
+    }
+
     // Phân tích cú pháp XML KML bằng StAX (Tối ưu cho file dữ liệu lớn)
     private List<KmzLocationDTO> parseKmlStream(InputStream kmlInputStream, String sourceFileName) throws Exception {
         List<KmzLocationDTO> results = new ArrayList<>();
@@ -112,7 +133,10 @@ public class KmzServiceImpl implements KmzService {
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
 
-        XMLStreamReader reader = factory.createXMLStreamReader(kmlInputStream, "UTF-8");
+        // Không ép UTF-8 theo khai báo trong file: nhiều file KML (xuất từ phần mềm khác) khai báo UTF-8
+        // nhưng thực tế lưu tiếng Việt kiểu Windows-1252 -> tự nhận diện bảng mã rồi đưa cho StAX dạng Reader
+        String xmlText = decodeKmlBytes(kmlInputStream.readAllBytes());
+        XMLStreamReader reader = factory.createXMLStreamReader(new StringReader(xmlText));
 
         boolean inPlacemark = false;
         String currentTag = null;
