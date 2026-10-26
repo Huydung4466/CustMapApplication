@@ -195,7 +195,6 @@ function renderTicketCards(tickets) {
             <div class="card-header-row">
                 <div>
                     <span class="customer-title">${escapeHtml(item.customerName || 'Khách hàng')}</span>
-                    <span class="badge-viettel ms-1">Viettel</span>
                     ${item.priorityLevel ? `<span class="badge bg-light text-secondary border ms-1 vt-fs-70">${escapeHtml(item.priorityLevel)}</span>` : ''}
     </div>
         <div>${statusBadge}</div>

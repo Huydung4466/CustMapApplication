@@ -110,7 +110,7 @@ public class TicketWorkbookBuilder {
     private static final class StaffStat {
         final String name;
         UserEntity user;
-        int total, done, kll, appointed, overdue, other, processing, notInImport;
+        int total, done, kll, calledOk, appointed, overdue, other, processing, notInImport;
 
         StaffStat(String name) {
             this.name = name;
@@ -121,6 +121,7 @@ public class TicketWorkbookBuilder {
             switch (s) {
                 case DONE -> done++;
                 case KLL -> kll++;
+                case CALLED_OK -> calledOk++;
                 case OVERDUE -> { appointed++; overdue++; }
                 case HEN_GIO -> appointed++;
                 case HEN_KHAC -> other++;
@@ -134,12 +135,13 @@ public class TicketWorkbookBuilder {
         XSSFSheet sh = wb.createSheet("Nhân viên");
         sh.setDisplayGridlines(false);
         final String[] titles = {"STT", "Họ tên nhân viên", "Tên đăng nhập", "Số điện thoại", "Tài khoản", "Tổng ca",
-                ExportStatus.DONE.getShortLabel(), ExportStatus.KLL.getShortLabel(), ExportStatus.HEN_GIO.getShortLabel(),
+                ExportStatus.DONE.getShortLabel(), ExportStatus.KLL.getShortLabel(), ExportStatus.CALLED_OK.getShortLabel(),
+                ExportStatus.HEN_GIO.getShortLabel(),
                 "Trong đó quá hẹn", ExportStatus.HEN_KHAC.getShortLabel(), ExportStatus.DANG_XU_LY.getShortLabel(),
                 ExportStatus.NOT_IN_IMPORT.getShortLabel(), "Tỷ lệ đã xử lý"};
-        final int[] widths = {6, 28, 18, 15, 18, 10, 11, 9, 10, 12, 10, 12, 14, 12};
+        final int[] widths = {6, 28, 18, 15, 18, 10, 11, 9, 11, 10, 12, 10, 12, 14, 12};
         final ExportStatus[] headerStatus = {null, null, null, null, null, null, ExportStatus.DONE, ExportStatus.KLL,
-                ExportStatus.HEN_GIO, ExportStatus.OVERDUE, ExportStatus.HEN_KHAC, ExportStatus.DANG_XU_LY,
+                ExportStatus.CALLED_OK, ExportStatus.HEN_GIO, ExportStatus.OVERDUE, ExportStatus.HEN_KHAC, ExportStatus.DANG_XU_LY,
                 ExportStatus.NOT_IN_IMPORT, null};
         for (int i = 0; i < widths.length; i++) sh.setColumnWidth(i, widths[i] * 256);
 
@@ -196,7 +198,7 @@ public class TicketWorkbookBuilder {
 
         // ---- dòng dữ liệu
         int stt = 1;
-        int sumTotal = 0, sumDone = 0, sumKll = 0, sumAppointed = 0, sumOverdue = 0, sumOther = 0, sumProcessing = 0, sumNotIn = 0;
+        int sumTotal = 0, sumDone = 0, sumKll = 0, sumCalledOk = 0, sumAppointed = 0, sumOverdue = 0, sumOther = 0, sumProcessing = 0, sumNotIn = 0;
         for (StaffStat s : list) {
             s.user = userByName.get(s.name.trim().toLowerCase(Locale.ROOT));
             Row row = sh.createRow(r++);
@@ -210,14 +212,15 @@ public class TicketWorkbookBuilder {
             number(row, 5, s.total, st.cell(bold(HorizontalAlignment.CENTER)));
             count(row, 6, s.done, ExportStatus.DONE, st);
             count(row, 7, s.kll, ExportStatus.KLL, st);
-            count(row, 8, s.appointed, ExportStatus.HEN_GIO, st);
-            count(row, 9, s.overdue, ExportStatus.OVERDUE, st);
-            count(row, 10, s.other, ExportStatus.HEN_KHAC, st);
-            count(row, 11, s.processing, ExportStatus.DANG_XU_LY, st);
-            count(row, 12, s.notInImport, ExportStatus.NOT_IN_IMPORT, st);
-            rate(row, 13, s.done, s.total - s.notInImport, st);
+            count(row, 8, s.calledOk, ExportStatus.CALLED_OK, st);
+            count(row, 9, s.appointed, ExportStatus.HEN_GIO, st);
+            count(row, 10, s.overdue, ExportStatus.OVERDUE, st);
+            count(row, 11, s.other, ExportStatus.HEN_KHAC, st);
+            count(row, 12, s.processing, ExportStatus.DANG_XU_LY, st);
+            count(row, 13, s.notInImport, ExportStatus.NOT_IN_IMPORT, st);
+            rate(row, 14, s.done, s.total - s.notInImport, st);
 
-            sumTotal += s.total; sumDone += s.done; sumKll += s.kll; sumAppointed += s.appointed;
+            sumTotal += s.total; sumDone += s.done; sumKll += s.kll; sumCalledOk += s.calledOk; sumAppointed += s.appointed;
             sumOverdue += s.overdue; sumOther += s.other; sumProcessing += s.processing; sumNotIn += s.notInImport;
         }
 
@@ -232,12 +235,13 @@ public class TicketWorkbookBuilder {
         number(total, 5, sumTotal, totalNum);
         number(total, 6, sumDone, totalNum);
         number(total, 7, sumKll, totalNum);
-        number(total, 8, sumAppointed, totalNum);
-        number(total, 9, sumOverdue, totalNum);
-        number(total, 10, sumOther, totalNum);
-        number(total, 11, sumProcessing, totalNum);
-        number(total, 12, sumNotIn, totalNum);
-        rate(total, 13, sumDone, sumTotal - sumNotIn, st);
+        number(total, 8, sumCalledOk, totalNum);
+        number(total, 9, sumAppointed, totalNum);
+        number(total, 10, sumOverdue, totalNum);
+        number(total, 11, sumOther, totalNum);
+        number(total, 12, sumProcessing, totalNum);
+        number(total, 13, sumNotIn, totalNum);
+        rate(total, 14, sumDone, sumTotal - sumNotIn, st);
         r++;
 
         Row note = sh.createRow(r++);

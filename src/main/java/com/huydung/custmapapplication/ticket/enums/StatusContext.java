@@ -11,7 +11,7 @@ import static com.huydung.custmapapplication.ticket.enums.TicketStatus.*;
 public enum StatusContext {
 
     /** Hộp "Cập nhật xử lý ca" ở danh sách ca chính (dashboard). */
-    MAIN(List.of(DANG_XU_LY, HEN_GIO, HEN_KHAC, KLL, DA_XU_LY)) {
+    MAIN(List.of(DANG_XU_LY, HEN_GIO, HEN_KHAC, KLL, DA_GOI_OK, DA_XU_LY)) {
         @Override
         public String optionLabel(TicketStatus status) {
             return switch (status) {
@@ -19,13 +19,14 @@ public enum StatusContext {
                 case HEN_GIO -> "Hẹn giờ";
                 case HEN_KHAC -> "Hẹn khác";
                 case KLL -> "Không liên lạc được (KLL) - chuyển vào Lịch sử";
+                case DA_GOI_OK -> "Đã gọi - khách không có vấn đề - chuyển vào Lịch sử";
                 case DA_XU_LY -> "Đã xử lý hoàn tất - chuyển vào Lịch sử";
             };
         }
     },
 
     /** Hộp "Cập nhật lịch hẹn" ở trang Khách đã hẹn. */
-    APPOINTMENT(List.of(HEN_GIO, HEN_KHAC, DANG_XU_LY, KLL, DA_XU_LY)) {
+    APPOINTMENT(List.of(HEN_GIO, HEN_KHAC, DANG_XU_LY, KLL, DA_GOI_OK, DA_XU_LY)) {
         @Override
         public String optionLabel(TicketStatus status) {
             return switch (status) {
@@ -33,6 +34,7 @@ public enum StatusContext {
                 case HEN_KHAC -> "Hẹn khác";
                 case DANG_XU_LY -> "Bỏ hẹn - đưa về danh sách ca chính";
                 case KLL -> "Không liên lạc được (KLL) - chuyển vào Lịch sử";
+                case DA_GOI_OK -> "Đã gọi - khách không có vấn đề - chuyển vào Lịch sử";
                 case DA_XU_LY -> "Đã xử lý hoàn tất - chuyển vào Lịch sử";
             };
         }

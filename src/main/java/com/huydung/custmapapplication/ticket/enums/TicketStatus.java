@@ -20,6 +20,9 @@ public enum TicketStatus {
     /** Không liên lạc được: ca chuyển vào Lịch sử (trang "Không liên lạc được & khác"). */
     KLL("KLL", "fa-solid fa-phone-slash", "status-kll",
             false, ArchiveReason.KLL),
+    /** Đã gọi khách nhưng khách báo không có vấn đề gì: ca chuyển vào Lịch sử (trang "Không liên lạc được & khác"). */
+    DA_GOI_OK("Đã gọi - OK", "fa-solid fa-phone", "status-da-goi-ok",
+            false, ArchiveReason.CALLED_OK),
     /** Đã xử lý hoàn tất: ca chuyển vào Lịch sử (trang "Đã hoàn thành"). */
     DA_XU_LY("Đã xử lý", "fa-solid fa-check", "status-da-xu-ly",
             false, ArchiveReason.DONE);

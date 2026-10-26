@@ -6,15 +6,18 @@ package com.huydung.custmapapplication.ticket.enums;
  */
 public enum TicketGroup {
 
-    PHAN_ANH("Phản ánh", "fa-headset"),
-    HA_TANG("Hạ tầng", "fa-tower-cell");
+    // Tham số cuối: true = các ca cùng loại + cùng account chỉ hiện MỘT thẻ (kèm "Trùng xN"); false = hiện đủ từng ca
+    PHAN_ANH("Phản ánh", "fa-headset", false),
+    HA_TANG("Hạ tầng", "fa-tower-cell", true);
 
     private final String label;
     private final String icon; // class Font Awesome
+    private final boolean collapseDuplicateAccounts;
 
-    TicketGroup(String label, String icon) {
+    TicketGroup(String label, String icon, boolean collapseDuplicateAccounts) {
         this.label = label;
         this.icon = icon;
+        this.collapseDuplicateAccounts = collapseDuplicateAccounts;
     }
 
     public String getLabel() {
@@ -23,6 +26,11 @@ public enum TicketGroup {
 
     public String getIcon() {
         return icon;
+    }
+
+    /** true: ca cùng loại + cùng account được gộp thành một thẻ ở danh sách (xem ticket.duplicate.DuplicateRule). */
+    public boolean isCollapseDuplicateAccounts() {
+        return collapseDuplicateAccounts;
     }
 
     /** Trả về null nếu chuỗi rỗng hoặc không khớp nhóm nào. */

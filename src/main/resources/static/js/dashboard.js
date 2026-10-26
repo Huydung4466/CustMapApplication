@@ -7,7 +7,7 @@ const PAGE_SIZE = 10; // Số ca mỗi trang (10 - 20 là hợp lý)
 let myPosition = null;
 let currentGroup = 'PHAN_ANH'; // nhóm đang xem (tab)
 let currentType = '';          // loại đang lọc trong nhóm ('' = tất cả loại của nhóm)
-let statusMeta = { statuses: [], statusOptions: {}, archiveReasons: [], historyTabs: [] }; // lấy từ /api/tickets/meta
+let statusMeta = { statuses: [], statusOptions: {}, archiveReasons: [], historyTabs: [], listFilters: [] }; // lấy từ /api/tickets/meta
 let typeInfos = [];            // danh sách loại + số ca, lấy từ /api/tickets/types
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -343,18 +343,13 @@ async function loadTickets(keepPage) {
     const cabinetPrefix = document.getElementById('cabinetPrefixInput').value.trim();
     const priority = document.getElementById('priorityFilterSelect').value;
 
-    let appStatus = 'ALL', onlyPinned = false;
-    if (statusVal === 'PINNED') onlyPinned = true;
-    else appStatus = statusVal;
-
     const sortSelect = document.getElementById('sortSelect');
     let sort = sortSelect.value;
 
     const params = new URLSearchParams({
         staffFilter: staffFilter || '',
         keyword,
-        appStatus,
-        onlyPinned,
+        statusFilter: statusVal,
         area: area || '',
         cabinetPrefix: cabinetPrefix || '',
         priority: priority || '',
@@ -363,7 +358,7 @@ async function loadTickets(keepPage) {
     });
     // Bộ lọc này được gửi lên server khi "Chọn tất cả theo bộ lọc" (thao tác hàng loạt)
     lastFilterBody = {
-        staffFilter: staffFilter || '', keyword, appStatus, onlyPinned, area: area || '',
+        staffFilter: staffFilter || '', keyword, statusFilter: statusVal, area: area || '',
         cabinetPrefix: cabinetPrefix || '', priority: priority || '',
         ticketGroup: currentGroup, ticketType: currentType
     };
@@ -474,7 +469,6 @@ function renderTicketCards(tickets) {
             <div class="card-header-row">
                 <div>
                     <span class="customer-title">${escapeHtml(item.customerName || 'Khách hàng')}</span>
-                    <span class="badge-viettel ms-1">Viettel</span>
                     ${item.priorityLevel ? `<span class="badge ms-1 vt-fs-70" style="${priorityStyle(item.priorityLevel)}">${escapeHtml(item.priorityLevel)}</span>` : ''}
     </div>
         <div>${statusBadge}</div>
@@ -576,6 +570,19 @@ function priorityStyle(level) {
 async function loadStatusMeta() {
     try {
         statusMeta = await apiFetch(CTX + '/api/tickets/meta');
+        // Ô lọc "Trạng thái": các lựa chọn lấy từ enum TicketListFilter của server
+        const filterSel = document.getElementById('statusFilterSelect');
+        if (filterSel && (statusMeta.listFilters || []).length > 0) {
+            const current = filterSel.value;
+            filterSel.innerHTML = '';
+            statusMeta.listFilters.forEach(function (f) {
+                const opt = document.createElement('option');
+                opt.value = f.code;
+                opt.textContent = f.label;
+                filterSel.appendChild(opt);
+            });
+            filterSel.value = current;
+        }
         const sel = document.getElementById('modalStatusSelect');
         sel.innerHTML = '';
         (statusMeta.statusOptions.MAIN || []).forEach(function (o) {

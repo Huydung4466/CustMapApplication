@@ -74,6 +74,7 @@ body {
 .status-hen-gio    { background: #f0fdf4; color: #15803d; border: 1px solid #dcfce7; }
 .status-kll        { background: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
 .status-da-xu-ly   { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+.status-da-goi-ok  { background: #ecfeff; color: #0e7490; border: 1px solid #cffafe; }
 
 .meta-info-row {
     display: flex;
