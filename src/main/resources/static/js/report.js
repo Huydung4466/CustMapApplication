@@ -12,6 +12,7 @@ let exporting = false;
 const LEGEND = [
     { label: 'Đã xử lý',             fill: '#C6EFCE', font: '#006100' },
     { label: 'KLL',                  fill: '#FFC7CE', font: '#9C0006' },
+    { label: 'Đã gọi OK',            fill: '#D0F0F0', font: '#0E6B6B' },
     { label: 'Quá hẹn',              fill: '#F8CBAD', font: '#843C0C' },
     { label: 'Hẹn giờ',              fill: '#FFF2CC', font: '#7F6000' },
     { label: 'Hẹn khác',             fill: '#DDEBF7', font: '#1F4E78' },
