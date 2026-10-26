@@ -48,7 +48,8 @@ public interface CustomTicketRepository {
     // Số ca đang mở (chưa hẹn) theo từng loại, trong phạm vi nhân viên (để hiện số trên tab)
     Map<TicketType, Long> countOpenByType(String assignedStaff);
 
-    // Đếm số lượng trùng lặp của từng mã "Thuê bao phản ánh" (d500_gftth_...), chỉ tính ca PHẢN ÁNH
+    // Đếm số ca trùng của từng (loại ca + account). Khóa = DuplicateRule.key(loại, account).
+    // Nhóm gộp trùng (Hạ tầng) chỉ đếm ca đang mở; nhóm không gộp (Phản ánh) đếm cả ca đã lưu trữ
     Map<String, Integer> countDuplicateSubscribers(Collection<String> subscriberAccounts);
 
     // Lấy danh sách tên các nhân viên có trong cột "Giao nhân viên"

@@ -50,10 +50,9 @@
 
             <!-- 3. Lọc theo Trạng thái ca -->
             <div class="col-6 col-md-3">
+                <!-- Các lựa chọn do server cấp từ enum TicketListFilter (xem loadStatusMeta) -->
                 <select id="statusFilterSelect" class="form-select form-select-sm" onchange="loadTickets()">
                     <option value="ALL">Tất cả trạng thái</option>
-                    <option value="DANG_XU_LY">Đang xử lý</option>
-                    <option value="PINNED">⭐ Đã ghim</option>
                 </select>
             </div>
 
