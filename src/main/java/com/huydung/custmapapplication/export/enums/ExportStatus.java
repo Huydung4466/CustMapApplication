@@ -12,6 +12,7 @@ public enum ExportStatus {
 
     DONE("✔ Đã xử lý", "Đã xử lý", "Ca đã xử lý xong", 0xC6EFCE, 0x006100),
     KLL("✖ Không liên lạc được", "KLL", "Không liên lạc được khách hàng", 0xFFC7CE, 0x9C0006),
+    CALLED_OK("☎ Đã gọi - khách OK", "Đã gọi OK", "Đã gọi khách, khách báo không có vấn đề gì", 0xD0F0F0, 0x0E6B6B),
     OVERDUE("⚠ Hẹn giờ - QUÁ HẸN", "Quá hẹn", "Đã hẹn giờ nhưng đã quá giờ hẹn mà chưa cập nhật", 0xF8CBAD, 0x843C0C),
     HEN_GIO("Hẹn giờ", "Hẹn giờ", "Đã chốt giờ hẹn với khách, chưa đến giờ", 0xFFF2CC, 0x7F6000),
     HEN_KHAC("Hẹn khác", "Hẹn khác", "Khách hẹn theo cách khác (không có giờ cụ thể)", 0xDDEBF7, 0x1F4E78),
@@ -43,9 +44,9 @@ public enum ExportStatus {
         return this != DANG_XU_LY;
     }
 
-    /** Ca đã có kết quả cuối cùng (Đã xử lý hoặc KLL): được đưa vào sheet "Đã xử lý & KLL". */
+    /** Ca đã có kết quả cuối cùng (Đã xử lý, KLL hoặc Đã gọi OK): được đưa vào sheet "Đã xử lý & KLL". */
     public boolean isProcessed() {
-        return this == DONE || this == KLL;
+        return this == DONE || this == KLL || this == CALLED_OK;
     }
 
     public static ExportStatus of(CustomerTicketEntity t, LocalDateTime now) {
@@ -54,6 +55,7 @@ public enum ExportStatus {
 
         if ("DA_XU_LY".equals(app) || "DONE".equals(reason)) return DONE;
         if ("KLL".equals(app) || "KLL".equals(reason)) return KLL;
+        if ("DA_GOI_OK".equals(app) || "CALLED_OK".equals(reason)) return CALLED_OK;
         if ("NOT_IN_IMPORT".equals(reason)) return NOT_IN_IMPORT;
         if ("HEN_GIO".equals(app)) {
             LocalDateTime limit = t.getAppointmentEnd() != null ? t.getAppointmentEnd() : t.getAppointmentStart();
