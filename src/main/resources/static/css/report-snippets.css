@@ -1,0 +1,24 @@
+/*
+ * report-snippets.css - Trang quản lý mẫu báo cáo (report-snippets.jsp).
+ * Màu 5 trạng thái (st-*) khớp với SnippetState ở server; nhãn và biểu tượng do server gửi, không viết cứng ở trang.
+ * Nạp SAU report-form.css, TRƯỚC viettel-theme.css.
+ */
+.st-badge { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; border: 1px solid transparent; }
+.st-pending { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.st-approved { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.st-rejected { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.st-pending-delete { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+.st-deleted { background: #f1f5f9; color: #64748b; border-color: #e2e8f0; }
+
+.sn-reject { margin-top: 6px; font-size: .8rem; color: #991b1b; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 5px 9px; word-break: break-word; }
+.sn-wait { margin-top: 6px; font-size: .78rem; color: #475569; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 5px 9px; }
+.sn-focus { outline: 2px solid #2563eb; box-shadow: 0 0 0 4px rgba(37, 99, 235, .18); animation: sn-flash 2.4s ease-out 1; }
+@keyframes sn-flash { 0% { background: #dbeafe; } 100% { background: #fff; } }
+
+.sn-hist { margin-top: 8px; border-top: 1px dashed #e2e8f0; padding-top: 6px; }
+.sn-hist-row { padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: .78rem; color: #334155; }
+.sn-hist-row:last-child { border-bottom: 0; }
+.sn-hist-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sn-hist-time { color: #94a3b8; font-size: .72rem; }
+.sn-hist-line { word-break: break-word; margin-top: 2px; }
+.sn-hist-line .lbl { color: #94a3b8; }
