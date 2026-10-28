@@ -1,0 +1,42 @@
+/*
+ * ticket-card.css - Kiểu thẻ khách mới dùng chung (js/ticket-card.js, lớp .tc2) cho Danh sách ca và Khách đã hẹn.
+ * Đặt SAU dashboard.css / app-pages.css và TRƯỚC viettel-theme.css. Mọi luật mới đều nằm dưới .tc2 nên không ảnh hưởng
+ * thẻ ở trang Lịch sử. Màu chủ đạo lấy từ biến --vt-red của viettel-theme.css.
+ */
+
+/* ---- Lưới thông số chi tiết (phần "xem thêm" của ca hạ tầng) và nhãn khoảng cách ---- */
+.attr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 0.82rem; }
+.attr-grid .attr-label { display: block; color: #64748b; font-size: 0.72rem; }
+.attr-grid .attr-value { font-weight: 600; color: #0f172a; word-break: break-word; }
+.badge-distance {
+    background: #ecfeff; color: #0e7490; border: 1px solid #cffafe; font-size: 0.72rem; font-weight: 700;
+    padding: 2px 7px; border-radius: 6px; margin-right: 6px; white-space: nowrap;
+}
+
+/* ---- Thẻ mới ---- */
+.ticket-card.tc2 { border-radius: 16px; padding: 14px; }
+.tc2 .customer-title { font-size: 1.08rem; font-weight: 800; }
+.tc2 .tc-body { margin-bottom: 10px; }
+
+/* 4 ô số liệu nổi bật của ca hạ tầng */
+.tc2 .tc-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tc2 .tc-tile { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; padding: 9px 11px; min-width: 0; }
+.tc2 .tc-tile-label { font-size: 0.72rem; color: #64748b; line-height: 1.2; }
+.tc2 .tc-tile-value { font-size: 1.4rem; font-weight: 800; color: #0f172a; line-height: 1.15; margin-top: 3px; word-break: break-word; }
+.tc2 .tc-tile-value.is-text { font-size: 0.95rem; font-weight: 700; line-height: 1.25; }
+.tc2 .tc-tile-value.is-alert { color: #dc2626; }
+.tc2 .tc-body .see-more-link { display: inline-block; margin-top: 6px; }
+
+/* Nút: hàng gọi điện (nếu có) rồi hàng [chụp ảnh] [Cập nhật ca] */
+.tc2 .tc-actions { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.tc2 .tc-phones { display: flex; gap: 8px; }
+.tc2 .tc-phones .btn-call-phone {
+    flex: 1 1 0; min-width: 0; height: 42px; justify-content: center; border-radius: 12px;
+    background: #fff; color: #15803d; border: 1.5px solid #15803d; font-size: 0.86rem; overflow: hidden;
+}
+.tc2 .tc-phones .btn-call-phone:hover { background: #f0fdf4; color: #166534; }
+.tc2 .tc-phones .btn-call-report { color: #475569; border-color: #94a3b8; }
+.tc2 .tc-main { display: flex; gap: 8px; }
+.tc2 .btn-camera { position: relative; flex: 0 0 46px; width: 46px; height: 44px; padding: 0; justify-content: center; border-radius: 12px; }
+.tc2 .btn-action-trigger { flex: 1 1 auto; height: 44px; justify-content: center; border-radius: 12px; font-size: 0.95rem; font-weight: 700; }
+.tc2 .quick-toolbar { margin-top: 2px; }
