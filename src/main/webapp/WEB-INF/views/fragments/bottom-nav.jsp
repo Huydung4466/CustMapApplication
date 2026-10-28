@@ -4,15 +4,15 @@
       <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp">
           <jsp:param name="active" value="appointments"/>   <!-- appointments | map | report | profile | (bỏ trống) -->
       </jsp:include>
-  Nút 1: Khách đã hẹn | Nút 2: Bản đồ | Nút "+" ở giữa: chụp ảnh nhanh (không gắn ca) | Nút 3: Báo cáo | Nút 4: Cá nhân
+  Nút 1: Khách đã hẹn (kèm số khách đã hẹn, do js/bottom-nav.js nạp) | Nút 2: Bản đồ | Nút "+" ở giữa: chụp ảnh nhanh (không gắn ca) | Nút 3: Báo cáo | Nút 4: Cá nhân (có chấm đỏ khi còn thông báo chưa đọc, do js/notifications.js bật tắt)
 --%>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <link href="${pageContext.request.contextPath}/css/bottom-nav.css?v=1" rel="stylesheet">
-<nav class="vt-bnav" aria-label="Điều hướng chính">
+<nav class="vt-bnav" aria-label="Điều hướng chính" id="appBottomNav" data-ctx="${pageContext.request.contextPath}">
     <div class="vt-bnav-bar">
         <div class="vt-bnav-side left">
             <a class="vt-bnav-item ${param.active == 'appointments' ? 'active' : ''}" href="${pageContext.request.contextPath}/appointments">
-                <i class="fa-solid fa-calendar-check"></i><span>Đã hẹn</span>
+                <i class="fa-solid fa-calendar-check"></i><b class="vt-bnav-badge d-none" id="bnApptBadge" title="Số khách đã hẹn"></b><span>Đã hẹn</span>
             </a>
             <a class="vt-bnav-item ${param.active == 'map' ? 'active' : ''}" href="${pageContext.request.contextPath}/map">
                 <i class="fa-solid fa-map-location-dot"></i><span>Bản đồ</span>
@@ -33,10 +33,11 @@
                 <i class="fa-solid fa-chart-column"></i><span>Báo cáo</span>
             </a>
             <a class="vt-bnav-item ${param.active == 'profile' ? 'active' : ''}" href="${pageContext.request.contextPath}/profile">
-                <i class="fa-solid fa-user"></i><span>Cá nhân</span>
+                <i class="fa-solid fa-user"></i><b class="vt-bnav-dot d-none" id="bnProfileDot" title="Có thông báo chưa đọc"></b><span>Cá nhân</span>
             </a>
         </div>
     </div>
 </nav>
 <script>document.body.classList.add('has-bottom-nav');</script>
 <script src="${pageContext.request.contextPath}/js/camera-capture.js?v=3"></script>
+<script src="${pageContext.request.contextPath}/js/bottom-nav.js?v=1"></script>
