@@ -1,0 +1,35 @@
+/*
+ * notifications.css - Bảng danh sách thông báo (mở khi bấm tab chuông trong hàng tab của fragments/top-navbar.jsp).
+ * Vị trí dọc (top) do notifications.js tính theo hàng tab; ngang: căn giữa màn hình, rộng tối đa 420px.
+ * Màu từng loại thông báo (nt-*) khớp với NotificationType ở server. Badge số chưa đọc nằm ở nav-tabs.css.
+ */
+.nt-panel {
+    position: fixed; top: 100px; left: 50%; transform: translateX(-50%); z-index: 1060;
+    width: min(420px, calc(100vw - 16px)); max-height: min(70vh, 520px);
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 10px 30px rgba(15, 23, 42, .18);
+    display: none; flex-direction: column; overflow: hidden;
+}
+.nt-panel.open { display: flex; }
+.nt-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-weight: 700; color: #0f172a; }
+.nt-head button { border: 0; background: transparent; color: #2563eb; font-size: .78rem; font-weight: 600; padding: 0; }
+.nt-head button:disabled { color: #94a3b8; }
+.nt-list { overflow-y: auto; flex: 1 1 auto; }
+.nt-empty { padding: 28px 12px; text-align: center; color: #94a3b8; font-size: .85rem; }
+.nt-item { display: flex; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+.nt-item:hover { background: #f8fafc; }
+.nt-item.unread { background: #eff6ff; }
+.nt-item.unread:hover { background: #e0efff; }
+.nt-icon { width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .85rem; }
+.nt-body { min-width: 0; flex: 1 1 auto; }
+.nt-title { font-size: .82rem; font-weight: 700; color: #0f172a; }
+.nt-msg { font-size: .8rem; color: #334155; word-break: break-word; }
+.nt-time { font-size: .7rem; color: #94a3b8; margin-top: 2px; }
+.nt-dot { width: 8px; height: 8px; border-radius: 50%; background: #2563eb; flex: 0 0 8px; margin-top: 6px; }
+.nt-more { width: 100%; border: 0; border-top: 1px solid #f1f5f9; background: #fff; padding: 9px; font-size: .8rem; font-weight: 600; color: #2563eb; }
+.nt-more:disabled { color: #94a3b8; }
+
+.nt-warning { background: #fffbeb; color: #b45309; }
+.nt-success { background: #ecfdf5; color: #047857; }
+.nt-info { background: #eff6ff; color: #1d4ed8; }
+.nt-danger { background: #fef2f2; color: #b91c1c; }
+.nt-muted { background: #f1f5f9; color: #64748b; }
