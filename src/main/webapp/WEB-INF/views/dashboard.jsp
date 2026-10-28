@@ -8,6 +8,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/css/dashboard.css?v=1" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/css/ticket-card.css?v=2" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/css/filter-sheet.css?v=1" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
 </head>
@@ -27,74 +29,26 @@
     <div class="group-tabs" id="groupTabs"></div>
     <div class="type-chips" id="typeChips"></div>
 
-    <!-- ================= BỘ LỌC KHOANH VÙNG THÔNG MINH ================= -->
-    <div class="filter-panel-bg">
-        <div class="d-flex justify-content-between align-items-center mb-2">
-            <span class="fw-bold text-primary small"><i class="fa-solid fa-filter me-1"></i>Bộ lọc khoanh vùng địa bàn</span>
-            <button class="btn btn-sm btn-link text-decoration-none p-0 small text-muted" onclick="resetFilters()">Xóa lọc</button>
+    <!-- ================= BỘ LỌC GỌN: thanh tìm kiếm + nút lọc; bấm nút lọc thì xổ tấm bộ lọc (bên dưới) ================= -->
+    <div class="fbar-wrap">
+        <div class="fbar">
+            <div class="fbar-search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="keywordInput" placeholder="Tìm tên KH, SĐT, tài khoản, mã tủ, mã phản ánh..." oninput="debounceLoadTickets()" autocomplete="off">
+            </div>
+            <button type="button" class="fbar-btn" id="filterOpenBtn" onclick="openFilterSheet()" aria-label="Mở bộ lọc" title="Bộ lọc">
+                <i class="fa-solid fa-sliders"></i><span class="fbar-badge d-none" id="filterBadge">0</span>
+            </button>
         </div>
-
-        <div class="row g-2">
-            <!-- 1. Tìm kiếm chung -->
-            <div class="col-12 col-md-6">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-light"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                    <input type="text" id="keywordInput" class="form-control" placeholder="Tìm tên KH, SĐT, tài khoản, mã tủ, mã phản ánh..." oninput="debounceLoadTickets()">
-                </div>
+        <div class="fsum">
+            <div class="fsum-row">
+                <span class="fsum-left" id="fsumLeft">Địa bàn: ...</span>
+                <span class="fsum-right" id="fsumRight">Trạng thái: Tất cả</span>
             </div>
-
-            <!-- 2. Lọc theo Nhân viên phụ trách -->
-            <div class="col-6 col-md-3">
-                <select id="staffFilterSelect" class="form-select form-select-sm fw-semibold text-primary" onchange="onStaffChange()"></select>
+            <div class="fsum-count">
+                <span>Hiển thị: <b class="text-primary" id="ticketCountText">0</b> <span id="ticketCountUnit">ca phản ánh</span></span>
+                <button type="button" class="fsum-clear d-none" id="fsumClear" onclick="resetFilters()">Xóa lọc</button>
             </div>
-
-            <!-- 3. Lọc theo Trạng thái ca -->
-            <div class="col-6 col-md-3">
-                <!-- Các lựa chọn do server cấp từ enum TicketListFilter (xem loadStatusMeta) -->
-                <select id="statusFilterSelect" class="form-select form-select-sm" onchange="loadTickets()">
-                    <option value="ALL">Tất cả trạng thái</option>
-                </select>
-            </div>
-
-            <!-- 4. Lọc theo Khu vực (Area) -->
-            <div class="col-6 col-md-4">
-                <select id="areaFilterSelect" class="form-select form-select-sm" onchange="onAreaChange()">
-                    <option value="">-- Tất cả Khu vực --</option>
-                </select>
-            </div>
-
-            <!-- 5. Lọc theo Đầu mã tủ KMZ (7 ký tự đầu, VD: DLK0412) -->
-            <div class="col-6 col-md-4">
-                <div class="input-group input-group-sm">
-                    <span class="input-group-text bg-light text-muted vt-fs-75">Mã Tủ</span>
-                    <select id="cabinetPrefixInput" class="form-select" onchange="loadTickets()">
-                        <option value="">-- Tất cả --</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- 6. Lọc theo Mức ưu tiên (Priority) -->
-            <div class="col-12 col-md-4" id="priorityFilterCol">
-                <select id="priorityFilterSelect" class="form-select form-select-sm" onchange="loadTickets()">
-                    <option value="">-- Tất cả Mức độ ưu tiên --</option>
-                    <option value="Hot">🔴 Hot</option>
-                    <option value="Nguy cơ HOT">🟠 Nguy cơ HOT</option>
-                    <option value="Bình thường">🟢 Bình thường</option>
-                </select>
-            </div>
-
-            <!-- 7. Sắp xếp danh sách -->
-            <div class="col-12 col-md-4">
-                <select id="sortSelect" class="form-select form-select-sm" onchange="loadTickets()">
-                    <option value="DEFAULT">↕ Mặc định (ghim, theo thứ tự)</option>
-                    <option value="APPOINTMENT">⏰ Theo giờ hẹn</option>
-                    <option value="NEAREST">📍 Gần tôi nhất</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top text-muted vt-fs-78">
-            <div>Hiển thị: <b class="text-primary" id="ticketCountText">0</b> <span id="ticketCountUnit">ca phản ánh</span></div>
             <div id="autoFilterNotice"></div>
         </div>
     </div>
@@ -157,11 +111,71 @@
     </div>
 </div>
 
+<!-- ================= TẤM BỘ LỌC (xổ từ dưới lên). Các ô chọn giữ nguyên id nên dashboard.js đọc giá trị như cũ;
+     trạng thái / ưu tiên / sắp xếp hiện dưới dạng chip dựng từ chính các ô chọn đó (xem buildFilterChips) ================= -->
+<div class="fs-backdrop" id="filterBackdrop" onclick="closeFilterSheet()"></div>
+<section class="fs-sheet" id="filterSheet" role="dialog" aria-modal="true" aria-label="Bộ lọc" aria-hidden="true">
+    <div class="fs-head">
+        <button type="button" class="fs-back" onclick="closeFilterSheet()" aria-label="Đóng bộ lọc"><i class="fa-solid fa-arrow-left"></i></button>
+        <span class="fs-title">Bộ lọc</span>
+        <button type="button" class="fs-clear" onclick="resetFilters()">Xóa tất cả</button>
+    </div>
+    <div class="fs-body">
+        <div class="fs-section">
+            <div class="fs-label">Địa bàn nhân viên</div>
+            <select id="staffFilterSelect" class="form-select" onchange="onStaffChange()"></select>
+        </div>
+        <div class="fs-section">
+            <div class="fs-label">Khu vực</div>
+            <select id="areaFilterSelect" class="form-select" onchange="onAreaChange()">
+                <option value="">-- Tất cả Khu vực --</option>
+            </select>
+        </div>
+        <div class="fs-section">
+            <div class="fs-label">Mã tủ KMZ (7 ký tự đầu, VD: DLK0412)</div>
+            <select id="cabinetPrefixInput" class="form-select" onchange="updateFilterBadge()">
+                <option value="">-- Tất cả --</option>
+            </select>
+        </div>
+        <div class="fs-section">
+            <div class="fs-label">Trạng thái</div>
+            <!-- Các lựa chọn do server cấp từ enum TicketListFilter (xem loadStatusMeta); chip dựng từ ô chọn này -->
+            <select id="statusFilterSelect" class="d-none">
+                <option value="ALL">Tất cả trạng thái</option>
+            </select>
+            <div class="fs-chips" data-chips-for="statusFilterSelect"></div>
+        </div>
+        <div class="fs-section" id="priorityFilterCol">
+            <div class="fs-label">Mức độ ưu tiên</div>
+            <select id="priorityFilterSelect" class="d-none">
+                <option value="">-- Tất cả Mức độ ưu tiên --</option>
+                <option value="Hot">🔴 Hot</option>
+                <option value="Nguy cơ HOT">🟠 Nguy cơ HOT</option>
+                <option value="Bình thường">🟢 Bình thường</option>
+            </select>
+            <div class="fs-chips" data-chips-for="priorityFilterSelect"></div>
+        </div>
+        <div class="fs-section">
+            <div class="fs-label">Sắp xếp</div>
+            <select id="sortSelect" class="d-none">
+                <option value="DEFAULT">Mặc định (ghim, theo thứ tự)</option>
+                <option value="APPOINTMENT">Theo giờ hẹn</option>
+                <option value="NEAREST">Gần tôi nhất</option>
+            </select>
+            <div class="fs-chips fs-seg" data-chips-for="sortSelect"></div>
+        </div>
+    </div>
+    <div class="fs-foot">
+        <button type="button" class="fs-apply" onclick="applyFilters()">Áp dụng bộ lọc<span id="fsApplyCount"></span></button>
+    </div>
+</section>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     const CTX = '${pageContext.request.contextPath}';
 </script>
-<script src="${pageContext.request.contextPath}/js/dashboard.js?v=1"></script>
+<script src="${pageContext.request.contextPath}/js/ticket-card.js?v=2"></script>
+<script src="${pageContext.request.contextPath}/js/dashboard.js?v=3"></script>
 <%-- Thanh điều hướng dưới cùng (đã gồm camera-capture.js: chụp ảnh hiện trường, chữ giờ/GPS/địa chỉ in lên ảnh) --%>
 <!-- THANH THAO TÁC HÀNG LOẠT (chỉ hiện khi ADMIN bật "Chọn nhiều") -->
 <div class="bulk-bar d-none" id="bulkBar">

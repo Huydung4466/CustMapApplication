@@ -49,6 +49,7 @@
             <a href="${pageContext.request.contextPath}/change-password" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-key me-1"></i>Đổi mật khẩu</a>
             <a href="${pageContext.request.contextPath}/history" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-circle-check me-1"></i>Lịch sử: ca đã hoàn thành</a>
             <a href="${pageContext.request.contextPath}/history/issues" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-phone-slash me-1"></i>Lịch sử: không liên lạc được &amp; khác</a>
+            <a href="${pageContext.request.contextPath}/report-snippets" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-clipboard-check me-1"></i>Quản lý mẫu báo cáo<span class="badge bg-danger rounded-pill ms-2 d-none" id="snippetPendingBadge" title="Yêu cầu đang chờ duyệt">0</span></a>
             <a href="${pageContext.request.contextPath}/logout" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-power-off me-1"></i>Đăng xuất</a>
         </div>
     </div>
@@ -184,6 +185,19 @@
 <script>const CTX = '${pageContext.request.contextPath}';</script>
 <script src="${pageContext.request.contextPath}/js/app-common.js?v=1"></script>
 <script src="${pageContext.request.contextPath}/js/profile.js?v=3"></script>
+<script>
+    // Admin: hiện số yêu cầu mẫu báo cáo đang chờ duyệt trên nút (nhân viên không gọi API này)
+    AppNav.getMe().then(function (me) {
+        if (!me || !me.admin) return;
+        return apiFetch(CTX + '/api/report-snippets/pending-count').then(function (d) {
+            if (d && d.count > 0) {
+                var b = document.getElementById('snippetPendingBadge');
+                b.textContent = d.count;
+                b.classList.remove('d-none');
+            }
+        });
+    }).catch(function (e) { console.error(e); });
+</script>
 
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp">
     <jsp:param name="active" value="profile"/>

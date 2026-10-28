@@ -5,93 +5,12 @@ const PAGE_SIZE = 10;
 // Trang lịch sử đang xem: COMPLETED (đã hoàn thành) hoặc ISSUES (không liên lạc được & khác), do server gán
 let meta = null; // trạng thái / lý do lưu trữ / các trang lịch sử, lấy từ /api/tickets/meta (enum phía server)
 
-// ===================== NỘP BÁO CÁO (Google Form) =====================
-// Form "BÁO CÁO KẾT QUẢ CÔNG VIỆC HẰNG NGÀY – ĐỘI KỸ THUẬT". Mã entry lấy từ chính form (đổi form thì cập nhật lại các mã này).
-const REPORT_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfCOYYflGscdYCRIoTd71J4twFHl3KqTMzANM20Ps2FjeQHzA/viewform';
-const REPORT_ENTRY = {
-    date: '232984631',
-    staff: '1386363437',
-    area: '977003287',
-    serviceType: '1313171066',
-    account: '2037624764',
-    customerName: '1327480577',
-    phone: '464690292',
-    address: '1666902213',
-    cabinet: '1383431432',
-    contractor: '1226051476'
-};
-
-// 24 địa bàn trong form (phải ghi đúng như trong form thì Google mới nhận)
-const REPORT_AREAS = ['Buôn Ma Thuột', 'Ea Hleo', 'Ea Súp', 'Krông Năng', 'Krông Búk', 'Buôn Đôn', 'Cư Mgar', 'Ea Kar',
-    'Mđrắk', 'Krông Pắk', 'Krông A Na', 'Krông Bông', 'Lắk', 'Cư Kuin', 'Buôn Hồ', 'Tuy Hòa', 'Đồng Xuân', 'Sông Cầu',
-    'Tuy An', 'Sơn Hòa', 'Sông Hinh', 'Phú Hòa', 'Tây Hòa', 'Đông Hòa'];
-
-// Bỏ dấu, chữ thường, bỏ khoảng trắng / dấu nháy để so khớp (VD "Cư M'gar" = "Cư Mgar", "Ea H'leo" = "Ea Hleo")
-function normalizeText(str) {
-    return String(str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-        .replace(/đ/g, 'd').replace(/Đ/g, 'd').toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-// Tìm địa bàn của form khớp với khu vực của ca; thử lần lượt: khu vực, cụm xã, xã. Không khớp thì trả null (nhân viên tự chọn)
-function guessReportArea(item) {
-    const candidates = [item.area, item.communeCluster, item.commune];
-    // Tên dài xét trước để "Tuy An" không bị nhầm với "Tuy An..." khác, "Sơn Hòa"/"Phú Hòa"... đúng từng cái
-    const sorted = REPORT_AREAS.slice().sort(function (x, y) { return normalizeText(y).length - normalizeText(x).length; });
-    for (let i = 0; i < candidates.length; i++) {
-        const text = normalizeText(candidates[i]);
-        if (!text) continue;
-        for (let j = 0; j < sorted.length; j++) {
-            if (text.indexOf(normalizeText(sorted[j])) !== -1) return sorted[j];
-        }
-    }
-    return null;
-}
-
+// ===================== NỘP BÁO CÁO =====================
+// Nút "Nộp báo cáo" mở trang trung gian /report-form/{id} (xem thông tin ca, chọn nhóm nhiệm vụ, chọn / lưu mẫu nội dung)
+// rồi mới sang Google Form. Phần dựng link Google Form nằm trong js/report-form.js.
 // Chỉ ca "Đã xử lý" (nằm trang Đã hoàn thành) mới có nút nộp báo cáo; ca KLL / không còn trong file thì không
 function canSubmitReport(item) {
     return !item.archiveReason || item.archiveReason === 'DONE';
-}
-
-// Loại dịch vụ điền sẵn theo loại ca hạ tầng (khai báo ở TicketType phía server)
-const SERVICE_BY_TICKET_TYPE = {
-    PORT_KEM: 'FTTH',              // Port kém GPON
-    LAN_HOMEWIFI_KEM: 'Mesh',      // LAN / HomeWifi kém
-    LAP_THIEU_HOMEWIFI: 'Mesh'     // Lắp thiếu HomeWifi
-};
-
-// Ca hạ tầng: theo bảng trên. Ca phản ánh: đoán từ "Tên dịch vụ" (cột H trong file Excel), không đoán được thì để trống
-function guessServiceTypes(item) {
-    const byType = SERVICE_BY_TICKET_TYPE[item.ticketType];
-    if (byType) return [byType];
-    const result = [];
-    const t = (item.serviceName || '').toLowerCase();
-    if (/ftth|internet|cáp quang|cap quang|fiber|gpon/.test(t)) result.push('FTTH');
-    if (/truyền hình|truyen hinh|\btv\b|mytv|nexttv/.test(t)) result.push('Truyền hình');
-    if (/\bmesh\b|homewifi|home wifi/.test(t)) result.push('Mesh');
-    if (/camera/.test(t)) result.push('Camera');
-    return result;
-}
-
-function buildReportUrl(item) {
-    const params = new URLSearchParams();
-    params.set('usp', 'pp_url');
-    const add = function (entry, value) {
-        if (value !== null && value !== undefined && String(value).trim() !== '') params.append('entry.' + entry, String(value).trim());
-    };
-    // Ngày thực hiện = ngày ca được xử lý xong (chuyển vào lịch sử), dạng yyyy-mm-dd
-    const d = item.archivedAt ? new Date(item.archivedAt) : new Date();
-    const pad = function (n) { return String(n).padStart(2, '0'); };
-    add(REPORT_ENTRY.date, d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()));
-    add(REPORT_ENTRY.staff, item.assignedStaff || (currentUser && currentUser.fullName));
-    add(REPORT_ENTRY.area, guessReportArea(item));
-    guessServiceTypes(item).forEach(function (v) { add(REPORT_ENTRY.serviceType, v); });
-    add(REPORT_ENTRY.account, item.subscriberAccount);
-    add(REPORT_ENTRY.customerName, item.customerName);
-    add(REPORT_ENTRY.phone, item.contactPhone || item.reportPhone);
-    add(REPORT_ENTRY.address, item.installAddress);
-    add(REPORT_ENTRY.cabinet, item.cabinetCode);
-    add(REPORT_ENTRY.contractor, item.techStaffName);
-    return REPORT_FORM_URL + '?' + params.toString();
 }
 
 document.addEventListener('DOMContentLoaded', async function () {
@@ -239,7 +158,7 @@ function renderHistory(items) {
             + '</div>'
             + '<div class="action-buttons-grid">' + phones
             +   (canSubmitReport(item)
-                ? '<a class="btn-report-submit ms-auto" href="' + escapeHtml(buildReportUrl(item)) + '" target="_blank" rel="noopener"><i class="fa-solid fa-file-signature"></i>Nộp báo cáo</a>'
+                ? '<a class="btn-report-submit ms-auto" href="' + CTX + '/report-form/' + item.id + '"><i class="fa-solid fa-file-signature"></i>Nộp báo cáo</a>'
                 : '')
             +   '<button type="button" class="btn-action-trigger' + (canSubmitReport(item) ? '' : ' ms-auto') + '" onclick="restoreTicket(' + item.id + ')"><i class="fa-solid fa-rotate-left"></i>Đưa về danh sách</button>'
             + '</div>'
