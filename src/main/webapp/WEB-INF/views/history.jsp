@@ -7,7 +7,7 @@
     <title>${historyTabLabel} - Lịch sử ca</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <link href="${pageContext.request.contextPath}/css/history.css?v=1" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/css/history.css?v=2" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
 </head>
@@ -70,7 +70,7 @@
     const CTX = '${pageContext.request.contextPath}';
     const HISTORY_TAB = '${historyTab}';
 </script>
-<script src="${pageContext.request.contextPath}/js/history.js?v=1"></script>
+<script src="${pageContext.request.contextPath}/js/history.js?v=2"></script>
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp"/>
 </body>
 </html>

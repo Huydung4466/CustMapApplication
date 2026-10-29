@@ -2,29 +2,25 @@ package com.huydung.custmapapplication.reportform.enums;
 
 /**
  * 4 mục viết tay trong form báo cáo, nhân viên có thể lưu thành mẫu để dùng lại.
- * Thêm mục mới (khi form có thêm ô viết): thêm một giá trị ở đây với mã entry của ô đó.
+ * Mã entry của từng ô trong Google Form nằm ở application.properties: app.report-form.entry.<tên mục viết thường>
+ * (content, error, warning, proposal). Thêm mục mới (khi form có thêm ô viết): thêm một giá trị ở đây
+ * và thêm dòng app.report-form.entry.<tên> tương ứng vào properties.
  */
 public enum ReportField {
 
-    CONTENT("Nội dung đã thực hiện", "241578016"),
-    ERROR("Lỗi phát hiện", "1528598723"),
-    WARNING("Cảnh báo Công ty Công trình", "1214196581"),
-    PROPOSAL("Kiến nghị, đề xuất", "1469085041");
+    CONTENT("Nội dung đã thực hiện"),
+    ERROR("Lỗi phát hiện"),
+    WARNING("Cảnh báo Công ty Công trình"),
+    PROPOSAL("Kiến nghị, đề xuất");
 
     private final String label;
-    private final String entryId; // mã entry của ô tương ứng trong Google Form
 
-    ReportField(String label, String entryId) {
+    ReportField(String label) {
         this.label = label;
-        this.entryId = entryId;
     }
 
     public String getLabel() {
         return label;
-    }
-
-    public String getEntryId() {
-        return entryId;
     }
 
     public static ReportField fromCode(String code) {

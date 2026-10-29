@@ -4,6 +4,7 @@ import com.huydung.custmapapplication.ticket.dto.BulkActionResultDTO;
 import com.huydung.custmapapplication.ticket.dto.BulkTicketActionRequest;
 import com.huydung.custmapapplication.ticket.dto.TicketImportResultDTO;
 import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
+import com.huydung.custmapapplication.ticket.dto.UpdateReportStatusRequest;
 import com.huydung.custmapapplication.ticket.dto.UpdateTicketActionRequest;
 import com.huydung.custmapapplication.ticket.service.TicketService;
 import org.springframework.http.ResponseEntity;
@@ -56,5 +57,13 @@ public class TicketApiController {
     @PutMapping("/{id}/restore")
     public ResponseEntity<TicketResponseDTO> restore(@PathVariable("id") Long id) {
         return ResponseEntity.ok(ticketService.restoreTicket(id));
+    }
+
+    // 5. Nộp báo cáo (Google Form): đặt trạng thái NOT_SUBMITTED | OPENED | SUBMITTED của ca đã xử lý
+    @PutMapping("/{id}/report-status")
+    public ResponseEntity<TicketResponseDTO> updateReportStatus(
+            @PathVariable("id") Long id,
+            @RequestBody UpdateReportStatusRequest request) {
+        return ResponseEntity.ok(ticketService.updateReportStatus(id, request == null ? null : request.getStatus()));
     }
 }

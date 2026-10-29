@@ -276,3 +276,22 @@ body {
 .reason-closed { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
 .reason-kll { background:#fffbeb; color:#b45309; border:1px solid #fde68a; }
 .reason-called-ok { background:#ecfeff; color:#0e7490; border:1px solid #a5f3fc; }
+
+/* Trạng thái nộp báo cáo (ReportStatus.badgeClass) */
+.report-not-submitted { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+.report-opened { background:#fffbeb; color:#b45309; border:1px solid #fde68a; }
+.report-submitted { background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; }
+
+/* Ca đã nộp báo cáo: nút "Nộp lại" nhạt hơn để khó bấm nhầm; nút đánh dấu nhanh "đã nộp" */
+.btn-report-submit.is-done { background: #fff; color: #15803d; border: 1px solid #15803d; }
+.btn-report-submit.is-done:hover { background: #f0fdf4; color: #166534; }
+.btn-report-mark {
+    background: #fff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 0.78rem;
+    line-height: 1;
+}
+.btn-report-mark:hover { background: #eff6ff; }
