@@ -181,6 +181,23 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    public UserDTO setCameraRole(Long userId, boolean enabled) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản ID: " + userId));
+        RoleEntity cameraRole = roleRepository.findByCode("ROLE_CAMERA")
+                .orElseGet(() -> roleRepository.save(new RoleEntity("ROLE_CAMERA", "Camera (lưu / xóa ảnh hiện trường)")));
+        Set<RoleEntity> roles = new HashSet<>(user.getRoles());
+        if (enabled) {
+            roles.add(cameraRole);
+        } else {
+            roles.removeIf(r -> "ROLE_CAMERA".equals(r.getCode()));
+        }
+        user.setRoles(roles);
+        return userConverter.toDTO(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
     public void initDefaultUsersAndRoles() {
         // 1. Tạo 2 Role mặc định
         RoleEntity adminRole = roleRepository.findByCode("ROLE_ADMIN")
@@ -188,6 +205,10 @@ public class UserServiceImpl implements UserService {
 
         RoleEntity staffRole = roleRepository.findByCode("ROLE_STAFF")
                 .orElseGet(() -> roleRepository.save(new RoleEntity("ROLE_STAFF", "Nhân viên phụ trách địa bàn")));
+
+        // Quyền Camera: gán thêm cho tài khoản được phép lưu / xóa / tải ảnh hiện trường (không thay thế ROLE_STAFF / ROLE_ADMIN)
+        roleRepository.findByCode("ROLE_CAMERA")
+                .orElseGet(() -> roleRepository.save(new RoleEntity("ROLE_CAMERA", "Camera (lưu / xóa ảnh hiện trường)")));
 
         // 2. Chỉ tạo tài khoản mặc định khi đã cấu hình mật khẩu khởi tạo qua biến môi trường
         if (initialPassword.isBlank()) {

@@ -33,6 +33,10 @@ public class CurrentUserResponse {
     public boolean isAdmin() { return isAdmin; }
     public void setAdmin(boolean admin) { isAdmin = admin; }
 
+    // Có quyền Camera (ROLE_CAMERA): được lưu / xóa / tải về ảnh hiện trường. Giao diện chỉ dùng để ẩn / hiện nút,
+    // quyền thật được kiểm tra ở server. Quyền mới cấp có hiệu lực từ lần đăng nhập kế tiếp.
+    public boolean isCamera() { return roles != null && roles.contains("ROLE_CAMERA"); }
+
     public List<String> getRoles() { return roles; }
     public void setRoles(List<String> roles) { this.roles = roles;}
 }

@@ -1,0 +1,48 @@
+/*
+ * nav-tabs.css - Hàng 6 tab biểu tượng dưới thanh đỏ (kiểu Facebook) trong fragments/top-navbar.jsp,
+ * và chấm đỏ "còn thông báo chưa đọc" ở tab Cá nhân của thanh dưới (fragments/bottom-nav.jsp).
+ * Hàng tab KHÔNG dính khi cuộn (chỉ thanh đỏ dính); khi cuộn đi thì chấm đỏ ở tab Cá nhân vẫn báo có thông báo.
+ */
+.nav-tabs-row { background: #fff; border-bottom: 1px solid #e5e7eb; margin-bottom: 1rem; }
+.nav-tabs-inner { max-width: 740px; margin: 0 auto; display: flex; }
+.nav-tab {
+    position: relative; flex: 1 1 0; min-width: 0; height: 46px; padding: 0; border: 0; border-bottom: 3px solid transparent;
+    background: transparent; color: #6b7280; font-size: 1.2rem;
+    display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;
+}
+a.nav-tab { text-decoration: none; }
+.nav-tab:hover { background: #f9fafb; }
+.nav-tab.active { color: var(--vt-red, #EE0033); border-bottom-color: var(--vt-red, #EE0033); }
+.nav-tab:focus-visible { outline: 2px solid rgba(var(--vt-red-rgb, 238, 0, 51), .4); outline-offset: -2px; }
+
+/* Số thông báo chưa đọc trên tab chuông */
+.nav-tab-badge {
+    position: absolute; top: 5px; left: calc(50% + 4px); min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box;
+    background: var(--vt-red, #EE0033); color: #fff; border-radius: 999px; font-size: .68rem; font-weight: 700; line-height: 14px;
+    text-align: center; border: 2px solid #fff;
+}
+.nav-tab-badge.d-none { display: none !important; }
+
+/* Thông báo ngắn "đang phát triển" khi bấm tab giữ chỗ */
+.nav-soon-toast {
+    position: fixed; left: 50%; bottom: 92px; transform: translateX(-50%); z-index: 1080; max-width: calc(100vw - 32px);
+    background: rgba(17, 24, 39, .92); color: #fff; font-size: .85rem; padding: 8px 14px; border-radius: 999px; box-shadow: 0 4px 14px rgba(0, 0, 0, .25);
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+}
+.nav-soon-toast.show { opacity: 1; }
+
+/* Chấm đỏ ở tab Cá nhân của thanh dưới */
+.vt-bnav-item { position: relative; }
+.vt-bnav-dot {
+    position: absolute; top: 6px; left: calc(50% + 6px); width: 11px; height: 11px; border-radius: 50%; box-sizing: border-box;
+    background: var(--vt-red, #EE0033); border: 2px solid #fff;
+}
+.vt-bnav-dot.d-none { display: none !important; }
+
+/* Số khách đã hẹn trên tab Đã hẹn của thanh dưới */
+.vt-bnav-badge {
+    position: absolute; top: 3px; left: calc(50% + 4px); min-width: 18px; height: 18px; padding: 0 4px; box-sizing: border-box;
+    background: var(--vt-red, #EE0033); color: #fff; border-radius: 999px; font-size: .64rem; font-weight: 700; line-height: 14px;
+    text-align: center; border: 2px solid #fff; font-style: normal;
+}
+.vt-bnav-badge.d-none { display: none !important; }

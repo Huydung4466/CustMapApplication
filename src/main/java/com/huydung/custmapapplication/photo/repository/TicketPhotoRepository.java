@@ -1,10 +1,13 @@
 package com.huydung.custmapapplication.photo.repository;
 
 import com.huydung.custmapapplication.photo.entity.TicketPhotoEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -23,4 +26,17 @@ public interface TicketPhotoRepository extends JpaRepository<TicketPhotoEntity, 
 
     // Ảnh của nhiều ca (cũ trước, mới sau) - dùng khi xuất báo cáo để lấy ảnh chụp gần nhất của từng ca
     List<TicketPhotoEntity> findByTicketIdInOrderByIdAsc(Collection<Long> ticketIds);
+
+    // ----- Trang Ảnh (xem chung): mới nhất lên đầu, có thể lọc theo người chụp
+    Page<TicketPhotoEntity> findAllByOrderByIdDesc(Pageable pageable);
+
+    Page<TicketPhotoEntity> findByTakenByUserIdOrderByIdDesc(Long takenByUserId, Pageable pageable);
+
+    // Mỗi dòng là [userId, họ tên, tên đăng nhập, số ảnh] của từng người đã chụp
+    @Query("SELECT p.takenByUserId, MAX(p.takenByName), MAX(p.takenByUsername), COUNT(p) FROM TicketPhotoEntity p "
+            + "WHERE p.takenByUserId IS NOT NULL GROUP BY p.takenByUserId ORDER BY MAX(p.takenByName)")
+    List<Object[]> countGroupedByOwner();
+
+    // ----- Tự xóa ảnh quá hạn (ảnh cũ không có hạn nên không bao giờ nằm trong kết quả này)
+    List<TicketPhotoEntity> findByExpiresAtBeforeOrderByIdAsc(LocalDateTime time, Pageable pageable);
 }

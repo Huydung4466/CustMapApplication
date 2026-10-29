@@ -9,14 +9,29 @@ let currentGroup = 'PHAN_ANH'; // nhóm đang xem (tab)
 let currentType = '';          // loại đang lọc trong nhóm ('' = tất cả loại của nhóm)
 let statusMeta = { statuses: [], statusOptions: {}, archiveReasons: [], historyTabs: [], listFilters: [] }; // lấy từ /api/tickets/meta
 let typeInfos = [];            // danh sách loại + số ca, lấy từ /api/tickets/types
+let defaultStaff = '';         // nhân viên mặc định của ô chọn nhân viên (chính mình), để tính số bộ lọc đang bật và để "Xóa tất cả"
+let savedFilters = {};         // bộ lọc đã nhớ từ lần trước (localStorage), nạp lại sau khi tải lại trang
+let sheetSnapshot = null;      // giá trị các ô lọc lúc mở tấm bộ lọc, để đóng mà không "Áp dụng" thì trả lại như cũ
 
 document.addEventListener('DOMContentLoaded', async () => {
     actionModalInstance = new bootstrap.Modal(document.getElementById('actionModal'));
     await loadStatusMeta();
     await initCurrentUserAndStaffFilter();
-    // await loadFilterDropdowns();
-    await loadTypeTabs(true);
+    const restoredGroup = restoreSimpleFilters();   // nạp lại bộ lọc đã nhớ (tải lại trang không làm mất bộ lọc)
+    updateFilterBadge();
+    await loadTypeTabs(!restoredGroup);
     await loadTickets();
+
+    // Bấm chip trong tấm bộ lọc = chọn giá trị cho ô chọn tương ứng (chưa tải lại danh sách cho tới khi "Áp dụng")
+    document.getElementById('filterSheet').addEventListener('click', e => {
+        const chip = e.target.closest('.fs-chip');
+        if (!chip) return;
+        const sel = document.getElementById(chip.closest('[data-chips-for]').getAttribute('data-chips-for'));
+        sel.value = chip.getAttribute('data-value');
+        buildFilterChips();
+        updateFilterBadge();
+    });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFilterSheet(); });
 });
 
 // Chỉ ADMIN mới thấy nút chọn nhiều ca để thao tác hàng loạt (phần import file đã chuyển sang trang Cá nhân)
@@ -57,9 +72,15 @@ async function initCurrentUserAndStaffFilter() {
             staffSelect.appendChild(opt);
             staffSelect.disabled = true;
         }
-        // Load danh sách khu vực phù hợp với nhân viên đang chọn ban đầu
+        defaultStaff = staffSelect.value;
+        savedFilters = readSavedFilters();
+        // Admin: nhân viên đã chọn lần trước (nếu còn trong danh sách) thay cho mặc định
+        if (currentUser.admin) setSelectIfExists('staffFilterSelect', savedFilters.staff);
+        // Load danh sách khu vực phù hợp với nhân viên đang chọn, rồi nạp khu vực / mã tủ đã nhớ
         await loadAreaDropdownForStaff(staffSelect.value);
-        await loadCabinetDropdownForStaff(staffSelect.value, '');
+        setSelectIfExists('areaFilterSelect', savedFilters.area);
+        await loadCabinetDropdownForStaff(staffSelect.value, document.getElementById('areaFilterSelect').value);
+        setSelectIfExists('cabinetPrefixInput', savedFilters.cabinet);
     } catch (e) { console.error(e); }
 }
 
@@ -99,14 +120,14 @@ async function loadCabinetDropdownForStaff(staffName, area) {
 async function onStaffChange() {
     const staff = document.getElementById('staffFilterSelect').value;
     await Promise.all([loadAreaDropdownForStaff(staff), loadCabinetDropdownForStaff(staff, '')]);
-    loadTickets();
+    updateFilterBadge();   // danh sách ca tải lại khi bấm "Áp dụng bộ lọc"
 }
 
 async function onAreaChange() {
     const staff = document.getElementById('staffFilterSelect').value;
     const area = document.getElementById('areaFilterSelect').value;
     await loadCabinetDropdownForStaff(staff, area);
-    loadTickets();
+    updateFilterBadge();
 }
 
 // ===================== TAB NHÓM + CHIP LOẠI =====================
@@ -118,6 +139,7 @@ async function loadTypeTabs(pickDefault) {
     } catch (e) { console.error(e); return; }
 
     const groups = getGroups();
+    if (groups.length && !groups.some(g => g.code === currentGroup)) currentGroup = groups[0].code;
     if (pickDefault) {
         // Mặc định vào tab Phản ánh; nếu tab đó trống mà tab khác có ca thì vào tab có ca
         const cur = groups.find(g => g.code === currentGroup);
@@ -182,21 +204,7 @@ function selectType(code) {
     loadTickets();
 }
 
-// Thuộc tính riêng của ca hạ tầng (nhãn do server gửi theo TicketType): 6 dòng đầu hiện sẵn, còn lại bấm "xem thêm"
-function renderAttributes(item) {
-    const attrs = item.attributeItems || [];
-    if (attrs.length === 0) return `<div class="text-muted">Chưa có thông số</div>`;
-    const cell = a => `<div><span class="attr-label">${escapeHtml(a.label)}</span><span class="attr-value">${escapeHtml(a.value)}${a.unit ? ' ' + escapeHtml(a.unit) : ''}</span></div>`;
-    const head = attrs.slice(0, 6).map(cell).join('');
-    const rest = attrs.slice(6).map(cell).join('');
-    return `<div class="attr-grid">${head}</div>`
-        + (rest ? `<div class="attr-grid d-none mt-2" id="a-${item.id}">${rest}</div><a class="see-more-link" onclick="toggleAttrs(${Number(item.id)}, this)">...xem thêm</a>` : '');
-}
-
-function toggleAttrs(id, link) {
-    const hidden = document.getElementById(`a-${id}`).classList.toggle('d-none');
-    link.textContent = hidden ? '...xem thêm' : 'thu gọn';
-}
+// Thẻ khách (gồm thông số ca hạ tầng, xem thêm / thu gọn) dùng chung với trang Khách đã hẹn: xem js/ticket-card.js
 
 
 // ===================== CHỌN NHANH + THAO TÁC HÀNG LOẠT (chỉ ADMIN) =====================
@@ -325,6 +333,7 @@ async function bulkAction(action) {
         });
         clearSelection(true);
         flashNotice(result.message);
+        if (window.BottomNav) BottomNav.refreshAppointments();
         await loadTickets(true);
     } catch (e) {
         alert(e.message);
@@ -345,6 +354,13 @@ async function loadTickets(keepPage) {
 
     const sortSelect = document.getElementById('sortSelect');
     let sort = sortSelect.value;
+
+    // Nhớ bộ lọc để tải lại trang không bị mất (chỉ mất khi bấm "Xóa lọc"). "Gần tôi nhất" cần xin quyền vị trí nên không nhớ.
+    saveFilters({
+        group: currentGroup, type: currentType, keyword, staff: staffFilter || '', area: area || '',
+        cabinet: cabinetPrefix || '', status: statusVal, priority: priority || '', sort: sort === 'NEAREST' ? 'DEFAULT' : sort
+    });
+    updateFilterBadge();
 
     const params = new URLSearchParams({
         staffFilter: staffFilter || '',
@@ -403,16 +419,169 @@ function debounceLoadTickets() {
     searchTimer = setTimeout(function () { loadTickets(); }, 300);
 }
 
+// ===================== NHỚ BỘ LỌC (localStorage, riêng từng tài khoản) =====================
+function filterStorageKey() {
+    const who = currentUser ? (currentUser.id || currentUser.username || currentUser.fullName) : 'anon';
+    return 'dash.filters.v1.' + who;
+}
+function readSavedFilters() {
+    try { return JSON.parse(localStorage.getItem(filterStorageKey())) || {}; } catch (e) { return {}; }
+}
+function saveFilters(f) {
+    try { localStorage.setItem(filterStorageKey(), JSON.stringify(f)); } catch (e) { /* trình duyệt chặn lưu: bỏ qua */ }
+}
+function clearSavedFilters() {
+    try { localStorage.removeItem(filterStorageKey()); } catch (e) { /* bỏ qua */ }
+}
+// Đặt giá trị cho ô chọn nếu giá trị đó còn nằm trong danh sách (bộ lọc cũ có thể không còn hợp lệ)
+function setSelectIfExists(id, value) {
+    if (value === undefined || value === null) return false;
+    const sel = document.getElementById(id);
+    const ok = Array.from(sel.options).some(o => o.value === value);
+    if (ok) sel.value = value;
+    return ok;
+}
+// Nạp lại ô tìm kiếm, trạng thái, ưu tiên, sắp xếp, tab nhóm / loại; trả về true nếu có nhóm đã nhớ
+function restoreSimpleFilters() {
+    const f = savedFilters || {};
+    if (typeof f.keyword === 'string') document.getElementById('keywordInput').value = f.keyword;
+    setSelectIfExists('statusFilterSelect', f.status);
+    setSelectIfExists('priorityFilterSelect', f.priority);
+    setSelectIfExists('sortSelect', f.sort);
+    if (f.group) {
+        currentGroup = f.group;
+        currentType = f.type || '';
+        return true;
+    }
+    return false;
+}
+
+// ===================== THANH LỌC GỌN + TẤM BỘ LỌC =====================
+const SORT_LABELS = { DEFAULT: 'Mặc định', APPOINTMENT: 'Giờ hẹn', NEAREST: 'Gần tôi' };
+
+function selVal(id) { return document.getElementById(id).value; }
+
+// Số bộ lọc đang bật khác mặc định (ô tìm kiếm và chip loại đã hiện sẵn nên không tính)
+function activeFilterCount() {
+    let n = 0;
+    const staffSel = document.getElementById('staffFilterSelect');
+    if (!staffSel.disabled && defaultStaff && staffSel.value !== defaultStaff) n++;
+    if (selVal('areaFilterSelect')) n++;
+    if (selVal('cabinetPrefixInput')) n++;
+    if (selVal('statusFilterSelect') && selVal('statusFilterSelect') !== 'ALL') n++;
+    if (selVal('priorityFilterSelect')) n++;
+    if (selVal('sortSelect') && selVal('sortSelect') !== 'DEFAULT') n++;
+    return n;
+}
+
+// Cập nhật số trên nút lọc, nút "Áp dụng (N)" và dòng tóm tắt bên dưới ô tìm kiếm
+function updateFilterBadge() {
+    const n = activeFilterCount();
+    const badge = document.getElementById('filterBadge');
+    badge.textContent = n;
+    badge.classList.toggle('d-none', n === 0);
+    document.getElementById('filterOpenBtn').classList.toggle('has-active', n > 0);
+    document.getElementById('fsApplyCount').textContent = n > 0 ? ' (' + n + ')' : '';
+
+    const staffVal = selVal('staffFilterSelect');
+    let left = 'Địa bàn: ' + (staffVal === 'ALL' ? 'Tất cả nhân viên' : staffVal);
+    if (selVal('areaFilterSelect')) left += ' · ' + selVal('areaFilterSelect');
+    if (selVal('cabinetPrefixInput')) left += ' · Tủ ' + selVal('cabinetPrefixInput');
+    const statusSel = document.getElementById('statusFilterSelect');
+    const statusText = statusSel.value === 'ALL' || !statusSel.selectedOptions.length ? 'Tất cả' : statusSel.selectedOptions[0].textContent.trim();
+    document.getElementById('fsumLeft').textContent = left;
+    document.getElementById('fsumRight').textContent = 'Trạng thái: ' + statusText;
+    const anyFilter = n > 0 || document.getElementById('keywordInput').value.trim() !== '' || currentType !== '';
+    document.getElementById('fsumClear').classList.toggle('d-none', !anyFilter);
+}
+
+function chipLabel(selectId, opt) {
+    if (selectId === 'sortSelect') return SORT_LABELS[opt.value] || opt.textContent.trim();
+    if (opt.value === '' || opt.value === 'ALL') return 'Tất cả';
+    return opt.textContent.trim();
+}
+
+// Chip của trạng thái / ưu tiên / sắp xếp dựng từ chính các ô chọn ẩn, nên các lựa chọn của server (enum) tự có mặt ở đây
+function buildFilterChips() {
+    document.querySelectorAll('#filterSheet [data-chips-for]').forEach(box => {
+        const sel = document.getElementById(box.getAttribute('data-chips-for'));
+        box.innerHTML = Array.from(sel.options).map(o =>
+            `<button type="button" class="fs-chip ${o.value === sel.value ? 'active' : ''}" data-value="${escapeHtml(o.value)}">${escapeHtml(chipLabel(sel.id, o))}</button>`
+        ).join('');
+    });
+}
+
+function snapshotFilters() {
+    return {
+        staff: selVal('staffFilterSelect'), area: selVal('areaFilterSelect'), cabinet: selVal('cabinetPrefixInput'),
+        status: selVal('statusFilterSelect'), priority: selVal('priorityFilterSelect'), sort: selVal('sortSelect')
+    };
+}
+
+function openFilterSheet() {
+    sheetSnapshot = snapshotFilters();
+    buildFilterChips();
+    updateFilterBadge();
+    document.getElementById('filterBackdrop').classList.add('open');
+    const sheet = document.getElementById('filterSheet');
+    sheet.classList.add('open');
+    sheet.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('fs-open');
+}
+
+function hideFilterSheet() {
+    document.getElementById('filterBackdrop').classList.remove('open');
+    const sheet = document.getElementById('filterSheet');
+    sheet.classList.remove('open');
+    sheet.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('fs-open');
+}
+
+// Đóng mà không "Áp dụng": trả các ô lọc về giá trị lúc mở để danh sách và bộ lọc không lệch nhau
+async function closeFilterSheet() {
+    if (!document.getElementById('filterSheet').classList.contains('open')) return;
+    hideFilterSheet();
+    const s = sheetSnapshot;
+    sheetSnapshot = null;
+    if (!s) return;
+    const now = snapshotFilters();
+    if (now.staff !== s.staff || now.area !== s.area || now.cabinet !== s.cabinet) {
+        document.getElementById('staffFilterSelect').value = s.staff;
+        await loadAreaDropdownForStaff(s.staff);
+        setSelectIfExists('areaFilterSelect', s.area);
+        await loadCabinetDropdownForStaff(s.staff, s.area);
+        setSelectIfExists('cabinetPrefixInput', s.cabinet);
+    }
+    setSelectIfExists('statusFilterSelect', s.status);
+    setSelectIfExists('priorityFilterSelect', s.priority);
+    setSelectIfExists('sortSelect', s.sort);
+    updateFilterBadge();
+}
+
+async function applyFilters() {
+    sheetSnapshot = null;
+    hideFilterSheet();
+    await loadTickets();
+}
+
+// Xóa tất cả: về mặc định (nhân viên của chính mình, mọi khu vực / tủ / trạng thái, sắp xếp mặc định) và quên bộ lọc đã nhớ
 async function resetFilters() {
+    clearSavedFilters();
+    sheetSnapshot = null;
     currentType = '';
-    renderTypeChips();
     document.getElementById('keywordInput').value = '';
+    const staffSel = document.getElementById('staffFilterSelect');
+    if (!staffSel.disabled && defaultStaff) staffSel.value = defaultStaff;
+    await loadAreaDropdownForStaff(staffSel.value);
+    await loadCabinetDropdownForStaff(staffSel.value, '');
     document.getElementById('areaFilterSelect').value = '';
+    document.getElementById('cabinetPrefixInput').value = '';
     document.getElementById('priorityFilterSelect').value = '';
     document.getElementById('statusFilterSelect').value = 'ALL';
     document.getElementById('sortSelect').value = 'DEFAULT';
-    await loadCabinetDropdownForStaff(document.getElementById('staffFilterSelect').value, '');
-    document.getElementById('cabinetPrefixInput').value = '';
+    hideFilterSheet();
+    renderTypeChips();
+    buildFilterChips();
     loadTickets();
 }
 
@@ -425,107 +594,34 @@ function renderTicketCards(tickets) {
         return;
     }
 
+    // Phần thông tin khách vẽ bởi TicketCard (dùng chung với trang Khách đã hẹn); ở đây chỉ khai báo phần riêng của dashboard
     container.innerHTML = tickets.map(item => {
-        const statusBadge = renderStatusBadge(item.appStatus);
-        const dupBadge = (item.duplicateCount && item.duplicateCount >= 2) ? `<span class="badge-dup">Trùng x${item.duplicateCount}</span>` : '';
-        const appTime = (item.appointmentTime) ? `<div class="text-success small fw-bold mb-1"><i class="fa-regular fa-clock me-1"></i>${escapeHtml(item.appointmentTime)}</div>` : '';
-
-        let kmzHtml = '';
-        if (item.cabinetCode) {
-            if (item.googleMapsUrl) {
-                kmzHtml = `<a href="${escapeHtml(item.googleMapsUrl)}" target="_blank" rel="noopener" class="btn-kmz-map has-kmz"><i class="fa-solid fa-map-pin"></i>Tủ: ${escapeHtml(item.cabinetCode)}</a>`;
-            } else {
-                kmzHtml = `<span class="btn-kmz-map no-kmz"><i class="fa-solid fa-server"></i>Tủ: ${escapeHtml(item.cabinetCode)} (Chưa có KMZ)</span>`;
-            }
-        }
-
-        const complaint = escapeHtml(item.complaintContent || 'Không có nội dung');
-        const isLong = complaint.length > 90;
-        const isInfra = item.ticketGroup === 'HA_TANG';
-        // Ca phản ánh: đoạn nội dung khiếu nại; ca hạ tầng: lưới thông số kỹ thuật (xem renderAttributes)
-        const contentHtml = isInfra
-            ? renderAttributes(item)
-            : `<div class="${isLong ? 'complaint-collapsed' : ''}" id="c-${item.id}">${complaint}</div>`
-              + (isLong ? `<a class="see-more-link" onclick="toggleC(${item.id})">...xem thêm</a>` : '');
-        const refLabel = isInfra
-            ? `<span class="badge text-bg-${escapeHtml(item.ticketTypeColor || 'secondary')} vt-fs-72">${escapeHtml(item.ticketTypeLabel)}</span>`
-            : `PA: #${escapeHtml(item.ticketCode)}`;
-
-        let phoneButtons = '';
-        if (item.contactPhone) {
-            phoneButtons += `<a href="tel:${escapeHtml(item.contactPhone)}" class="btn-call-phone"><i class="fa-solid fa-phone"></i>Gọi KH (${escapeHtml(item.contactPhone)})</a>`;
-        }
-        if (item.reportPhone && item.reportPhone !== item.contactPhone) {
-            phoneButtons += `<a href="tel:${escapeHtml(item.reportPhone)}" class="btn-call-phone btn-call-report"><i class="fa-solid fa-phone-volume"></i>Báo cáo</a>`;
-        }
-
         const isPinned = item.isPinned === true;
-        const distBadge = (item.distanceKm !== null && item.distanceKm !== undefined)
-            ? `<span class="badge-distance"><i class="fa-solid fa-route me-1"></i>${item.distanceKm} km</span>` : '';
-
-        return `
-        <div class="ticket-card ${selectMode && isSelected(Number(item.id)) ? 'is-selected' : ''}">
-            ${selectMode ? `<label class="select-row"><input type="checkbox" class="form-check-input m-0" ${isSelected(Number(item.id)) ? 'checked' : ''} onchange="toggleSelect(${Number(item.id)}, this)"><span>Chọn ca này</span></label>` : ''}
-            <div class="card-header-row">
-                <div>
-                    <span class="customer-title">${escapeHtml(item.customerName || 'Khách hàng')}</span>
-                    ${item.priorityLevel ? `<span class="badge ms-1 vt-fs-70" style="${priorityStyle(item.priorityLevel)}">${escapeHtml(item.priorityLevel)}</span>` : ''}
-    </div>
-        <div>${statusBadge}</div>
-    </div>
-
-        <div class="meta-info-row">
-            <div>
-                <span class="account-tag">${escapeHtml(item.subscriberAccount || item.ticketCode)}</span>
-                ${dupBadge}
-            </div>
-            <span class="text-muted vt-fs-78">${refLabel}</span>
-        </div>
-
-        ${appTime}
-
-        <div class="location-section">
-            <div><i class="fa-solid fa-location-dot text-danger me-1"></i>${escapeHtml(item.installAddress || 'Chưa có địa chỉ')}</div>
-            <div>${distBadge}${kmzHtml}</div>
-        </div>
-
-        <div class="complaint-box">
-            ${contentHtml}
-            ${item.callNote ? `<div class="text-muted fst-italic mt-1 vt-fs-78"><i class="fa-regular fa-note-sticky me-1"></i>${escapeHtml(item.callNote)}</div>` : ''}
-        </div>
-
-        <div class="action-buttons-grid">
-            ${phoneButtons}
-            <div class="action-right">
-                <button type="button" class="btn-camera" title="Chụp ảnh hiện trường" onclick="openCamera(${Number(item.id)})">
-                    <i class="fa-solid fa-camera"></i>${item.photoCount > 0 ? `<span class="photo-count">${Number(item.photoCount)}</span>` : ''}
-                </button>
-                <button type="button" class="btn-action-trigger" onclick="openModal(${Number(item.id)}, '${safeStatus(item.appStatus)}')">
-                    <i class="fa-regular fa-pen-to-square"></i>Xử lý
-                </button>
-            </div>
-        </div>
-
-        <div class="quick-toolbar">
-            <button type="button" class="btn-quick-item ${item.appStatus==='HEN_GIO'?'active-hengio':''}" onclick="openModal(${item.id}, 'HEN_GIO')">
+        const appTime = item.appointmentTime
+            ? `<div class="text-success small fw-bold mb-1"><i class="fa-regular fa-clock me-1"></i>${escapeHtml(item.appointmentTime)}</div>` : '';
+        return TicketCard.build(item, {
+            cardClass: selectMode && isSelected(Number(item.id)) ? 'is-selected' : '',
+            topHtml: selectMode
+                ? `<label class="select-row"><input type="checkbox" class="form-check-input m-0" ${isSelected(Number(item.id)) ? 'checked' : ''} onchange="toggleSelect(${Number(item.id)}, this)"><span>Chọn ca này</span></label>` : '',
+            statusBadge: renderStatusBadge(item.appStatus),
+            apptHtml: appTime,
+            apptFirst: false,
+            processCall: it => `openModal(${Number(it.id)}, '${safeStatus(it.appStatus)}')`,
+            toolbarHtml: `<div class="quick-toolbar">
+            <button type="button" class="btn-quick-item ${item.appStatus==='HEN_GIO'?'active-hengio':''}" onclick="openModal(${Number(item.id)}, 'HEN_GIO')">
                 <i class="fa-regular fa-clock"></i>Hẹn giờ
             </button>
-            <button type="button" class="btn-quick-item ${item.appStatus==='KLL'?'active-kll':''}" onclick="quickKLL(${item.id})">
+            <button type="button" class="btn-quick-item ${item.appStatus==='KLL'?'active-kll':''}" onclick="quickKLL(${Number(item.id)})">
                 <i class="fa-solid fa-phone-slash"></i>KLL
             </button>
-            <button type="button" class="btn-quick-item" onclick="openModal(${item.id}, 'HEN_KHAC')">
+            <button type="button" class="btn-quick-item" onclick="openModal(${Number(item.id)}, 'HEN_KHAC')">
                 <i class="fa-regular fa-calendar"></i>Khác
             </button>
-            <button type="button" class="btn-quick-item ${isPinned?'pinned':''}" onclick="togglePin(${item.id}, ${!isPinned})">
+            <button type="button" class="btn-quick-item ${isPinned?'pinned':''}" onclick="togglePin(${Number(item.id)}, ${!isPinned})">
                 <i class="fa-solid fa-star text-warning"></i>${isPinned?'Đã ghim':'Ghim'}
             </button>
-        </div>
-
-        <div class="card-footer-info">
-            <span>Khu vực: <b>${escapeHtml(item.area || '')}</b></span>
-            <span>${isInfra ? 'NV triển khai' : 'Phụ trách'}: <b class="text-dark">${escapeHtml(item.techStaffName || (isInfra ? '—' : 'Chưa phân công'))}</b></span>
-        </div>
-    </div>`;
+        </div>`
+        });
     }).join('');
 }
 
@@ -549,11 +645,6 @@ function goToPage(page) {
     currentPage = page;
     loadTickets(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function toggleC(id) {
-    const el = document.getElementById(`c-${id}`);
-    el.classList.toggle('complaint-collapsed');
 }
 
 // Màu nền theo mức ưu tiên: Hot = đỏ, Nguy cơ HOT = vàng, Bình thường = xanh
@@ -697,6 +788,7 @@ async function sendTicketAction(id, payload) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
+        if (window.BottomNav) BottomNav.refreshAppointments();   // số đếm trên tab "Đã hẹn" (thanh dưới)
         return true;
     } catch (e) {
         alert(e.message);
