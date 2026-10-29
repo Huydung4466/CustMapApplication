@@ -12,6 +12,8 @@ public class TicketSearchCriteria {
     private String staffFilter;
     private String keyword;
     private String appStatus;
+    // Lựa chọn ô lọc "Trạng thái" của dashboard (tên một giá trị của TicketListFilter); có giá trị thì thay cho appStatus / onlyPinned
+    private String statusFilter;
     private Boolean onlyPinned;
     private String area;
     private String cabinetPrefix;

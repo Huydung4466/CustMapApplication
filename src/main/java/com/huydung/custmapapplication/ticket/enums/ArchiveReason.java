@@ -12,6 +12,9 @@ public enum ArchiveReason {
     /** Bấm KLL: không liên lạc được khách hàng. */
     KLL("Không liên lạc được", "fa-solid fa-phone-slash", "reason-kll", HistoryTab.ISSUES),
 
+    /** Đã gọi khách nhưng khách báo không có vấn đề gì. */
+    CALLED_OK("Đã gọi - khách OK", "fa-solid fa-phone", "reason-called-ok", HistoryTab.ISSUES),
+
     /** Ca không còn xuất hiện trong file import mới. */
     NOT_IN_IMPORT("Không còn trong file GNOC", "fa-solid fa-box-archive", "reason-closed", HistoryTab.ISSUES);
 

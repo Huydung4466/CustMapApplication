@@ -9,12 +9,9 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/css/app-pages.css?v=2" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau CSS của trang để ghi đè màu cũ) -->
-<<<<<<< Updated upstream
-    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
-=======
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
     <style>.role-camera { background: #e0f2fe; color: #0369a1; }</style>
->>>>>>> Stashed changes
+    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
 </head>
 <body class="vt-app">
 
@@ -46,7 +43,7 @@
             <input type="tel" id="phoneInput" class="form-control" placeholder="VD: 0912345678" maxlength="20" autocomplete="tel">
             <button type="button" class="btn btn-primary" id="btnSavePhone" onclick="savePhone()">Lưu</button>
         </div>
-        <div class="text-muted mb-3" style="font-size:0.75rem;">
+        <div class="text-muted mb-3 vt-fs-75">
             Họ tên và tên đăng nhập do quản trị viên quản lý (họ tên dùng để ghép ca phản ánh với nhân viên).
         </div>
 
@@ -54,6 +51,7 @@
             <a href="${pageContext.request.contextPath}/change-password" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-key me-1"></i>Đổi mật khẩu</a>
             <a href="${pageContext.request.contextPath}/history" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-circle-check me-1"></i>Lịch sử: ca đã hoàn thành</a>
             <a href="${pageContext.request.contextPath}/history/issues" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-phone-slash me-1"></i>Lịch sử: không liên lạc được &amp; khác</a>
+            <a href="${pageContext.request.contextPath}/report-snippets" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-clipboard-check me-1"></i>Quản lý mẫu báo cáo<span class="badge bg-danger rounded-pill ms-2 d-none" id="snippetPendingBadge" title="Yêu cầu đang chờ duyệt">0</span></a>
             <a href="${pageContext.request.contextPath}/logout" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-power-off me-1"></i>Đăng xuất</a>
         </div>
     </div>
@@ -83,7 +81,7 @@
         </div>
         <!-- Đang import: thanh chạy liên tục + dòng báo, hiện cho tới khi server xử lý xong -->
         <div class="d-none mt-3" id="importBusy" role="status" aria-live="polite">
-            <div class="progress" style="height: 8px;">
+            <div class="progress vt-h-8">
                 <div class="progress-bar progress-bar-striped progress-bar-animated w-100"></div>
             </div>
             <div class="small text-muted mt-1">
@@ -105,7 +103,7 @@
             <input type="text" id="userKeyword" class="form-control" placeholder="Tìm theo tên đăng nhập hoặc họ tên..." oninput="debounceLoadUsers()">
         </div>
         <div id="userList"><div class="text-center text-muted small py-3">Đang tải...</div></div>
-        <div class="text-muted mt-2" style="font-size:0.75rem;">
+        <div class="text-muted mt-2 vt-fs-75">
             Quản trị viên chỉ đặt lại được mật khẩu của tài khoản nhân viên (ROLE_STAFF). Nhân viên sẽ phải đổi mật khẩu khi đăng nhập lần tới.
         </div>
     </div>
@@ -124,7 +122,7 @@
     <!-- ===== CẤU HÌNH CAMERA (chỉ ROLE_ADMIN) ===== -->
     <div class="card border-0 shadow-sm rounded-4 bg-white p-3 mb-3 d-none" id="cameraSection">
         <h6 class="fw-bold text-primary mb-1"><i class="fa-solid fa-camera me-1"></i>Cấu hình camera</h6>
-        <div class="text-muted mb-2" style="font-size:0.78rem;">Bật/tắt các thông tin được in lên ảnh khi nhân viên chụp. Áp dụng cho mọi tài khoản ở lần chụp kế tiếp.</div>
+        <div class="text-muted mb-2 vt-fs-78">Bật/tắt các thông tin được in lên ảnh khi nhân viên chụp. Áp dụng cho mọi tài khoản ở lần chụp kế tiếp.</div>
         <div id="cameraSwitches"></div>
         <div class="text-muted small mt-3 mb-1">Xem trước (ví dụ):</div>
         <div class="camera-preview" id="cameraPreview"></div>
@@ -199,9 +197,6 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>const CTX = '${pageContext.request.contextPath}';</script>
 <script src="${pageContext.request.contextPath}/js/app-common.js?v=1"></script>
-<<<<<<< Updated upstream
-<script src="${pageContext.request.contextPath}/js/profile.js?v=3"></script>
-=======
 <script src="${pageContext.request.contextPath}/js/profile.js?v=4"></script>
 <script>
     // Admin: hiện số yêu cầu mẫu báo cáo đang chờ duyệt trên nút (nhân viên không gọi API này)
@@ -216,7 +211,6 @@
         });
     }).catch(function (e) { console.error(e); });
 </script>
->>>>>>> Stashed changes
 
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp">
     <jsp:param name="active" value="profile"/>

@@ -3,6 +3,7 @@ package com.huydung.custmapapplication.ticket.dto;
 import com.huydung.custmapapplication.ticket.enums.ArchiveReason;
 import com.huydung.custmapapplication.ticket.enums.HistoryTab;
 import com.huydung.custmapapplication.ticket.enums.StatusContext;
+import com.huydung.custmapapplication.ticket.enums.TicketListFilter;
 import com.huydung.custmapapplication.ticket.enums.TicketStatus;
 
 import java.util.Arrays;
@@ -17,7 +18,8 @@ import java.util.Map;
 public record TicketMetaDTO(List<StatusInfo> statuses,
                             Map<String, List<StatusOption>> statusOptions,
                             List<ArchiveReasonInfo> archiveReasons,
-                            List<HistoryTabInfo> historyTabs) {
+                            List<HistoryTabInfo> historyTabs,
+                            List<ListFilterInfo> listFilters) {
 
     /** Một trạng thái: nhãn ngắn, biểu tượng, class CSS, có phải ca đã hẹn không, có chuyển vào Lịch sử không. */
     public record StatusInfo(String code, String label, String icon, String badgeClass,
@@ -29,6 +31,10 @@ public record TicketMetaDTO(List<StatusInfo> statuses,
     }
 
     public record ArchiveReasonInfo(String code, String label, String icon, String badgeClass, String tab) {
+    }
+
+    /** Một lựa chọn trong ô lọc "Trạng thái" của dashboard (xem TicketListFilter). */
+    public record ListFilterInfo(String code, String label) {
     }
 
     public record HistoryTabInfo(String code, String label, String icon, String path, String emptyText) {
@@ -55,6 +61,10 @@ public record TicketMetaDTO(List<StatusInfo> statuses,
                 .map(t -> new HistoryTabInfo(t.name(), t.getLabel(), t.getIcon(), t.getPath(), t.getEmptyText()))
                 .toList();
 
-        return new TicketMetaDTO(statuses, options, reasons, tabs);
+        List<ListFilterInfo> listFilters = Arrays.stream(TicketListFilter.values())
+                .map(f -> new ListFilterInfo(f.name(), f.getLabel()))
+                .toList();
+
+        return new TicketMetaDTO(statuses, options, reasons, tabs, listFilters);
     }
 }

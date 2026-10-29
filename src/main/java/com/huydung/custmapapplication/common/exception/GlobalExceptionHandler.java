@@ -2,6 +2,7 @@ package com.huydung.custmapapplication.common.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -32,6 +33,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleForbidden(AccessDeniedException ex) {
         return build(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    // Hai người cùng sửa / duyệt một bản ghi: người đến sau nhận báo đã được xử lý, tải lại để thấy kết quả
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, Object>> handleConcurrentUpdate(OptimisticLockingFailureException ex) {
+        return build(HttpStatus.CONFLICT, "Mẫu này vừa được người khác xử lý, vui lòng tải lại trang để xem kết quả");
     }
 
     // Import sắp lưu trữ rất nhiều ca: trả 409 để giao diện hỏi xác nhận rồi gửi lại

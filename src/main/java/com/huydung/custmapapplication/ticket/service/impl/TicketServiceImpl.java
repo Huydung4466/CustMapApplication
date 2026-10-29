@@ -15,6 +15,7 @@ import com.huydung.custmapapplication.kmz.repository.KmzLocationRepository;
 import com.huydung.custmapapplication.photo.repository.TicketPhotoRepository;
 import com.huydung.custmapapplication.photo.service.TicketPhotoService;
 import com.huydung.custmapapplication.ticket.converter.TicketConverter;
+import com.huydung.custmapapplication.ticket.duplicate.SubscriberDuplicateCounter;
 import com.huydung.custmapapplication.ticket.enums.BulkAction;
 import com.huydung.custmapapplication.ticket.dto.BulkActionResultDTO;
 import com.huydung.custmapapplication.ticket.dto.BulkTicketActionRequest;
@@ -34,6 +35,7 @@ import com.huydung.custmapapplication.ticket.service.TicketService;
 import com.huydung.custmapapplication.ticket.enums.ArchiveReason;
 import com.huydung.custmapapplication.ticket.enums.HistoryTab;
 import com.huydung.custmapapplication.ticket.enums.TicketGroup;
+import com.huydung.custmapapplication.ticket.enums.TicketListFilter;
 import com.huydung.custmapapplication.ticket.enums.TicketStatus;
 import com.huydung.custmapapplication.ticket.enums.TicketType;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -85,6 +87,7 @@ public class TicketServiceImpl implements TicketService {
     private final TicketPhotoRepository ticketPhotoRepository;
     private final List<TicketFileFormat> fileFormats;
     private final TicketPhotoService ticketPhotoService;
+    private final SubscriberDuplicateCounter duplicateCounter;
 
     public TicketServiceImpl(TicketRepository ticketRepository,
                              KmzLocationRepository kmzLocationRepository,
@@ -92,7 +95,8 @@ public class TicketServiceImpl implements TicketService {
                              TicketConverter ticketConverter,
                              TicketPhotoRepository ticketPhotoRepository,
                              List<TicketFileFormat> fileFormats,
-                             TicketPhotoService ticketPhotoService) {
+                             TicketPhotoService ticketPhotoService,
+                             SubscriberDuplicateCounter duplicateCounter) {
         this.ticketRepository = ticketRepository;
         this.kmzLocationRepository = kmzLocationRepository;
         this.authService = authService;
@@ -100,6 +104,7 @@ public class TicketServiceImpl implements TicketService {
         this.ticketPhotoRepository = ticketPhotoRepository;
         this.fileFormats = fileFormats;
         this.ticketPhotoService = ticketPhotoService;
+        this.duplicateCounter = duplicateCounter;
     }
 
     // ===================== IMPORT =====================
@@ -266,6 +271,38 @@ public class TicketServiceImpl implements TicketService {
         return t.getTicketType() != null ? t.getTicketType() : TicketType.PHAN_ANH;
     }
 
+    // Bộ lọc của danh sách chính ở dashboard (ca đang mở, không gồm ca đã hẹn), dùng chung cho danh sách và chọn hàng loạt.
+    // Ô lọc "Trạng thái" (statusFilter -> TicketListFilter) có giá trị thì quyết định trạng thái / ghim / trùng account;
+    // bỏ trống thì dùng appStatus + onlyPinned như trước.
+    private TicketFilter buildMainFilter(TicketSearchCriteria c) {
+        String appStatus = c.getAppStatus();
+        Boolean onlyPinned = c.getOnlyPinned();
+        boolean onlyDuplicates = false;
+
+        TicketListFilter listFilter = TicketListFilter.fromCode(c.getStatusFilter());
+        if (c.getStatusFilter() != null && !c.getStatusFilter().isBlank() && listFilter == null) {
+            throw new IllegalArgumentException("Bộ lọc trạng thái không hợp lệ");
+        }
+        if (listFilter != null) {
+            appStatus = listFilter.getAppStatus() != null ? listFilter.getAppStatus() : "ALL";
+            onlyPinned = listFilter.isOnlyPinned();
+            onlyDuplicates = listFilter.isOnlyDuplicates();
+        }
+
+        return new TicketFilter(
+                resolveEffectiveStaffFilter(c.getStaffFilter()),
+                c.getKeyword(),
+                appStatus,
+                onlyPinned,
+                c.getArea(),
+                c.getCabinetPrefix(),
+                c.getPriority(),
+                false,
+                resolveTypes(c),
+                true,
+                onlyDuplicates);
+    }
+
     // Từ tham số lọc của giao diện suy ra danh sách loại cần lấy: ticketType > ticketGroup > null (mọi loại)
     private List<TicketType> resolveTypes(TicketSearchCriteria criteria) {
         TicketType one = TicketType.fromCode(criteria.getTicketType());
@@ -304,18 +341,7 @@ public class TicketServiceImpl implements TicketService {
             }
         }
 
-        String effectiveStaff = resolveEffectiveStaffFilter(criteria.getStaffFilter());
-        TicketFilter filter = new TicketFilter(
-                effectiveStaff,
-                criteria.getKeyword(),
-                criteria.getAppStatus(),
-                criteria.getOnlyPinned(),
-                criteria.getArea(),
-                criteria.getCabinetPrefix(),
-                criteria.getPriority(),
-                false,
-                resolveTypes(criteria)
-        );
+        TicketFilter filter = buildMainFilter(criteria);
 
         int size = normalizeSize(criteria.getSize());
         List<TicketResponseDTO> pageItems;
@@ -375,7 +401,9 @@ public class TicketServiceImpl implements TicketService {
                 criteria.getCabinetPrefix(),
                 criteria.getPriority(),
                 true,
-                resolveTypes(criteria)
+                resolveTypes(criteria),
+                true,
+                false
         );
 
         int size = normalizeSize(criteria.getSize());
@@ -387,18 +415,29 @@ public class TicketServiceImpl implements TicketService {
         return AbstractDTO.of(toResponseDtos(entities), page, size, totalItem);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public long countAppointmentsForCurrentUser() {
+        // Cùng bộ lọc với danh sách đã hẹn khi chưa lọc gì (mọi loại ca, gộp ca trùng) nên số trên tab khớp số trên trang
+        TicketFilter filter = new TicketFilter(
+                resolveEffectiveStaffFilter(null),
+                null, null, false, null, null, null,
+                true,
+                null,
+                true,
+                false
+        );
+        return ticketRepository.countTicketsCustom(filter);
+    }
+
     // Chuyển entity sang DTO kèm số lần trùng thuê bao và toạ độ tủ (chỉ tra cứu cho các ca đang cần hiển thị)
     private List<TicketResponseDTO> toResponseDtos(List<CustomerTicketEntity> tickets) {
         if (tickets.isEmpty()) {
             return new ArrayList<>();
         }
 
-        // 1. Map đếm trùng mã thuê bao (d500_gftth_...)
-        Set<String> accounts = tickets.stream()
-                .map(CustomerTicketEntity::getSubscriberAccount)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Map<String, Integer> dupMap = ticketRepository.countDuplicateSubscribers(accounts);
+        // 1. Số ca trùng account của từng ca (Phản ánh và Hạ tầng dùng chung SubscriberDuplicateCounter)
+        Map<String, Integer> dupMap = duplicateCounter.countFor(tickets);
 
         // 2. Map tọa độ KMZ theo Mã tủ
         Set<String> cabinets = tickets.stream()
@@ -418,8 +457,7 @@ public class TicketServiceImpl implements TicketService {
 
         // 4. Dùng TicketConverter chuyển đổi sang DTO
         return tickets.stream().map(entity -> {
-            int dupCount = (entity.getSubscriberAccount() != null && typeOf(entity) == TicketType.PHAN_ANH)
-                    ? dupMap.getOrDefault(entity.getSubscriberAccount().trim().toLowerCase(), 1) : 1;
+            int dupCount = duplicateCounter.of(dupMap, entity);
             KmzLocationEntity kmz = (entity.getCabinetCode() != null)
                     ? kmzMap.get(entity.getCabinetCode().trim().toUpperCase()) : null;
 
@@ -555,16 +593,7 @@ public class TicketServiceImpl implements TicketService {
         } else {
             TicketSearchCriteria c = request.getCriteria();
             // Cùng bộ lọc với danh sách chính trên dashboard (ca đang mở, không gồm ca đã hẹn)
-            TicketFilter filter = new TicketFilter(
-                    resolveEffectiveStaffFilter(c.getStaffFilter()),
-                    c.getKeyword(),
-                    c.getAppStatus(),
-                    c.getOnlyPinned(),
-                    c.getArea(),
-                    c.getCabinetPrefix(),
-                    c.getPriority(),
-                    false,
-                    resolveTypes(c));
+            TicketFilter filter = buildMainFilter(c);
             ids = new ArrayList<>(ticketRepository.findTicketIdsCustom(filter));
             if (request.getExcludedIds() != null && !request.getExcludedIds().isEmpty()) {
                 ids.removeAll(new HashSet<>(request.getExcludedIds()));
@@ -687,6 +716,15 @@ public class TicketServiceImpl implements TicketService {
     @Transactional(readOnly = true)
     public List<String> getCabinetPrefixList(String staffName, String area) {
         return ticketRepository.findAllCabinetPrefixes(resolveEffectiveStaffFilter(staffName), area);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TicketResponseDTO getTicketDetail(Long ticketId) {
+        CustomerTicketEntity entity = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca phản ánh ID: " + ticketId));
+        assertCanModify(entity);
+        return ticketConverter.toActionResponseDTO(entity);
     }
 
     // ===================== HỖ TRỢ =====================

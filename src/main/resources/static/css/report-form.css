@@ -1,0 +1,26 @@
+/*
+ * report-form.css - Trang trung gian nộp báo cáo (report-form.jsp) và trang duyệt mẫu (report-snippets.jsp).
+ * Nạp SAU app-pages.css, TRƯỚC viettel-theme.css.
+ */
+.rf-card { background: #fff; border: 1px solid var(--card-border); border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.03); }
+.rf-title { font-weight: 700; color: #0f172a; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rf-step { background: #2563eb; color: #fff; border-radius: 50%; width: 22px; height: 22px; font-size: .78rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.rf-sub { font-size: .76rem; font-weight: 500; color: #64748b; }
+.rf-label { font-size: .78rem; font-weight: 600; color: #475569; margin-bottom: 2px; }
+.rf-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.rf-actions .btn { font-size: .78rem; font-weight: 600; padding: 3px 10px; }
+.rf-note { font-size: .78rem; margin-top: 6px; color: #b45309; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 5px 9px; }
+.rf-note:empty { display: none; }
+.rf-note.is-info { color: #475569; background: #f8fafc; border-color: #e2e8f0; }
+.rf-counter { font-size: .72rem; color: #94a3b8; text-align: right; }
+.rf-submit-bar { position: sticky; bottom: 70px; background: rgba(248,250,252,.94); padding: 8px 0 4px; z-index: 5; }
+
+.pill-pending { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; white-space: nowrap; }
+.pill-add { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+.pill-edit { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+.pill-del { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; font-size: .72rem; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+
+.sn-item { background: #fff; border: 1px solid var(--card-border); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+.sn-meta { font-size: .76rem; color: #64748b; }
+.sn-text { font-size: .9rem; color: #0f172a; word-break: break-word; }
+.sn-old { font-size: .82rem; color: #64748b; text-decoration: line-through; word-break: break-word; }

@@ -7,52 +7,9 @@
     <title>Đổi mật khẩu - Hệ thống Quản lý Phản ánh KH</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            padding: 16px;
-        }
-        .pw-card {
-            background: #ffffff;
-            border-radius: 16px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
-            width: 100%;
-            max-width: 440px;
-            padding: 32px 28px;
-        }
-        .brand-badge {
-            background: #ffe4e6;
-            color: #e11d48;
-            font-weight: 700;
-            font-size: 0.85rem;
-            padding: 4px 12px;
-            border-radius: 999px;
-            display: inline-block;
-            margin-bottom: 8px;
-        }
-        .btn-submit {
-            background: #2563eb;
-            border: none;
-            border-radius: 10px;
-            padding: 12px;
-            font-weight: 600;
-        }
-        .btn-submit:hover { background: #1d4ed8; }
-        .rule-box {
-            font-size: 0.78rem;
-            background: #f8fafc;
-            border: 1px dashed #cbd5e1;
-            border-radius: 10px;
-            padding: 8px 12px;
-        }
-    </style>
+    <link href="${pageContext.request.contextPath}/css/change-password.css?v=1" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau các khối style của trang để ghi đè màu cũ). Đổi số v khi sửa file để trình duyệt tải lại -->
-    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
 </head>
 <body class="vt-auth">
 
@@ -96,66 +53,11 @@
     </div>
 </div>
 
+<script src="${pageContext.request.contextPath}/js/csrf.js?v=1"></script>
 <script>
     const CTX = '${pageContext.request.contextPath}';
     const FORCED = ${forced ? 'true' : 'false'};
-
-    if (FORCED) {
-        document.getElementById('forcedNotice').classList.remove('d-none');
-        // Đang bị buộc đổi mật khẩu thì chưa được quay lại trang chính
-        document.getElementById('backLink').classList.add('d-none');
-    }
-
-    function showAlert(type, message) {
-        var box = document.getElementById('alertBox');
-        var div = document.createElement('div');
-        div.className = 'alert alert-' + type + ' py-2 small';
-        div.textContent = message;
-        box.innerHTML = '';
-        box.appendChild(div);
-    }
-
-    async function submitChange() {
-        var current = document.getElementById('currentPassword').value;
-        var newPw = document.getElementById('newPassword').value;
-        var confirmPw = document.getElementById('confirmPassword').value;
-
-        if (!current || !newPw || !confirmPw) {
-            return showAlert('danger', 'Vui lòng nhập đầy đủ các ô.');
-        }
-        if (newPw.length < 8 || !/[A-Za-z]/.test(newPw) || !/[0-9]/.test(newPw)) {
-            return showAlert('danger', 'Mật khẩu mới cần ít nhất 8 ký tự, gồm cả chữ và số.');
-        }
-        if (newPw !== confirmPw) {
-            return showAlert('danger', 'Mật khẩu xác nhận không khớp.');
-        }
-
-        var btn = document.getElementById('btnSubmit');
-        btn.disabled = true;
-        try {
-            var res = await fetch(CTX + '/api/auth/change-password', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ currentPassword: current, newPassword: newPw, confirmPassword: confirmPw })
-            });
-            var data = {};
-            try { data = await res.json(); } catch (e) { /* không có JSON */ }
-
-            if (!res.ok) {
-                btn.disabled = false;
-                return showAlert('danger', data.message || ('Có lỗi xảy ra (mã ' + res.status + ')'));
-            }
-            showAlert('success', data.message || 'Đổi mật khẩu thành công.');
-            setTimeout(function () { window.location.href = CTX + '/login?pwchanged=true'; }, 1200);
-        } catch (e) {
-            btn.disabled = false;
-            showAlert('danger', 'Không kết nối được máy chủ, vui lòng thử lại.');
-        }
-    }
-
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') submitChange();
-    });
 </script>
+<script src="${pageContext.request.contextPath}/js/change-password.js?v=1"></script>
 </body>
 </html>

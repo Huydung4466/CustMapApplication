@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import com.huydung.custmapapplication.ticket.duplicate.DuplicateRule;
 import com.huydung.custmapapplication.ticket.enums.HistoryTab;
 import com.huydung.custmapapplication.ticket.enums.TicketStatus;
 import com.huydung.custmapapplication.ticket.enums.TicketType;
@@ -33,6 +34,49 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
     }
 
     private QueryParts buildOpenTicketWhere(TicketFilter f) {
+        QueryParts q = buildOpenTicketConditions(f);
+        if (f.collapseDuplicates()) {
+            appendCollapseDuplicates(q);
+        }
+        return q;
+    }
+
+    // Gộp trùng: với các loại ca bị gộp, chỉ giữ ca có ID nhỏ nhất trong nhóm (cùng loại + cùng account) trong số các ca
+    // thỏa CÙNG bộ lọc. Nhờ vậy lọc theo từ khóa / trạng thái... vẫn thấy nhóm nếu có ít nhất một ca khớp.
+    // Ca không có account không bị gộp. Dùng chung điều kiện lọc nên danh sách, số trang và chọn hàng loạt luôn khớp nhau.
+    private void appendCollapseDuplicates(QueryParts q) {
+        List<TicketType> collapsing = DuplicateRule.collapsingTypes();
+        if (collapsing.isEmpty()) return;
+
+        String inner = withAlias(q.where.toString(), "t2");
+        q.where.append("AND (t.ticketType IS NULL OR t.ticketType NOT IN :collapseTypes ")
+                .append("OR t.subscriberAccount IS NULL OR TRIM(t.subscriberAccount) = '' ")
+                .append("OR t.id = (SELECT MIN(t2.id) FROM CustomerTicketEntity t2 ").append(inner)
+                .append("AND t2.ticketType = t.ticketType AND t2.subscriberAccount = t.subscriberAccount)) ");
+        q.params.put("collapseTypes", collapsing);
+    }
+
+    // Chỉ lấy ca có account trùng với ít nhất một ca khác CÙNG loại. Cùng quy tắc đếm với nhãn "Trùng xN"
+    // (xem DuplicateRule / countDuplicateSubscribers): nhóm gộp trùng (Hạ tầng) chỉ tính ca đang mở,
+    // nhóm không gộp (Phản ánh) tính cả ca đã lưu trữ.
+    private void appendOnlyDuplicates(QueryParts q) {
+        q.where.append("AND t.subscriberAccount IS NOT NULL AND TRIM(t.subscriberAccount) <> '' ")
+                .append("AND EXISTS (SELECT 1 FROM CustomerTicketEntity d WHERE d.subscriberAccount = t.subscriberAccount ")
+                .append("AND d.id <> t.id AND (d.ticketType = t.ticketType OR (d.ticketType IS NULL AND t.ticketType IS NULL)) ");
+        List<TicketType> collapsing = DuplicateRule.collapsingTypes();
+        if (!collapsing.isEmpty()) {
+            q.where.append("AND (d.archivedAt IS NULL OR t.ticketType IS NULL OR t.ticketType NOT IN :collapseTypes) ");
+            q.params.put("collapseTypes", collapsing);
+        }
+        q.where.append(") ");
+    }
+
+    // Đổi bí danh "t." trong chuỗi điều kiện thành bí danh khác (dùng cho truy vấn con); \\b để không đụng chữ khác
+    private static String withAlias(String jpql, String alias) {
+        return jpql.replaceAll("\\bt\\.(?=[a-zA-Z])", alias + ".");
+    }
+
+    private QueryParts buildOpenTicketConditions(TicketFilter f) {
         // Chỉ lấy ca đang mở (chưa nằm trong Lịch sử)
         QueryParts q = new QueryParts("WHERE t.archivedAt IS NULL ");
 
@@ -95,6 +139,10 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
 
         if (Boolean.TRUE.equals(f.onlyPinned())) {
             q.where.append("AND t.isPinned = true ");
+        }
+
+        if (f.onlyDuplicates()) {
+            appendOnlyDuplicates(q);
         }
         return q;
     }
@@ -244,7 +292,40 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
             TicketType type = row[0] == null ? TicketType.PHAN_ANH : (TicketType) row[0];
             result.merge(type, ((Number) row[1]).longValue(), Long::sum);
         }
+
+        // Loại bị gộp trùng: số trên tab = số thẻ thực sự hiện ra (mỗi account một thẻ, ca không có account tính riêng)
+        List<TicketType> collapsing = DuplicateRule.collapsingTypes();
+        if (!collapsing.isEmpty()) {
+            Map<TicketType, Long> collapsed = new EnumMap<>(TicketType.class);
+            collapseCount(collapsed, assignedStaff, collapsing, true);
+            collapseCount(collapsed, assignedStaff, collapsing, false);
+            for (TicketType t : collapsing) {
+                result.put(t, collapsed.getOrDefault(t, 0L));
+            }
+        }
         return result;
+    }
+
+    // distinctAccounts = true: đếm số account khác nhau; false: đếm các ca không có account (không gộp được)
+    private void collapseCount(Map<TicketType, Long> out, String assignedStaff, List<TicketType> types, boolean distinctAccounts) {
+        StringBuilder jpql = new StringBuilder("SELECT t.ticketType, ")
+                .append(distinctAccounts ? "COUNT(DISTINCT t.subscriberAccount) " : "COUNT(t) ")
+                .append("FROM CustomerTicketEntity t WHERE t.archivedAt IS NULL ")
+                .append("AND (t.appStatus IS NULL OR t.appStatus NOT IN :appointed) AND t.ticketType IN :types ")
+                .append(distinctAccounts
+                        ? "AND t.subscriberAccount IS NOT NULL AND TRIM(t.subscriberAccount) <> '' "
+                        : "AND (t.subscriberAccount IS NULL OR TRIM(t.subscriberAccount) = '') ");
+        Map<String, Object> params = new HashMap<>();
+        params.put("appointed", TicketStatus.appointedCodes());
+        params.put("types", types);
+        appendStaffFilter(jpql, params, assignedStaff);
+        jpql.append("GROUP BY t.ticketType");
+
+        TypedQuery<Object[]> query = entityManager.createQuery(jpql.toString(), Object[].class);
+        params.forEach(query::setParameter);
+        for (Object[] row : query.getResultList()) {
+            out.merge((TicketType) row[0], ((Number) row[1]).longValue(), Long::sum);
+        }
     }
 
     @Override
@@ -263,26 +344,32 @@ public class CustomTicketRepositoryImpl implements CustomTicketRepository {
             return Collections.emptyMap();
         }
 
-        // Đếm cả ca đã lưu trữ: khách phản ánh nhiều lần vẫn cần được nhìn thấy
-        String jpql = """
-                SELECT t.subscriberAccount, COUNT(t.id)
+        // Nhóm không gộp (Phản ánh): đếm cả ca đã lưu trữ vì khách phản ánh nhiều lần vẫn cần được nhìn thấy.
+        // Nhóm gộp (Hạ tầng): chỉ đếm ca đang mở, xử lý xong thì không còn tính vào "Trùng xN".
+        List<TicketType> collapsing = DuplicateRule.collapsingTypes();
+        StringBuilder jpql = new StringBuilder("""
+                SELECT t.ticketType, t.subscriberAccount, COUNT(t.id)
                 FROM CustomerTicketEntity t
                 WHERE t.subscriberAccount IN :accounts
-                  AND (t.ticketType = :phanAnh OR t.ticketType IS NULL)
-                GROUP BY t.subscriberAccount
-                """;
+                """);
+        if (!collapsing.isEmpty()) {
+            jpql.append("AND (t.ticketType IS NULL OR t.ticketType NOT IN :collapseTypes OR t.archivedAt IS NULL) ");
+        }
+        jpql.append("GROUP BY t.ticketType, t.subscriberAccount");
 
-        List<Object[]> rows = entityManager.createQuery(jpql, Object[].class)
-                .setParameter("accounts", validAccounts)
-                .setParameter("phanAnh", TicketType.PHAN_ANH)
-                .getResultList();
+        TypedQuery<Object[]> query = entityManager.createQuery(jpql.toString(), Object[].class)
+                .setParameter("accounts", validAccounts);
+        if (!collapsing.isEmpty()) {
+            query.setParameter("collapseTypes", collapsing);
+        }
 
         Map<String, Integer> countMap = new HashMap<>();
-        for (Object[] row : rows) {
-            String acc = (String) row[0];
-            Long count = (Long) row[1];
+        for (Object[] row : query.getResultList()) {
+            TicketType type = (TicketType) row[0];   // null = ca cũ chưa có loại -> PHAN_ANH (gộp chung khóa)
+            String acc = (String) row[1];
+            Long count = (Long) row[2];
             if (acc != null && count != null) {
-                countMap.put(acc.trim().toLowerCase(), count.intValue());
+                countMap.merge(DuplicateRule.key(type, acc), count.intValue(), Integer::sum);
             }
         }
         return countMap;

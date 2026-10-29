@@ -10,7 +10,16 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
+import org.springframework.boot.web.servlet.ServletContextInitializer;
+import jakarta.servlet.SessionCookieConfig;
 
 @Configuration
 @EnableWebSecurity
@@ -21,14 +30,41 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    // Cookie phiên: luôn HttpOnly (JS không đọc được). Secure chỉ bật khi chạy sau HTTPS: app.security.cookie-secure=true
+    // (đặt trong application-pro.properties; máy phát triển chạy http://localhost thì để false)
+    @Bean
+    public ServletContextInitializer sessionCookieHardening(@Value("${app.security.cookie-secure:false}") boolean secure) {
+        return servletContext -> {
+            SessionCookieConfig cookie = servletContext.getSessionCookieConfig();
+            cookie.setHttpOnly(true);
+            cookie.setSecure(secure);
+        };
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
                                            CustomUserDetailsService userDetailsService,
+                                           LoginAttemptService loginAttempts,
+                                           @Value("${app.security.cookie-secure:false}") boolean cookieSecure,
                                            @Value("${app.remember-me.key:cust-map-remember-me-key-doi-khi-trien-khai}") String rememberMeKey,
                                            @Value("${app.remember-me.days:30}") int rememberMeDays) throws Exception {
         http
-                // Tắt CSRF cho các API nội bộ để gọi Ajax/Multipart Upload dễ dàng
-                .csrf(csrf -> csrf.disable())
+                // Bật CSRF: token nằm trong cookie XSRF-TOKEN, js/csrf.js tự gửi lại qua header X-XSRF-TOKEN cho mọi lệnh
+                // ghi (POST/PUT/DELETE, kể cả upload multipart); form đăng nhập gửi qua trường ẩn _csrf
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
+                )
+                .addFilterAfter(new CsrfCookieFilter(), CsrfFilter.class)
+                // Chặn dò mật khẩu: tài khoản đang bị khóa bị từ chối trước khi xác thực
+                .addFilterBefore(new LoginThrottleFilter(loginAttempts, "/do-login"), UsernamePasswordAuthenticationFilter.class)
+                .headers(headers -> headers
+                        .httpStrictTransportSecurity(hsts -> hsts.maxAgeInSeconds(31_536_000))
+                        .referrerPolicy(ref -> ref.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                        // Camera và GPS chỉ cho chính trang này dùng; chặn micro
+                        .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy",
+                                "camera=(self), geolocation=(self), microphone=()"))
+                )
                 .authorizeHttpRequests(auth -> auth
                         // Cho phép forward/include tới các file JSP trong WEB-INF/views (kể cả fragment thanh điều hướng)
                         .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.INCLUDE, DispatcherType.ERROR).permitAll()
@@ -56,8 +92,17 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .loginProcessingUrl("/do-login")
-                        .defaultSuccessUrl("/dashboard", true)
-                        .failureUrl("/login?error=true")
+                        .successHandler((request, response, authentication) -> {
+                            loginAttempts.reset(request.getParameter("username"), request.getRemoteAddr());
+                            new DefaultRedirectStrategy().sendRedirect(request, response, "/dashboard");
+                        })
+                        .failureHandler((request, response, exception) -> {
+                            String username = request.getParameter("username");
+                            String ip = request.getRemoteAddr();
+                            loginAttempts.recordFailure(username, ip);
+                            new DefaultRedirectStrategy().sendRedirect(request, response,
+                                    loginAttempts.isBlocked(username, ip) ? "/login?locked=true" : "/login?error=true");
+                        })
                         .permitAll()
                 )
                 // "Ghi nhớ mật khẩu": giữ đăng nhập bằng cookie khi session hết hạn / tắt trình duyệt.
@@ -66,10 +111,12 @@ public class SecurityConfig {
                         .key(rememberMeKey)
                         .rememberMeParameter("remember-me")
                         .tokenValiditySeconds(rememberMeDays * 24 * 60 * 60)
+                        .useSecureCookie(cookieSecure)
                         .userDetailsService(userDetailsService)
                 )
                 .logout(logout -> logout
-                        .logoutUrl("/logout")
+                        // Các trang hiện dùng liên kết GET tới /logout nên vẫn cho phép GET (khi bật CSRF mặc định chỉ nhận POST)
+                        .logoutRequestMatcher(request -> request.getRequestURI().equals(request.getContextPath() + "/logout"))
                         .logoutSuccessUrl("/login?logout=true")
                         .permitAll()
                 );

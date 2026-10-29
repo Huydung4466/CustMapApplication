@@ -9,13 +9,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/css/app-pages.css?v=2" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau CSS của trang để ghi đè màu cũ) -->
-    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=1" rel="stylesheet">
-    <style>
-        .legend-chip { display: inline-flex; align-items: center; font-size: .74rem; font-weight: 600; padding: 3px 9px; border-radius: 6px; border: 1px solid rgba(0,0,0,.12); }
-        .file-item { border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: #fff; }
-        .file-item .countdown { color: #475569; }
-        .file-item .countdown.soon { color: #dc2626; font-weight: 700; }
-    </style>
+    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
+    <link href="${pageContext.request.contextPath}/css/report.css?v=1" rel="stylesheet">
 </head>
 <body class="vt-app">
 
@@ -36,7 +31,7 @@
     <!-- ===== XUẤT BÁO CÁO EXCEL (ADMIN) ===== -->
     <div class="card border-0 shadow-sm rounded-4 bg-white p-3 mb-3 d-none" id="exportSection">
         <h6 class="fw-bold text-primary mb-1"><i class="fa-solid fa-file-excel me-1"></i>Xuất báo cáo Excel</h6>
-        <div class="text-muted mb-3" style="font-size:0.8rem;">
+        <div class="text-muted mb-3 vt-fs-80">
             File gồm 3 sheet: <b>Nhân viên</b> (thống kê theo từng nhân viên), <b>Phản ánh</b> (toàn bộ ca, mỗi dòng tô màu theo trạng thái)
             và <b>Đã xử lý &amp; KLL</b> (kết quả, thời điểm xử lý, vị trí ảnh chụp).
         </div>

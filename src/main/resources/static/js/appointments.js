@@ -1,6 +1,6 @@
 /*
  * appointments.js - Trang "Khách đã hẹn": các ca đã bấm Hẹn giờ / Hẹn khác.
- * Cần: CTX, app-common.js, Bootstrap. Biến ticketCache / hàm loadTickets được camera-capture.js sử dụng
+ * Thẻ khách vẽ bởi js/ticket-card.js (dùng chung với dashboard). Cần: CTX, app-common.js, ticket-card.js, Bootstrap. Biến ticketCache / hàm loadTickets được camera-capture.js sử dụng
  * (nút camera trên từng thẻ ca).
  */
 let currentUser = null;
@@ -130,12 +130,11 @@ function statusBadge(status) {
         + escapeHtml(info.label) + '</span>';
 }
 
+// Phần thông tin khách vẽ bởi TicketCard (dùng chung với dashboard nên hai trang luôn giống nhau, gồm cả ca hạ tầng);
+// ở đây chỉ khai báo phần riêng của trang Đã hẹn: dải giờ hẹn, nút Xử lý và thanh Bỏ hẹn / KLL / Hoàn tất
 function cardHtml(item) {
     const id = Number(item.id);
     const overdue = isOverdue(item);
-    const dup = (item.duplicateCount && item.duplicateCount >= 2) ? '<span class="badge-dup">Trùng x' + Number(item.duplicateCount) + '</span>' : '';
-    const priority = item.priorityLevel
-        ? '<span class="badge ms-1" style="font-size:0.7rem;' + priorityStyle(item.priorityLevel) + '">' + escapeHtml(item.priorityLevel) + '</span>' : '';
 
     let apptClass = 'appt-strip', apptText, apptIcon = 'fa-regular fa-clock';
     if (item.appointmentTime) {
@@ -147,59 +146,18 @@ function cardHtml(item) {
     }
     const apptTag = overdue ? '<span class="small">Quá hẹn</span>' : '';
 
-    let kmz = '';
-    if (item.cabinetCode) {
-        kmz = item.googleMapsUrl
-            ? '<a href="' + escapeHtml(item.googleMapsUrl) + '" target="_blank" rel="noopener" class="btn-kmz-map has-kmz"><i class="fa-solid fa-map-pin"></i>Tủ: ' + escapeHtml(item.cabinetCode) + '</a>'
-            : '<span class="btn-kmz-map no-kmz"><i class="fa-solid fa-server"></i>Tủ: ' + escapeHtml(item.cabinetCode) + ' (Chưa có KMZ)</span>';
-    }
-
-    const complaint = escapeHtml(item.complaintContent || 'Không có nội dung');
-    const isLong = complaint.length > 90;
-
-    let phones = '';
-    if (item.contactPhone) {
-        phones += '<a href="tel:' + escapeHtml(item.contactPhone) + '" class="btn-call-phone"><i class="fa-solid fa-phone"></i>Gọi KH (' + escapeHtml(item.contactPhone) + ')</a>';
-    }
-    if (item.reportPhone && item.reportPhone !== item.contactPhone) {
-        phones += '<a href="tel:' + escapeHtml(item.reportPhone) + '" class="btn-call-phone btn-call-report"><i class="fa-solid fa-phone-volume"></i>Báo cáo</a>';
-    }
-
-    return '<div class="ticket-card ' + (overdue ? 'overdue' : '') + '">'
-        + '<div class="card-header-row"><div>'
-        +   '<span class="customer-title">' + escapeHtml(item.customerName || 'Khách hàng') + '</span>' + priority
-        + '</div><div>' + statusBadge(item.appStatus) + '</div></div>'
-        + '<div class="' + apptClass + '"><span><i class="' + apptIcon + ' me-1"></i>' + apptText + '</span>' + apptTag + '</div>'
-        + '<div class="meta-info-row"><div><span class="account-tag">' + escapeHtml(item.subscriberAccount || item.ticketCode) + '</span>' + dup + '</div>'
-        +   '<span class="text-muted" style="font-size:0.78rem;">PA: #' + escapeHtml(item.ticketCode) + '</span></div>'
-        + '<div class="location-section">'
-        +   '<div><i class="fa-solid fa-location-dot text-danger me-1"></i>' + escapeHtml(item.installAddress || 'Chưa có địa chỉ') + '</div>'
-        +   (kmz ? '<div>' + kmz + '</div>' : '')
-        + '</div>'
-        + '<div class="complaint-box"><div class="' + (isLong ? 'complaint-collapsed' : '') + '" id="c-' + id + '">' + complaint + '</div>'
-        +   (isLong ? '<a class="see-more-link" onclick="toggleComplaint(' + id + ')">...xem thêm</a>' : '')
-        +   (item.callNote ? '<div class="text-muted fst-italic mt-1" style="font-size:0.78rem;"><i class="fa-regular fa-note-sticky me-1"></i>' + escapeHtml(item.callNote) + '</div>' : '')
-        + '</div>'
-        + '<div class="action-buttons-grid">' + phones
-        +   '<div class="action-right">'
-        +     '<button type="button" class="btn-camera" title="Chụp ảnh hiện trường" onclick="openCamera(' + id + ')"><i class="fa-solid fa-camera"></i>'
-        +       (item.photoCount > 0 ? '<span class="photo-count">' + Number(item.photoCount) + '</span>' : '') + '</button>'
-        +     '<button type="button" class="btn-action-trigger" onclick="openModal(' + id + ')"><i class="fa-regular fa-pen-to-square"></i>Xử lý</button>'
-        +   '</div>'
-        + '</div>'
-        + '<div class="quick-toolbar">'
-        +   '<button type="button" class="btn-quick-item" onclick="quickBackToList(' + id + ')"><i class="fa-solid fa-rotate-left"></i>Bỏ hẹn</button>'
-        +   '<button type="button" class="btn-quick-item" onclick="quickKLL(' + id + ')"><i class="fa-solid fa-phone-slash"></i>KLL</button>'
-        +   '<button type="button" class="btn-quick-item" onclick="quickDone(' + id + ')"><i class="fa-solid fa-check"></i>Hoàn tất</button>'
-        + '</div>'
-        + '<div class="card-footer-info"><span>Khu vực: <b>' + escapeHtml(item.area || '') + '</b></span>'
-        +   '<span>Phụ trách: <b class="text-dark">' + escapeHtml(item.techStaffName || 'Chưa phân công') + '</b></span></div>'
-        + '</div>';
-}
-
-function toggleComplaint(id) {
-    const el = document.getElementById('c-' + id);
-    if (el) el.classList.toggle('complaint-collapsed');
+    return TicketCard.build(item, {
+        cardClass: overdue ? 'overdue' : '',
+        statusBadge: statusBadge(item.appStatus),
+        apptHtml: '<div class="' + apptClass + '"><span><i class="' + apptIcon + ' me-1"></i>' + apptText + '</span>' + apptTag + '</div>',
+        apptFirst: true,
+        processCall: function (it) { return 'openModal(' + Number(it.id) + ')'; },
+        toolbarHtml: '<div class="quick-toolbar">'
+            + '<button type="button" class="btn-quick-item" onclick="quickBackToList(' + id + ')"><i class="fa-solid fa-rotate-left"></i>Bỏ hẹn</button>'
+            + '<button type="button" class="btn-quick-item" onclick="quickKLL(' + id + ')"><i class="fa-solid fa-phone-slash"></i>KLL</button>'
+            + '<button type="button" class="btn-quick-item" onclick="quickDone(' + id + ')"><i class="fa-solid fa-check"></i>Hoàn tất</button>'
+            + '</div>'
+    });
 }
 
 // ---------- Banner nhắc: ca sắp đến giờ (trong 60 phút) và ca quá giờ, tính trên danh sách đang hiển thị ----------
@@ -261,6 +219,7 @@ async function sendTicketAction(id, payload, successMessage) {
             body: JSON.stringify(payload)
         });
         if (successMessage) showToast(successMessage);
+        if (window.BottomNav) BottomNav.refreshAppointments();   // số đếm trên tab "Đã hẹn" (thanh dưới)
         return true;
     } catch (e) {
         showToast(e.message, true);

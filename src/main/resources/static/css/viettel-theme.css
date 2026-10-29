@@ -204,3 +204,13 @@ body.vt-app .top-navbar {
 /* Cửa sổ chụp ảnh: nút chính cùng màu thương hiệu (cần độ ưu tiên cao hơn CSS do script tự chèn) */
 #ccRoot .cc-act.primary { background: var(--vt-red); }
 #ccRoot .cc-main { background: var(--vt-red); }
+
+/* ===== Class tiện ích thay cho style="..." viết thẳng trong JSP ===== */
+.vt-fs-70 { font-size: 0.7rem !important; }
+.vt-fs-72 { font-size: 0.72rem !important; }
+.vt-fs-74 { font-size: 0.74rem !important; }
+.vt-fs-75 { font-size: 0.75rem !important; }
+.vt-fs-78 { font-size: 0.78rem !important; }
+.vt-fs-80 { font-size: 0.8rem !important; }
+.vt-fs-85 { font-size: 0.85rem !important; }
+.vt-h-8 { height: 8px !important; }
