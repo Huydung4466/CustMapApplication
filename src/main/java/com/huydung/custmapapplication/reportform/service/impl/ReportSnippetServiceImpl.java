@@ -47,15 +47,18 @@ public class ReportSnippetServiceImpl implements ReportSnippetService {
     private final ReportSnippetHistoryRepository historyRepository;
     private final AuthService authService;
     private final NotificationService notificationService;
+    private final ReportFormConfig formConfig;
 
     public ReportSnippetServiceImpl(ReportSnippetRepository repository,
                                     ReportSnippetHistoryRepository historyRepository,
                                     AuthService authService,
-                                    NotificationService notificationService) {
+                                    NotificationService notificationService,
+                                    ReportFormConfig formConfig) {
         this.repository = repository;
         this.historyRepository = historyRepository;
         this.authService = authService;
         this.notificationService = notificationService;
+        this.formConfig = formConfig;
     }
 
     // ------------------------------------------------------------------ đọc
@@ -63,13 +66,14 @@ public class ReportSnippetServiceImpl implements ReportSnippetService {
     @Override
     public ReportFormMetaDTO getMeta() {
         return new ReportFormMetaDTO(
-                ReportFormConfig.FORM_URL,
-                ReportFormConfig.TASK_GROUP_ENTRY,
+                formConfig.formUrl(),
+                formConfig.taskGroupEntry(),
                 ReportFormConfig.MAX_CONTENT_LENGTH,
                 Arrays.stream(ReportTaskGroup.values())
                         .map(g -> new ReportFormMetaDTO.TaskGroupInfo(g.name(), g.getLabel())).toList(),
                 Arrays.stream(ReportField.values())
-                        .map(f -> new ReportFormMetaDTO.FieldInfo(f.name(), f.getLabel(), f.getEntryId())).toList(),
+                        .map(f -> new ReportFormMetaDTO.FieldInfo(f.name(), f.getLabel(), formConfig.fieldEntry(f))).toList(),
+                formConfig.infoEntries(),
                 ReportTaskGroup.suggestionByTicketType(),
                 Arrays.stream(SnippetState.values())
                         .map(s -> new ReportFormMetaDTO.StateInfo(s.name(), s.getLabel(), s.getIcon(), s.getBadgeClass())).toList());

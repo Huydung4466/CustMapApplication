@@ -139,6 +139,14 @@ function renderHistory(items) {
             phones += '<a href="tel:' + escapeHtml(item.reportPhone) + '" class="btn-call-phone btn-call-report"><i class="fa-solid fa-phone-volume"></i>' + escapeHtml(item.reportPhone) + '</a>';
         }
 
+        // Huy hiệu nộp báo cáo cạnh huy hiệu "Đã xử lý" (chỉ ca nộp được báo cáo); nhãn / màu do server gửi (ReportStatus)
+        const canReport = canSubmitReport(item);
+        const reportDone = item.reportStatus === 'SUBMITTED';
+        const reportBadge = canReport
+            ? '<span class="status-badge ' + escapeHtml(item.reportStatusBadge || 'report-not-submitted') + '"><i class="'
+                + escapeHtml(item.reportStatusIcon || 'fa-regular fa-file') + '"></i>' + escapeHtml(item.reportStatusLabel || 'Chưa nộp') + '</span>'
+            : '';
+
         const complaint = escapeHtml(item.complaintContent || 'Không có nội dung');
         const staffInfo = (currentUser && currentUser.admin)
             ? '<span>NV: <b class="text-dark">' + escapeHtml(item.assignedStaff || '') + '</b></span>' : '<span></span>';
@@ -146,7 +154,7 @@ function renderHistory(items) {
         return '<div class="ticket-card history-card">'
             + '<div class="card-header-row"><div>'
             +   '<span class="customer-title">' + escapeHtml(item.customerName || 'Khách hàng') + '</span>'
-            + '</div><div>' + reasonBadge + '</div></div>'
+            + '</div><div class="d-flex flex-wrap justify-content-end gap-1">' + reasonBadge + reportBadge + '</div></div>'
             + '<div class="meta-info-row"><div><span class="account-tag">' + escapeHtml(item.subscriberAccount || item.ticketCode) + '</span></div>'
             +   '<span class="text-muted vt-fs-78">PA: #' + escapeHtml(item.ticketCode) + '</span></div>'
             + '<div class="text-muted small mb-1"><i class="fa-regular fa-calendar-check me-1"></i>Chuyển vào lịch sử lúc ' + escapeHtml(formatDateTime(item.archivedAt)) + '</div>'
@@ -157,8 +165,13 @@ function renderHistory(items) {
             +   (item.callNote ? '<div class="text-muted fst-italic mt-1 vt-fs-78"><i class="fa-regular fa-note-sticky me-1"></i>' + escapeHtml(item.callNote) + '</div>' : '')
             + '</div>'
             + '<div class="action-buttons-grid">' + phones
-            +   (canSubmitReport(item)
+            +   (canReport
+                ? '<a class="btn-report-submit' + (reportDone ? ' is-done' : '') + ' ms-auto" href="' + CTX + '/report-form/' + item.id + '"><i class="fa-solid fa-file-signature"></i>'
+                    + (reportDone ? 'Nộp lại' : 'Nộp báo cáo') + '</a>'
+                    + (reportDone ? '' : '<button type="button" class="btn-report-mark" title="Đã nộp rồi? Bấm để đánh dấu đã nộp" onclick="markReportSubmitted(' + item.id + ')"><i class="fa-solid fa-file-circle-check"></i></button>')
+
                 ? '<a class="btn-report-submit ms-auto" href="' + CTX + '/report-form/' + item.id + '"><i class="fa-solid fa-file-signature"></i>Nộp báo cáo</a>'
+
                 : '')
             +   '<button type="button" class="btn-action-trigger' + (canSubmitReport(item) ? '' : ' ms-auto') + '" onclick="restoreTicket(' + item.id + ')"><i class="fa-solid fa-rotate-left"></i>Đưa về danh sách</button>'
             + '</div>'
@@ -191,6 +204,21 @@ function goToPage(page) {
 
 function toggleHistoryText(id) {
     document.getElementById('h-' + id).classList.toggle('complaint-collapsed');
+}
+
+// Đánh dấu thủ công "Đã nộp" (khi đã gửi form nhưng chưa xác nhận trong trang nộp báo cáo)
+async function markReportSubmitted(id) {
+    if (!confirm('Đánh dấu ca này là ĐÃ NỘP báo cáo?')) return;
+    try {
+        await apiFetch(CTX + '/api/tickets/' + id + '/report-status', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'SUBMITTED' })
+        });
+        loadHistory(true);
+    } catch (e) {
+        alert(e.message);
+    }
 }
 
 async function restoreTicket(id) {

@@ -41,6 +41,9 @@ public interface TicketService {
     // Đưa ca từ Lịch sử về danh sách chính
     TicketResponseDTO restoreTicket(Long ticketId);
 
+    // Nộp báo cáo (Google Form): đặt trạng thái NOT_SUBMITTED | OPENED | SUBMITTED cho ca đã xử lý
+    TicketResponseDTO updateReportStatus(Long ticketId, String status);
+
     // Danh sách loại ca kèm số ca đang mở theo phạm vi nhân viên (dựng tab / bộ lọc loại trên giao diện)
     List<TicketTypeInfoDTO> getTicketTypeSummary(String staffFilter);
 
