@@ -12,9 +12,6 @@
   Dưới thanh đỏ là hàng 6 tab biểu tượng (kiểu Facebook, không dính khi cuộn). Hiện dùng được tab Trang chủ (về dashboard), tab Ảnh (xem ảnh hiện trường) và tab Thông báo (chuông)
   (số chưa đọc + danh sách do js/notifications.js nạp); 3 tab còn lại bấm vào báo "đang phát triển" (js/nav-tabs.js).
   Thêm chức năng mới: đổi tab giữ chỗ thành <a class="nav-tab" href="..."> (bỏ data-soon).
-  Dưới thanh đỏ là hàng 6 tab biểu tượng (kiểu Facebook, không dính khi cuộn). Hiện dùng được tab Trang chủ (về dashboard) và tab Thông báo (chuông)
-  (số chưa đọc + danh sách do js/notifications.js nạp); 4 tab còn lại bấm vào báo "đang phát triển" (js/nav-tabs.js).
-  Thêm chức năng mới: đổi tab giữ chỗ thành <a class="nav-tab" href="..."> (bỏ data-soon).
   Tên người đăng nhập và số KMZ do js/app-nav.js tự nạp. Các trang gọi AppNav.getMe() để lấy thông tin tài khoản
   (không gọi lại /api/auth/me).
 --%>
@@ -35,7 +32,6 @@
     String pagePath = forwardUri != null ? forwardUri.toString() : request.getRequestURI();
     boolean onDashboard = pagePath != null && pagePath.endsWith("/dashboard");
     boolean onPhotos = pagePath != null && pagePath.endsWith("/photos");
-
 %>
 <link href="<%= ctx %>/css/top-navbar.css?v=1" rel="stylesheet">
 <link href="<%= ctx %>/css/nav-tabs.css?v=2" rel="stylesheet">
@@ -75,7 +71,7 @@
     <div class="nav-tabs-inner">
         <a class="nav-tab<%= onDashboard ? " active" : "" %>" href="<%= ctx %>/dashboard" title="Trang chủ" aria-label="Trang chủ"<%= onDashboard ? " aria-current=\"page\"" : "" %>><i class="fa-solid fa-house"></i></a>
         <button type="button" class="nav-tab" data-soon="Công việc" title="Công việc" aria-label="Công việc"><i class="fa-solid fa-list-check"></i></button>
-        <button type="button" class="nav-tab" data-soon="Nhóm" title="Nhóm" aria-label="Nhóm"><i class="fa-solid fa-user-group"></i></button>
+        <a class="nav-tab<%= onPhotos ? " active" : "" %>" href="<%= ctx %>/photos" title="Ảnh" aria-label="Ảnh"<%= onPhotos ? " aria-current=\"page\"" : "" %>><i class="fa-solid fa-images"></i></a>
         <button type="button" class="nav-tab" data-soon="Thống kê" title="Thống kê" aria-label="Thống kê"><i class="fa-solid fa-chart-line"></i></button>
         <%-- Thông báo: số chưa đọc và danh sách do js/notifications.js nạp --%>
         <button type="button" class="nav-tab" id="navBellBtn" title="Thông báo" aria-label="Thông báo" aria-haspopup="true" aria-expanded="false">

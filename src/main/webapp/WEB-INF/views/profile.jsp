@@ -11,7 +11,6 @@
     <!-- Giao diện tông Viettel (đặt sau CSS của trang để ghi đè màu cũ) -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
     <style>.role-camera { background: #e0f2fe; color: #0369a1; }</style>
-    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
 </head>
 <body class="vt-app">
 
