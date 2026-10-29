@@ -25,4 +25,8 @@ public interface UserService {
 
     // ADMIN đặt lại mật khẩu cho tài khoản nhân viên ROLE_STAFF (người đó sẽ bị buộc đổi ở lần đăng nhập tới)
     void resetPassword(Long userId, ResetPasswordRequest request);
+
+    // ADMIN cấp / thu hồi quyền Camera (ROLE_CAMERA: lưu, xóa, tải ảnh hiện trường) cho một tài khoản.
+    // Người đó cần đăng nhập lại để quyền mới có hiệu lực.
+    UserDTO setCameraRole(Long userId, boolean enabled);
 }

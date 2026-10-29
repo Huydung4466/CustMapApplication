@@ -10,6 +10,7 @@
     <link href="${pageContext.request.contextPath}/css/app-pages.css?v=2" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau CSS của trang để ghi đè màu cũ) -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
+    <style>.role-camera { background: #e0f2fe; color: #0369a1; }</style>
 </head>
 <body class="vt-app">
 
@@ -49,6 +50,7 @@
             <a href="${pageContext.request.contextPath}/change-password" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-key me-1"></i>Đổi mật khẩu</a>
             <a href="${pageContext.request.contextPath}/history" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-circle-check me-1"></i>Lịch sử: ca đã hoàn thành</a>
             <a href="${pageContext.request.contextPath}/history/issues" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-phone-slash me-1"></i>Lịch sử: không liên lạc được &amp; khác</a>
+            <a href="${pageContext.request.contextPath}/report-snippets" class="btn btn-outline-secondary btn-sm"><i class="fa-solid fa-clipboard-check me-1"></i>Quản lý mẫu báo cáo<span class="badge bg-danger rounded-pill ms-2 d-none" id="snippetPendingBadge" title="Yêu cầu đang chờ duyệt">0</span></a>
             <a href="${pageContext.request.contextPath}/logout" class="btn btn-outline-danger btn-sm"><i class="fa-solid fa-power-off me-1"></i>Đăng xuất</a>
         </div>
     </div>
@@ -103,6 +105,17 @@
         <div class="text-muted mt-2 vt-fs-75">
             Quản trị viên chỉ đặt lại được mật khẩu của tài khoản nhân viên (ROLE_STAFF). Nhân viên sẽ phải đổi mật khẩu khi đăng nhập lần tới.
         </div>
+    </div>
+
+    <!-- Ảnh hiện trường (chỉ tài khoản có quyền Camera): bật / tắt tự xóa ảnh sau 72 giờ; profile.js bật hiện phần này -->
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-3 d-none" id="photoSection">
+        <div class="fw-bold mb-1"><i class="fa-solid fa-images text-primary me-2"></i>Ảnh hiện trường</div>
+        <div class="text-muted small mb-2">Ảnh đã lưu trên máy chủ tự xóa sau <span id="photoRetentionHours">72</span> giờ kể từ lúc chụp. Đây là cài đặt chung cho cả hệ thống.</div>
+        <div class="form-check form-switch d-flex align-items-center justify-content-between ps-0">
+            <label class="form-check-label fw-semibold" for="swPhotoAutoDelete">Tự xóa ảnh sau <span id="photoRetentionHours2">72</span> giờ</label>
+            <input class="form-check-input ms-2" type="checkbox" role="switch" id="swPhotoAutoDelete" onchange="togglePhotoAutoDelete(this)">
+        </div>
+        <div class="text-muted small mt-1" id="photoSettingNote"></div>
     </div>
 
     <!-- ===== CẤU HÌNH CAMERA (chỉ ROLE_ADMIN) ===== -->
@@ -183,7 +196,20 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>const CTX = '${pageContext.request.contextPath}';</script>
 <script src="${pageContext.request.contextPath}/js/app-common.js?v=1"></script>
-<script src="${pageContext.request.contextPath}/js/profile.js?v=3"></script>
+<script src="${pageContext.request.contextPath}/js/profile.js?v=4"></script>
+<script>
+    // Admin: hiện số yêu cầu mẫu báo cáo đang chờ duyệt trên nút (nhân viên không gọi API này)
+    AppNav.getMe().then(function (me) {
+        if (!me || !me.admin) return;
+        return apiFetch(CTX + '/api/report-snippets/pending-count').then(function (d) {
+            if (d && d.count > 0) {
+                var b = document.getElementById('snippetPendingBadge');
+                b.textContent = d.count;
+                b.classList.remove('d-none');
+            }
+        });
+    }).catch(function (e) { console.error(e); });
+</script>
 
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp">
     <jsp:param name="active" value="profile"/>

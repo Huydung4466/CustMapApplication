@@ -8,13 +8,11 @@ import com.huydung.custmapapplication.ticket.dto.TicketTypeInfoDTO;
 import com.huydung.custmapapplication.ticket.service.TicketService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Chỉ chứa các API HIỂN THỊ (đọc dữ liệu) của ca phản ánh.
@@ -42,6 +40,12 @@ public class TicketController {
     @GetMapping("/appointments")
     public ResponseEntity<AbstractDTO<TicketResponseDTO>> getAppointments(TicketSearchCriteria criteria) {
         return ResponseEntity.ok(ticketService.getAppointmentsForCurrentUser(criteria));
+    }
+
+    // Số khách đã hẹn (hiện trên tab "Đã hẹn" ở thanh dưới)
+    @GetMapping("/appointments/count")
+    public ResponseEntity<Map<String, Long>> countAppointments() {
+        return ResponseEntity.ok(Map.of("count", ticketService.countAppointmentsForCurrentUser()));
     }
 
     // 3. Danh sách ca đã lưu trữ (các trang Lịch sử): tab = COMPLETED (đã hoàn thành) | ISSUES (không liên lạc được và vấn đề khác)
@@ -87,5 +91,10 @@ public class TicketController {
             @RequestParam(value = "staffName", required = false) String staffName,
             @RequestParam(value = "area", required = false) String area) {
         return ResponseEntity.ok(ticketService.getCabinetPrefixList(staffName, area));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<TicketResponseDTO> getTicketDetail(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(ticketService.getTicketDetail(id));
     }
 }

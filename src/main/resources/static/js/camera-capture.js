@@ -9,9 +9,11 @@
  * Mục nào được in lên ảnh do ADMIN bật/tắt (trang Cá nhân > Cấu hình camera), lấy qua GET /api/settings/camera.
  *
  * Hai chế độ:
- *  - Gắn với ca: openCamera(ticketId) - in thêm thông tin của ca, có nút Lưu ảnh (gửi lên server, cần ticketCache, apiFetch(), loadTickets()).
- *  - Chụp nhanh (nút "+" ở thanh điều hướng): CameraCapture.openFree() - không gắn ca/tài khoản nào, không lưu lên server,
- *    chỉ có Chụp lại / Chia sẻ / Tải về. Giờ, tọa độ GPS và địa chỉ vẫn được in lên ảnh.
+ *  - Gắn với ca: openCamera(ticketId) - in thêm thông tin của ca; ảnh lưu gắn với ca (cần ticketCache, apiFetch(), loadTickets()).
+ *  - Chụp nhanh (nút "+" ở thanh điều hướng): CameraCapture.openFree() - không gắn ca nào. Giờ, tọa độ GPS và địa chỉ vẫn được in lên ảnh.
+ *
+ * Nút LƯU ẢNH (lưu lên máy chủ, thư mục theo tên đăng nhập) chỉ hiện với tài khoản có quyền Camera (ROLE_CAMERA), ở CẢ HAI chế độ.
+ * Tài khoản khác chỉ có Chụp lại / Chia sẻ / Tải về trên máy. Quyền thật được server kiểm tra; ở đây chỉ ẩn / hiện nút.
  *
  * GPS chỉ chạy khi mở trang bằng HTTPS (hoặc localhost). Font Awesome cho biểu tượng.
  */
@@ -41,6 +43,12 @@
     var cfg = Object.assign({}, DEFAULT_CFG);
     var staffName = '';
     var staffLoaded = false;
+
+    // Có quyền Camera (ROLE_CAMERA) thì mới được Lưu ảnh lên máy chủ; lấy từ thông tin người đăng nhập (AppNav.getMe)
+    var cameraRole = false;
+    if (window.AppNav && typeof AppNav.getMe === 'function') {
+        AppNav.getMe().then(function (me) { cameraRole = !!(me && me.camera); }).catch(function () { cameraRole = false; });
+    }
 
     var ui = null;      // các phần tử giao diện (tạo một lần)
     var state = null;   // trạng thái của phiên chụp đang mở
@@ -564,7 +572,7 @@
         btnLabel(ui.btnRetake, 'Chụp lại');
         btnLabel(ui.btnSave, 'Lưu ảnh');
         ui.btnSave.disabled = false;
-        ui.btnSave.style.display = s.free ? 'none' : '';
+        ui.btnSave.style.display = cameraRole ? '' : 'none';
         ui.btnShare.style.display = canShareFile(c.file) ? '' : 'none';
         layoutStage();
     }
@@ -622,7 +630,9 @@
 
     // ===================== LƯU / CHIA SẺ / TẢI VỀ =====================
     function uploadPhoto(ticketId, fd) {
-        var url = (typeof CTX !== 'undefined' ? CTX : '') + '/api/tickets/' + ticketId + '/photos';
+        // ticketId rỗng = ảnh chụp nhanh không gắn ca
+        var base = typeof CTX !== 'undefined' ? CTX : '';
+        var url = ticketId === null || ticketId === undefined ? base + '/api/photos' : base + '/api/tickets/' + ticketId + '/photos';
         if (typeof apiFetch === 'function') {
             return apiFetch(url, { method: 'POST', body: fd });
         }
@@ -641,7 +651,7 @@
 
     function save() {
         var s = state, c = s && s.captured;
-        if (!c || c.saved || s.busy) return;
+        if (!cameraRole || !c || c.saved || s.busy) return;
         s.busy = true;
         ui.btnSave.disabled = true;
         btnLabel(ui.btnSave, 'Đang lưu…');
@@ -658,7 +668,7 @@
             fd.append('addressSource', c.address.source);
         }
 
-        uploadPhoto(s.ticketId, fd).then(function () {
+        uploadPhoto(s.free ? null : s.ticketId, fd).then(function () {
             s.busy = false;
             c.saved = true;
             s.savedCount++;
@@ -739,9 +749,12 @@
         var s = state;
         if (!s) return;
         if (s.busy) { toast('Đang xử lý, vui lòng chờ…'); return; }
-        // Chụp gắn ca: cảnh báo nếu chưa Lưu. Chụp nhanh: cảnh báo nếu chưa Tải về / Chia sẻ
-        var unsaved = s.captured && (s.free ? !s.captured.exported : !s.captured.saved);
-        if (unsaved && !confirm(s.free ? 'Ảnh vừa chụp chưa được tải về hoặc chia sẻ. Bỏ ảnh này?' : 'Ảnh vừa chụp chưa được lưu. Bỏ ảnh này?')) return;
+        // Có quyền Camera + chụp gắn ca: phải Lưu. Còn lại: cảnh báo nếu chưa Lưu / Tải về / Chia sẻ lần nào
+        var needSave = cameraRole && !s.free;
+        var unsaved = s.captured && (needSave ? !s.captured.saved : !(s.captured.saved || s.captured.exported));
+        var warn = needSave ? 'Ảnh vừa chụp chưa được lưu. Bỏ ảnh này?'
+            : (cameraRole ? 'Ảnh vừa chụp chưa được lưu, tải về hoặc chia sẻ. Bỏ ảnh này?' : 'Ảnh vừa chụp chưa được tải về hoặc chia sẻ. Bỏ ảnh này?');
+        if (unsaved && !confirm(warn)) return;
 
         clearInterval(s.timer);
         if (s.watchId !== null && navigator.geolocation) navigator.geolocation.clearWatch(s.watchId);
@@ -752,7 +765,7 @@
         state = null;
 
         // Có ảnh mới lưu thì tải lại danh sách để số ảnh trên nút camera được cập nhật
-        if (s.savedCount > 0 && typeof loadTickets === 'function') loadTickets(true);
+        if (s.savedCount > 0 && !s.free && typeof loadTickets === 'function') loadTickets(true);
     }
 
     window.openCamera = open;

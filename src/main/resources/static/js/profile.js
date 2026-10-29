@@ -7,12 +7,14 @@
  */
 let me = null;
 let isAdmin = false;
+let isCamera = false;       // tài khoản đang đăng nhập có quyền Camera (ROLE_CAMERA)
 let searchTimer = null;
 let createModal = null;
 let resetModal = null;
 let resetTarget = null;
 
-const ROLE_LABELS = { ROLE_ADMIN: 'Quản trị viên', ROLE_STAFF: 'Nhân viên' };
+const ROLE_LABELS = { ROLE_ADMIN: 'Quản trị viên', ROLE_STAFF: 'Nhân viên', ROLE_CAMERA: 'Camera' };
+const ROLE_CLASSES = { ROLE_ADMIN: 'role-admin', ROLE_STAFF: 'role-staff', ROLE_CAMERA: 'role-camera' };
 
 document.addEventListener('DOMContentLoaded', async function () {
     createModal = new bootstrap.Modal(document.getElementById('createModal'));
@@ -25,11 +27,16 @@ document.addEventListener('DOMContentLoaded', async function () {
         loadUsers();
         loadCameraSettings();
     }
+    // Tài khoản có quyền Camera: hiện phần bật / tắt tự xóa ảnh
+    if (isCamera) {
+        document.getElementById('photoSection').classList.remove('d-none');
+        loadPhotoSettings();
+    }
 });
 
 function roleBadges(roles) {
     return (roles || []).map(function (r) {
-        const cls = r === 'ROLE_ADMIN' ? 'role-admin' : 'role-staff';
+        const cls = ROLE_CLASSES[r] || 'role-staff';
         return '<span class="role-badge ' + cls + '">' + escapeHtml(ROLE_LABELS[r] || r) + '</span>';
     }).join(' ');
 }
@@ -39,6 +46,7 @@ async function loadProfile() {
     try {
         const auth = await AppNav.getMe();   // thanh trên cùng (top-navbar) đã lấy sẵn
         isAdmin = !!auth.admin;
+        isCamera = !!auth.camera;
         me = await apiFetch(CTX + '/api/profile');
         document.getElementById('avatar').textContent = initialsOf(me.fullName);
         document.getElementById('pFullName').textContent = me.fullName;
@@ -207,12 +215,17 @@ function userRowHtml(u) {
         ? '<button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-2" onclick="openReset(' + id + ')" title="Đặt lại mật khẩu">'
           + '<i class="fa-solid fa-key me-1"></i>Đặt lại MK</button>'
         : '';
+    // Cấp / thu hồi quyền Camera (lưu, xóa, tải ảnh hiện trường); có hiệu lực từ lần đăng nhập kế tiếp của tài khoản đó
+    const hasCam = (u.roles || []).indexOf('ROLE_CAMERA') !== -1;
+    const cam = '<button type="button" class="btn btn-sm ' + (hasCam ? 'btn-outline-danger' : 'btn-outline-primary') + ' rounded-pill px-2" '
+        + 'onclick="toggleCameraRole(' + id + ', ' + (!hasCam) + ')" title="' + (hasCam ? 'Thu hồi quyền Camera' : 'Cấp quyền Camera') + '">'
+        + '<i class="fa-solid fa-camera me-1"></i>' + (hasCam ? 'Thu hồi Camera' : 'Cấp Camera') + '</button>';
     return '<div class="user-row">'
         + '<div class="avatar-circle avatar-sm">' + escapeHtml(initialsOf(u.fullName)) + '</div>'
         + '<div class="info"><div class="name">' + escapeHtml(u.fullName) + locked + '</div>'
         +   '<div class="sub">@' + escapeHtml(u.username) + ' • ' + phone + '</div>'
         +   '<div class="mt-1">' + roleBadges(u.roles) + '</div></div>'
-        + reset
+        + '<div class="d-flex flex-column gap-1 align-items-stretch">' + cam + reset + '</div>'
         + '</div>';
 }
 
@@ -382,6 +395,66 @@ async function toggleCamera(key, checkbox) {
         showToast('Đã lưu cấu hình camera');
     } catch (e) {
         checkbox.checked = !checkbox.checked;   // lưu lỗi thì trả công tắc về như cũ
+        showToast(e.message, true);
+    } finally {
+        checkbox.disabled = false;
+    }
+}
+
+// ===================== QUYỀN CAMERA (ADMIN cấp / thu hồi cho tài khoản) =====================
+async function toggleCameraRole(id, enable) {
+    const msg = enable
+        ? 'Cấp quyền Camera cho tài khoản này?\nNgười đó sẽ lưu, xóa và tải được ảnh hiện trường.'
+        : 'Thu hồi quyền Camera của tài khoản này?';
+    if (!confirm(msg)) return;
+    try {
+        await apiFetch(CTX + '/api/users/' + id + '/camera-role', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: enable })
+        });
+        showToast((enable ? 'Đã cấp' : 'Đã thu hồi') + ' quyền Camera. Có hiệu lực khi tài khoản đó đăng nhập lại.', false);
+        loadUsers();
+    } catch (e) {
+        showToast(e.message, true);
+    }
+}
+
+// ===================== TỰ XÓA ẢNH (tài khoản có quyền Camera) =====================
+function showPhotoSettings(cfg) {
+    document.getElementById('swPhotoAutoDelete').checked = !!cfg.autoDeleteEnabled;
+    document.getElementById('photoRetentionHours').textContent = cfg.retentionHours;
+    document.getElementById('photoRetentionHours2').textContent = cfg.retentionHours;
+    document.getElementById('photoSettingNote').textContent = cfg.autoDeleteEnabled
+        ? 'Đang bật: ảnh quá hạn được dọn tự động (kiểm tra khoảng 10 phút một lần).'
+        : 'Đang tắt: ảnh được giữ lại, bộ đếm giờ ở trang Ảnh tạm ẩn.';
+}
+
+async function loadPhotoSettings() {
+    try {
+        showPhotoSettings(await apiFetch(CTX + '/api/photos/settings'));
+    } catch (e) {
+        showToast(e.message, true);
+    }
+}
+
+async function togglePhotoAutoDelete(checkbox) {
+    const enable = checkbox.checked;
+    // Bật lại: ảnh đã quá hạn trong lúc tắt sẽ bị xóa ở lần kiểm tra kế tiếp nên hỏi lại cho chắc
+    if (enable && !confirm('Bật tự xóa ảnh?\nẢnh đã quá hạn (kể cả những ảnh quá hạn trong lúc tắt) sẽ bị xóa ở lần kiểm tra kế tiếp, không khôi phục được.')) {
+        checkbox.checked = false;
+        return;
+    }
+    checkbox.disabled = true;
+    try {
+        showPhotoSettings(await apiFetch(CTX + '/api/photos/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ autoDeleteEnabled: enable })
+        }));
+        showToast(enable ? 'Đã bật tự xóa ảnh' : 'Đã tắt tự xóa ảnh', false);
+    } catch (e) {
+        checkbox.checked = !enable;   // lưu lỗi thì trả công tắc về như cũ
         showToast(e.message, true);
     } finally {
         checkbox.disabled = false;
