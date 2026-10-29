@@ -416,6 +416,21 @@ public class TicketServiceImpl implements TicketService {
         return AbstractDTO.of(toResponseDtos(entities), page, size, totalItem);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public long countAppointmentsForCurrentUser() {
+        // Cùng bộ lọc với danh sách đã hẹn khi chưa lọc gì (mọi loại ca, gộp ca trùng) nên số trên tab khớp số trên trang
+        TicketFilter filter = new TicketFilter(
+                resolveEffectiveStaffFilter(null),
+                null, null, false, null, null, null,
+                true,
+                null,
+                true,
+                false
+        );
+        return ticketRepository.countTicketsCustom(filter);
+    }
+
     // Chuyển entity sang DTO kèm số lần trùng thuê bao và toạ độ tủ (chỉ tra cứu cho các ca đang cần hiển thị)
     private List<TicketResponseDTO> toResponseDtos(List<CustomerTicketEntity> tickets) {
         if (tickets.isEmpty()) {
@@ -735,6 +750,15 @@ public class TicketServiceImpl implements TicketService {
     @Transactional(readOnly = true)
     public List<String> getCabinetPrefixList(String staffName, String area) {
         return ticketRepository.findAllCabinetPrefixes(resolveEffectiveStaffFilter(staffName), area);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TicketResponseDTO getTicketDetail(Long ticketId) {
+        CustomerTicketEntity entity = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca phản ánh ID: " + ticketId));
+        assertCanModify(entity);
+        return ticketConverter.toActionResponseDTO(entity);
     }
 
     // ===================== HỖ TRỢ =====================

@@ -24,6 +24,9 @@ public interface TicketService {
     // Danh sách ca ĐÃ HẸN (Hẹn giờ / Hẹn khác), xếp theo giờ hẹn gần nhất, có phân trang
     AbstractDTO<TicketResponseDTO> getAppointmentsForCurrentUser(TicketSearchCriteria criteria);
 
+    // Số khách đã hẹn của người đang đăng nhập (hiện trên tab "Đã hẹn" ở thanh dưới); cách tính giống trang Khách đã hẹn khi chưa lọc gì
+    long countAppointmentsForCurrentUser();
+
     // tab = COMPLETED (ca đã hoàn thành) | ISSUES (không liên lạc được và vấn đề khác); null = cả hai
     AbstractDTO<TicketResponseDTO> getHistoryForCurrentUser(String staffFilter, String keyword,
                                                             LocalDate fromDate, LocalDate toDate,
@@ -49,4 +52,6 @@ public interface TicketService {
     List<String> getAreaListForStaff(String staffName);
 
     List<String> getCabinetPrefixList(String staffName, String area);
+
+    TicketResponseDTO getTicketDetail(Long ticketId);
 }
