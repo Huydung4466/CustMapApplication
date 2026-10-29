@@ -42,6 +42,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/exports/**").hasAuthority("ROLE_ADMIN")
                         // Sửa cấu hình hệ thống (VD: bật/tắt mục in lên ảnh) chỉ dành cho ADMIN; đọc cấu hình thì ai đăng nhập cũng được
                         .requestMatchers(HttpMethod.PUT, "/api/settings/**").hasAuthority("ROLE_ADMIN")
+                        // Ảnh hiện trường: lưu ảnh, xóa ảnh, tải về, bật / tắt tự xóa chỉ dành cho tài khoản có quyền Camera;
+                        // xem danh sách / ảnh / ảnh thu nhỏ thì ai đăng nhập cũng được (quyền cũng được kiểm tra lại trong service)
+                        .requestMatchers(HttpMethod.POST, "/api/photos", "/api/tickets/*/photos").hasAuthority("ROLE_CAMERA")
+                        .requestMatchers(HttpMethod.DELETE, "/api/photos/**").hasAuthority("ROLE_CAMERA")
+                        .requestMatchers(HttpMethod.PUT, "/api/photos/settings").hasAuthority("ROLE_CAMERA")
+                        .requestMatchers(HttpMethod.GET, "/api/photos/*/download").hasAuthority("ROLE_CAMERA")
                         // Các trang và API còn lại yêu cầu phải đăng nhập
                         .anyRequest().authenticated()
                 )
