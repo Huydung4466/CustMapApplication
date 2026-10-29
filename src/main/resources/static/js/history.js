@@ -169,9 +169,6 @@ function renderHistory(items) {
                 ? '<a class="btn-report-submit' + (reportDone ? ' is-done' : '') + ' ms-auto" href="' + CTX + '/report-form/' + item.id + '"><i class="fa-solid fa-file-signature"></i>'
                     + (reportDone ? 'Nộp lại' : 'Nộp báo cáo') + '</a>'
                     + (reportDone ? '' : '<button type="button" class="btn-report-mark" title="Đã nộp rồi? Bấm để đánh dấu đã nộp" onclick="markReportSubmitted(' + item.id + ')"><i class="fa-solid fa-file-circle-check"></i></button>')
-
-                ? '<a class="btn-report-submit ms-auto" href="' + CTX + '/report-form/' + item.id + '"><i class="fa-solid fa-file-signature"></i>Nộp báo cáo</a>'
-
                 : '')
             +   '<button type="button" class="btn-action-trigger' + (canSubmitReport(item) ? '' : ' ms-auto') + '" onclick="restoreTicket(' + item.id + ')"><i class="fa-solid fa-rotate-left"></i>Đưa về danh sách</button>'
             + '</div>'
