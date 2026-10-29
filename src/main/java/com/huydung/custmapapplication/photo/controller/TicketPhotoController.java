@@ -33,11 +33,14 @@ public class TicketPhotoController {
         return ResponseEntity.ok(photoService.listPhotos(ticketId));
     }
 
-    // 2. Tải nội dung ảnh (có kiểm tra quyền); ?download=true để tải về thay vì xem trực tiếp
+    // 2. Tải nội dung ảnh (có kiểm tra quyền); ?download=true để tải về thay vì xem trực tiếp (chỉ tài khoản Camera)
     @GetMapping("/{photoId}/file")
     public ResponseEntity<Resource> file(@PathVariable("ticketId") Long ticketId,
                                          @PathVariable("photoId") Long photoId,
                                          @RequestParam(value = "download", defaultValue = "false") boolean download) {
+        if (download) {
+            photoService.assertCanDownload();   // xem trực tiếp: mọi tài khoản có quyền với ca; tải về: chỉ tài khoản Camera
+        }
         Resource resource = photoService.loadPhotoFile(ticketId, photoId);
         ContentDisposition disposition = (download ? ContentDisposition.attachment() : ContentDisposition.inline())
                 .filename("anh-" + ticketId + "-" + photoId + ".jpg")

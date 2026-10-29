@@ -10,6 +10,8 @@
     <link href="${pageContext.request.contextPath}/css/app-pages.css?v=2" rel="stylesheet">
     <!-- Giao diện tông Viettel (đặt sau CSS của trang để ghi đè màu cũ) -->
     <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
+    <style>.role-camera { background: #e0f2fe; color: #0369a1; }</style>
+    <link href="${pageContext.request.contextPath}/css/viettel-theme.css?v=2" rel="stylesheet">
 </head>
 <body class="vt-app">
 
@@ -106,6 +108,17 @@
         </div>
     </div>
 
+    <!-- Ảnh hiện trường (chỉ tài khoản có quyền Camera): bật / tắt tự xóa ảnh sau 72 giờ; profile.js bật hiện phần này -->
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-3 d-none" id="photoSection">
+        <div class="fw-bold mb-1"><i class="fa-solid fa-images text-primary me-2"></i>Ảnh hiện trường</div>
+        <div class="text-muted small mb-2">Ảnh đã lưu trên máy chủ tự xóa sau <span id="photoRetentionHours">72</span> giờ kể từ lúc chụp. Đây là cài đặt chung cho cả hệ thống.</div>
+        <div class="form-check form-switch d-flex align-items-center justify-content-between ps-0">
+            <label class="form-check-label fw-semibold" for="swPhotoAutoDelete">Tự xóa ảnh sau <span id="photoRetentionHours2">72</span> giờ</label>
+            <input class="form-check-input ms-2" type="checkbox" role="switch" id="swPhotoAutoDelete" onchange="togglePhotoAutoDelete(this)">
+        </div>
+        <div class="text-muted small mt-1" id="photoSettingNote"></div>
+    </div>
+
     <!-- ===== CẤU HÌNH CAMERA (chỉ ROLE_ADMIN) ===== -->
     <div class="card border-0 shadow-sm rounded-4 bg-white p-3 mb-3 d-none" id="cameraSection">
         <h6 class="fw-bold text-primary mb-1"><i class="fa-solid fa-camera me-1"></i>Cấu hình camera</h6>
@@ -184,7 +197,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>const CTX = '${pageContext.request.contextPath}';</script>
 <script src="${pageContext.request.contextPath}/js/app-common.js?v=1"></script>
-<script src="${pageContext.request.contextPath}/js/profile.js?v=3"></script>
+<script src="${pageContext.request.contextPath}/js/profile.js?v=4"></script>
 <script>
     // Admin: hiện số yêu cầu mẫu báo cáo đang chờ duyệt trên nút (nhân viên không gọi API này)
     AppNav.getMe().then(function (me) {

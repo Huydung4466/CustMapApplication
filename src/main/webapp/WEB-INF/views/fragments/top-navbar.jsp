@@ -9,6 +9,9 @@
       navBack = false          ẩn nút quay lại danh sách ca (dùng cho trang chủ)
       navKmz = true            hiện số tủ đã có tọa độ KMZ
       navExtraHref / navExtraIcon / navExtraTitle    một nút tròn phụ ở bên phải (href phải bắt đầu bằng https://)
+  Dưới thanh đỏ là hàng 6 tab biểu tượng (kiểu Facebook, không dính khi cuộn). Hiện dùng được tab Trang chủ (về dashboard), tab Ảnh (xem ảnh hiện trường) và tab Thông báo (chuông)
+  (số chưa đọc + danh sách do js/notifications.js nạp); 3 tab còn lại bấm vào báo "đang phát triển" (js/nav-tabs.js).
+  Thêm chức năng mới: đổi tab giữ chỗ thành <a class="nav-tab" href="..."> (bỏ data-soon).
   Dưới thanh đỏ là hàng 6 tab biểu tượng (kiểu Facebook, không dính khi cuộn). Hiện dùng được tab Trang chủ (về dashboard) và tab Thông báo (chuông)
   (số chưa đọc + danh sách do js/notifications.js nạp); 4 tab còn lại bấm vào báo "đang phát triển" (js/nav-tabs.js).
   Thêm chức năng mới: đổi tab giữ chỗ thành <a class="nav-tab" href="..."> (bỏ data-soon).
@@ -31,6 +34,8 @@
     Object forwardUri = request.getAttribute("jakarta.servlet.forward.request_uri");
     String pagePath = forwardUri != null ? forwardUri.toString() : request.getRequestURI();
     boolean onDashboard = pagePath != null && pagePath.endsWith("/dashboard");
+    boolean onPhotos = pagePath != null && pagePath.endsWith("/photos");
+
 %>
 <link href="<%= ctx %>/css/top-navbar.css?v=1" rel="stylesheet">
 <link href="<%= ctx %>/css/nav-tabs.css?v=2" rel="stylesheet">
