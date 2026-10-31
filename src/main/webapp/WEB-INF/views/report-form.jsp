@@ -98,7 +98,7 @@
             </div>
         </div>
 
-        <!-- Bước 3: 4 mục viết, mỗi mục chọn mẫu đã lưu hoặc tự viết rồi lưu lại -->
+        <!-- Bước 3: các mục viết, mỗi mục chọn mẫu đã lưu hoặc tự viết rồi lưu lại -->
         <div class="rf-title px-1 mb-2"><span class="rf-step">3</span>Nội dung báo cáo
             <span class="rf-sub">(để trống mục nào thì form để trống mục đó)</span></div>
         <div id="rfFields"></div>
@@ -118,7 +118,7 @@
     const TICKET_ID = '${ticketId}';
 </script>
 <script src="${pageContext.request.contextPath}/js/app-common.js?v=1"></script>
-<script src="${pageContext.request.contextPath}/js/report-form.js?v=3"></script>
+<script src="${pageContext.request.contextPath}/js/report-form.js?v=4"></script>
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp"/>
 </body>
 </html>

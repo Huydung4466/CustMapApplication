@@ -1,0 +1,35 @@
+/*
+ * ticket-detail.css - Kiểu của hộp thoại "Chi tiết ca" (fragments/ticket-detail-modal.jsp).
+ * Mọi class có tiền tố "td-" nên dùng được ở bất kỳ trang nào mà không đụng CSS của trang đó.
+ */
+.td-overlay { position: fixed; inset: 0; background: rgba(18, 28, 46, .5); z-index: 1100; display: none; align-items: center; justify-content: center; padding: 14px; }
+.td-overlay.show { display: flex; }
+.td-modal { width: min(100%, 520px); max-height: min(88vh, 740px); display: flex; flex-direction: column; background: #fff; border-radius: 17px; box-shadow: 0 20px 90px rgba(5, 17, 33, .3); overflow: hidden; color: #1e293b; }
+.td-head { padding: 17px 20px 14px; border-bottom: 1px solid #e5eaf1; display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
+.td-head h3 { font-size: 17px; margin: 0 0 3px; font-weight: 800; }
+.td-head p { font-size: 12.5px; color: #64748b; margin: 0; overflow-wrap: anywhere; }
+.td-x { border: 0; background: #f4f6fa; color: #61718a; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 20px; line-height: 1; cursor: pointer; flex-shrink: 0; }
+.td-body { padding: 16px 20px; overflow-y: auto; font-size: 13.5px; color: #52647b; line-height: 1.6; }
+.td-foot { border-top: 1px solid #e5eaf1; padding: 12px 20px; display: flex; justify-content: flex-end; }
+.td-btn { min-width: 92px; min-height: 38px; border-radius: 9px; padding: 7px 14px; font-size: 12.8px; font-weight: 760; border: 1px solid #d9e3ef; background: #fff; color: #42546f; cursor: pointer; }
+.td-btn:hover { background: #f8faff; }
+.td-x:focus-visible, .td-btn:focus-visible, .td-copy:focus-visible { outline: 3px solid #aec7ff; outline-offset: 2px; }
+
+.td-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px 16px; }
+.td-grid > div { min-width: 0; }
+.td-grid .wide { grid-column: 1 / -1; }
+.td-grid small { display: block; color: #8a98ab; font-size: 11.5px; margin-bottom: 2px; }
+.td-grid strong { color: #3c4b61; font-size: 13px; font-weight: 700; overflow-wrap: anywhere; display: block; }
+.td-grid a { color: var(--vt-red, #EE0033); text-decoration: none; }
+.td-sec { border-top: 1px solid #e5eaf1; padding-top: 13px; margin-top: 15px; }
+.td-sec h4 { font-size: 13px; margin: 0 0 6px; font-weight: 800; color: #2d3d53; }
+.td-sec p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.td-attrs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
+.td-attrs small { display: block; color: #8a98ab; font-size: 11.5px; }
+.td-attrs strong { font-size: 13px; color: #3c4b61; font-weight: 700; overflow-wrap: anywhere; }
+.td-copy { font-weight: 600; margin-left: 6px; background: none; border: 0; padding: 0; color: var(--vt-red, #EE0033); cursor: pointer; font-size: 12.5px; }
+
+.td-toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 1110; max-width: min(440px, calc(100vw - 28px)); padding: 10px 16px; border-radius: 11px; font-size: 13px; text-align: center; background: rgba(15, 23, 42, .94); color: #fff; box-shadow: 0 8px 22px rgba(0, 0, 0, .25); }
+.td-toast.error { background: #b91c1c; }
+
+@media (max-width: 420px) { .td-grid, .td-attrs { gap: 11px 12px; } }

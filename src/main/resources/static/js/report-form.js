@@ -2,12 +2,12 @@
  * report-form.js - Trang trung gian trước khi nộp báo cáo (Google Form).
  *  1) Thông tin của ca được điền sẵn (sửa nhanh được).
  *  2) Chọn "Nhóm nhiệm vụ chính" (mẫu đã lưu xếp theo nhóm này).
- *  3) 4 mục viết: chọn mẫu đã lưu hoặc tự viết rồi bấm Lưu để dùng lại lần sau.
+ *  3) Các mục viết (nội dung, lỗi, cảnh báo, kiến nghị, số cài Tammi): chọn mẫu đã lưu hoặc tự viết rồi bấm Lưu để dùng lại lần sau.
  *     Nhân viên thêm / sửa / xóa mẫu thì chờ admin duyệt; để trống mục nào thì form để trống mục đó.
  * Cần các biến CTX, TICKET_ID (khai báo trong report-form.jsp) và app-common.js.
  */
 
-// Link Google Form và mã entry của mọi ô (thông tin ca, nhóm nhiệm vụ, 4 mục viết) do server cấp từ
+// Link Google Form và mã entry của mọi ô (thông tin ca, nhóm nhiệm vụ, các mục viết) do server cấp từ
 // application.properties (app.report-form.*), nên đổi form thì chỉ sửa properties, không sửa file này.
 
 // 24 địa bàn trong form (phải ghi đúng như trong form thì Google mới nhận)
@@ -145,12 +145,13 @@ function onGroupChange() {
     meta.fields.forEach(function (f) { renderPicker(f.code, null); });
 }
 
-// ---------------------------------------------------------------- 4 mục viết
+// ---------------------------------------------------------------- các mục viết
 
 function renderFieldCards() {
     $('rfFields').innerHTML = meta.fields.map(function (f) {
         return '<div class="rf-card" data-field="' + f.code + '">'
             + '<label class="rf-label" for="rfText-' + f.code + '">' + escapeHtml(f.label) + '</label>'
+            + (f.hint ? '<div class="rf-sub mb-1">' + escapeHtml(f.hint) + '</div>' : '')
             + '<select class="form-select form-select-sm" id="rfPick-' + f.code + '" onchange="onPick(\'' + f.code + '\')"></select>'
             + '<textarea class="form-control form-control-sm mt-2" id="rfText-' + f.code + '" rows="2" maxlength="' + meta.maxContentLength + '"'
             + ' placeholder="Chọn mẫu ở trên hoặc tự viết. Để trống thì form để trống mục này."></textarea>'
@@ -304,7 +305,7 @@ function buildReportUrl() {
 
     const group = meta.taskGroups.find(function (g) { return g.code === $('rfGroup').value; });
     if (group) add(meta.taskGroupEntry, group.label);
-    // 4 mục viết: ô nào để trống thì không điền
+    // Các mục viết: ô nào để trống thì không điền
     meta.fields.forEach(function (f) { add(f.entryId, $('rfText-' + f.code).value); });
     return meta.formUrl + '?' + params.toString();
 }

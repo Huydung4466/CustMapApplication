@@ -72,7 +72,7 @@ public class ReportSnippetServiceImpl implements ReportSnippetService {
                 Arrays.stream(ReportTaskGroup.values())
                         .map(g -> new ReportFormMetaDTO.TaskGroupInfo(g.name(), g.getLabel())).toList(),
                 Arrays.stream(ReportField.values())
-                        .map(f -> new ReportFormMetaDTO.FieldInfo(f.name(), f.getLabel(), formConfig.fieldEntry(f))).toList(),
+                        .map(f -> new ReportFormMetaDTO.FieldInfo(f.name(), f.getLabel(), formConfig.fieldEntry(f), f.getHint())).toList(),
                 formConfig.infoEntries(),
                 ReportTaskGroup.suggestionByTicketType(),
                 Arrays.stream(SnippetState.values())

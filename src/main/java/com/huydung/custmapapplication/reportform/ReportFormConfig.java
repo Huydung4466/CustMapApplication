@@ -15,7 +15,7 @@ import java.util.Map;
  * Cấu hình Google Form "BÁO CÁO KẾT QUẢ CÔNG VIỆC HẰNG NGÀY - ĐỘI KỸ THUẬT", đọc từ application.properties:
  *   app.report-form.url                  = link form (đuôi /viewform)
  *   app.report-form.entry.task-group     = mã entry của ô "Nhóm nhiệm vụ chính"
- *   app.report-form.entry.<mục viết>     = mã entry của 4 mục viết: content, error, warning, proposal (tên theo {@link ReportField})
+ *   app.report-form.entry.<mục viết>     = mã entry của các mục viết: content, error, warning, proposal, tammi (tên theo {@link ReportField})
  *   app.report-form.entry.<mục thông tin>= mã entry của các ô thông tin ca: date, staff, area, service-type, account,
  *                                          customer-name, phone, address, cabinet, contractor
  * Đổi / tạo lại form thì chỉ cần sửa properties. Thiếu cấu hình nào thì ứng dụng báo rõ ngay lúc khởi động.
