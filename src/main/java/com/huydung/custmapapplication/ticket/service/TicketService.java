@@ -41,6 +41,9 @@ public interface TicketService {
     // Đưa ca từ Lịch sử về danh sách chính
     TicketResponseDTO restoreTicket(Long ticketId);
 
+    // Chuyển thẳng ca từ Lịch sử (vd: KLL mà khách đã liên hệ) sang "Đã xử lý", không qua danh sách chính
+    TicketResponseDTO completeFromHistory(Long ticketId);
+
     // Nộp báo cáo (Google Form): đặt trạng thái NOT_SUBMITTED | OPENED | SUBMITTED cho ca đã xử lý
     TicketResponseDTO updateReportStatus(Long ticketId, String status);
 

@@ -30,7 +30,7 @@ public record TicketMetaDTO(List<StatusInfo> statuses,
     public record StatusOption(String code, String label) {
     }
 
-    public record ArchiveReasonInfo(String code, String label, String icon, String badgeClass, String tab) {
+    public record ArchiveReasonInfo(String code, String label, String icon, String badgeClass, String tab, boolean canComplete) {
     }
 
     /** Một lựa chọn trong ô lọc "Trạng thái" của dashboard (xem TicketListFilter). */
@@ -54,7 +54,7 @@ public record TicketMetaDTO(List<StatusInfo> statuses,
         }
 
         List<ArchiveReasonInfo> reasons = Arrays.stream(ArchiveReason.values())
-                .map(r -> new ArchiveReasonInfo(r.name(), r.getLabel(), r.getIcon(), r.getBadgeClass(), r.getTab().name()))
+                .map(r -> new ArchiveReasonInfo(r.name(), r.getLabel(), r.getIcon(), r.getBadgeClass(), r.getTab().name(), r.isCanComplete()))
                 .toList();
 
         List<HistoryTabInfo> tabs = Arrays.stream(HistoryTab.values())
