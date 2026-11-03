@@ -532,6 +532,36 @@ public class TicketServiceImpl implements TicketService {
         return ticketConverter.toActionResponseDTO(ticketRepository.save(entity));
     }
 
+    // Hoàn thành thẳng từ Lịch sử: ca KLL mà khách đã liên hệ / đã xử lý xong thì chuyển sang "Đã xử lý" luôn,
+    // không phải đưa về danh sách chính rồi mới bấm (ca dễ bị trôi giữa các ca đang làm). Lý do nào được phép do ArchiveReason.canComplete quyết định.
+    // archivedAt đặt lại giờ hiện tại vì Lịch sử sắp xếp và lọc ngày theo cột này: ca hoàn thành hôm nay phải hiện hôm nay.
+    @Override
+    @Transactional
+    public TicketResponseDTO completeFromHistory(Long ticketId) {
+        CustomerTicketEntity entity = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca phản ánh ID: " + ticketId));
+        assertCanModify(entity);
+
+        if (entity.getArchivedAt() == null) {
+            throw new IllegalArgumentException("Ca này đang nằm trong danh sách chính, hãy xử lý ở đó");
+        }
+        // Ca lưu trữ cũ chưa ghi lý do (reason = null) tính là đã hoàn thành
+        ArchiveReason reason = ArchiveReason.fromCode(entity.getArchiveReason());
+        if (reason == null || reason.getTab() == HistoryTab.COMPLETED) {
+            throw new IllegalArgumentException("Ca này đã nằm ở trang Đã hoàn thành");
+        }
+        if (!reason.isCanComplete()) {
+            throw new IllegalArgumentException("Ca \"" + reason.getLabel() + "\" không chuyển thẳng sang Đã xử lý được, hãy đưa về danh sách");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        entity.setAppStatus(TicketStatus.DA_XU_LY.name());
+        entity.setArchiveReason(TicketStatus.DA_XU_LY.getArchiveReason().name());
+        entity.setArchivedAt(now);
+        entity.setUpdatedAt(now);
+        return ticketConverter.toActionResponseDTO(ticketRepository.save(entity));
+    }
+
     // ===================== NỘP BÁO CÁO (GOOGLE FORM) =====================
 
     @Override

@@ -59,6 +59,12 @@ public class TicketApiController {
         return ResponseEntity.ok(ticketService.restoreTicket(id));
     }
 
+    // 4b. Chuyển thẳng ca từ Lịch sử (lý do cho phép, vd KLL) sang Đã xử lý, không qua danh sách chính
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<TicketResponseDTO> completeFromHistory(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(ticketService.completeFromHistory(id));
+    }
+
     // 5. Nộp báo cáo (Google Form): đặt trạng thái NOT_SUBMITTED | OPENED | SUBMITTED của ca đã xử lý
     @PutMapping("/{id}/report-status")
     public ResponseEntity<TicketResponseDTO> updateReportStatus(

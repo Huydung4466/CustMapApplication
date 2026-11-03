@@ -11,7 +11,7 @@ const tabCounts = {};     // số ca của từng trang lịch sử (hiện trê
 // Dòng mô tả dưới tiêu đề của từng trang
 const TAB_HINTS = {
     COMPLETED: 'Ca đã xử lý xong: nộp báo cáo, kiểm tra trạng thái báo cáo hoặc đưa về danh sách khi cần.',
-    ISSUES: 'Ca không liên lạc được, khách báo ổn hoặc không còn trong file GNOC. Có thể đưa về danh sách để xử lý lại.'
+    ISSUES: 'Ca không liên lạc được, khách báo ổn hoặc không còn trong file GNOC. Khách đã liên hệ và xử lý xong thì bấm "Đã xử lý"; cần làm tiếp thì đưa về danh sách.'
 };
 // Màu nhãn Bootstrap của loại ca (TicketType.color) -> màu nhãn của trang này
 const TYPE_TAG = { danger: 'red', warning: 'amber', info: 'blue', primary: 'blue', success: 'green', secondary: 'slate' };
@@ -307,6 +307,7 @@ function cardHtml(item) {
         +   '<div class="hx-actions">' + phoneButtons(item)
         +     '<button type="button" class="hx-btn outline" data-act="detail" data-id="' + item.id + '"><i class="fa-regular fa-eye"></i>Chi tiết</button>'
         +     reportBtns
+        +     (reason.canComplete ? '<button type="button" class="hx-btn green" data-act="complete" data-id="' + item.id + '" title="Khách đã liên hệ / đã xử lý xong: chuyển thẳng sang Đã hoàn thành"><i class="fa-solid fa-check"></i>Đã xử lý</button>' : '')
         +     '<button type="button" class="hx-btn gray" data-act="restore" data-id="' + item.id + '"><i class="fa-solid fa-rotate-left"></i>Đưa về danh sách</button>'
         +   '</div></div>'
         + '</article>';
@@ -320,6 +321,7 @@ function onListClick(e) {
         case 'toggle': toggleHistoryText(btn, id); break;
         case 'detail': openDetail(id); break;
         case 'restore': restoreTicket(Number(id), btn); break;
+        case 'complete': completeTicket(Number(id), btn); break;
         case 'mark': markReportSubmitted(Number(id), btn); break;
         case 'clear': resetHistoryFilters(); break;
     }
@@ -456,6 +458,27 @@ async function restoreTicket(id, btn) {
     try {
         await apiFetch(CTX + '/api/tickets/' + id + '/restore', { method: 'PUT' });
         hxToast('Đã đưa ca về danh sách chính.');
+        loadHistory(true);
+        loadTabCounts();
+    } catch (e) {
+        if (btn) btn.disabled = false;
+        hxToast(e.message, true);
+    }
+}
+
+// Chuyển thẳng ca (vd KLL) sang "Đã xử lý" ngay trong Lịch sử: khỏi đưa về danh sách chính rồi mới bấm, ca không bị trôi
+async function completeTicket(id, btn) {
+    const ok = await askConfirm({
+        title: 'Chuyển sang Đã xử lý',
+        subtitle: nameOf(id),
+        message: 'Khách đã liên hệ / ca đã xử lý xong? Ca sẽ chuyển sang trang "Đã hoàn thành" và có thể nộp báo cáo.',
+        yesText: 'Đã xử lý', yesClass: 'green'
+    });
+    if (!ok) return;
+    if (btn) btn.disabled = true;
+    try {
+        await apiFetch(CTX + '/api/tickets/' + id + '/complete', { method: 'PUT' });
+        hxToast('Đã chuyển ca sang Đã hoàn thành.');
         loadHistory(true);
         loadTabCounts();
     } catch (e) {
