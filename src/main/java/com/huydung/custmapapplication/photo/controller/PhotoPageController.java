@@ -11,4 +11,9 @@ public class PhotoPageController {
     public String photosPage() {
         return "photos";
     }
+
+    @GetMapping("/photos/watermark")
+    public String watermarkEditorPage() {
+        return "watermark-editor";
+    }
 }

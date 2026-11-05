@@ -70,7 +70,7 @@
 <nav class="nav-tabs-row" id="appNavTabs" aria-label="Chức năng">
     <div class="nav-tabs-inner">
         <a class="nav-tab<%= onDashboard ? " active" : "" %>" href="<%= ctx %>/dashboard" title="Trang chủ" aria-label="Trang chủ"<%= onDashboard ? " aria-current=\"page\"" : "" %>><i class="fa-solid fa-house"></i></a>
-        <button type="button" class="nav-tab" data-soon="Công việc" title="Công việc" aria-label="Công việc"><i class="fa-solid fa-list-check"></i></button>
+        <a class="nav-tab<%= pagePath != null && pagePath.endsWith("/photos/watermark") ? " active" : "" %>" href="<%= ctx %>/photos/watermark" title="Chỉnh sửa watermark" aria-label="Chỉnh sửa watermark"><i class="fa-solid fa-pen-to-square"></i></a>
         <a class="nav-tab<%= onPhotos ? " active" : "" %>" href="<%= ctx %>/photos" title="Ảnh" aria-label="Ảnh"<%= onPhotos ? " aria-current=\"page\"" : "" %>><i class="fa-solid fa-images"></i></a>
         <button type="button" class="nav-tab" data-soon="Thống kê" title="Thống kê" aria-label="Thống kê"><i class="fa-solid fa-chart-line"></i></button>
         <%-- Thông báo: số chưa đọc và danh sách do js/notifications.js nạp --%>
