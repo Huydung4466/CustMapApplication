@@ -45,4 +45,12 @@ public class UserApiController {
     public ResponseEntity<UserDTO> setCameraRole(@PathVariable("id") Long id, @RequestBody CameraRoleRequest request) {
         return ResponseEntity.ok(userService.setCameraRole(id, request != null && Boolean.TRUE.equals(request.getEnabled())));
     }
+
+    public record MusicRoleRequest(boolean enabled) {}
+
+    @PutMapping("/{id}/music-role")
+    public ResponseEntity<UserDTO> setMusicRole(@PathVariable("id") Long id, @RequestBody MusicRoleRequest request) {
+        return ResponseEntity.ok(userService.setMusicRole(id, request.enabled()));
+    }
+
 }

@@ -201,7 +201,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>const CTX = '${pageContext.request.contextPath}';</script>
 <script src="${pageContext.request.contextPath}/js/app-common.js?v=1"></script>
-<script src="${pageContext.request.contextPath}/js/profile.js?v=4"></script>
+<script src="${pageContext.request.contextPath}/js/profile.js?v=6"></script>
 <script>
     // Admin: hiện số yêu cầu mẫu báo cáo đang chờ duyệt trên nút (nhân viên không gọi API này)
     AppNav.getMe().then(function (me) {

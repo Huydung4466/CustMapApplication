@@ -1,6 +1,8 @@
 package com.huydung.custmapapplication.auth.security;
 
+import com.huydung.custmapapplication.music.MusicAccess;
 import jakarta.servlet.DispatcherType;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.http.HttpMethod;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -45,6 +47,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http,
                                            CustomUserDetailsService userDetailsService,
                                            LoginAttemptService loginAttempts,
+                                           MusicAccess musicAccess,
                                            @Value("${app.security.cookie-secure:false}") boolean cookieSecure,
                                            @Value("${app.remember-me.key:cust-map-remember-me-key-doi-khi-trien-khai}") String rememberMeKey,
                                            @Value("${app.remember-me.days:30}") int rememberMeDays) throws Exception {
@@ -71,6 +74,13 @@ public class SecurityConfig {
                         // Cho phép truy cập trang login và tài nguyên tĩnh
                         .requestMatchers("/login", "/css/**", "/js/**", "/images/**").permitAll()
                         // API Quản lý User chỉ dành cho ADMIN
+                        // Thêm nhạc (tải MP3 lên, nhúng / xóa nhạc trực tuyến): cần quyền Nhạc + ADMIN
+                        .requestMatchers(HttpMethod.POST, "/api/music/tracks", "/api/music/embeds")
+                        .access((authentication, context) -> new AuthorizationDecision(musicAccess.canUpload(authentication.get())))
+                        .requestMatchers(HttpMethod.DELETE, "/api/music/embeds/*")
+                        .access((authentication, context) -> new AuthorizationDecision(musicAccess.canUpload(authentication.get())))
+                        .requestMatchers("/api/music/**")
+                        .access((authentication, context) -> new AuthorizationDecision(musicAccess.canListen(authentication.get())))
                         .requestMatchers("/api/users/**").hasAuthority("ROLE_ADMIN")
                         // Import file Excel, danh sách nhân viên và thao tác hàng loạt (Đã xử lý / Xóa) chỉ dành cho ADMIN
                         .requestMatchers("/api/tickets/import", "/api/tickets/staffs", "/api/tickets/bulk").hasAuthority("ROLE_ADMIN")

@@ -29,4 +29,6 @@ public interface UserService {
     // ADMIN cấp / thu hồi quyền Camera (ROLE_CAMERA: lưu, xóa, tải ảnh hiện trường) cho một tài khoản.
     // Người đó cần đăng nhập lại để quyền mới có hiệu lực.
     UserDTO setCameraRole(Long userId, boolean enabled);
+
+    UserDTO setMusicRole(Long userId, boolean enabled);
 }

@@ -8,9 +8,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
+import java.io.IOException;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 // Kế thừa ResponseEntityExceptionHandler để các lỗi chuẩn của Spring MVC
@@ -19,6 +22,13 @@ import java.util.Map;
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    // Trình duyệt tự ngắt kết nối giữa chừng (tua / chuyển bài nhạc, rời trang khi ảnh hoặc file đang tải...).
+    // Đây là chuyện bình thường, không phải lỗi máy chủ: không ghi log lỗi và không trả gì (kết nối đã đóng, không ghi được nữa).
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleClientDisconnected(AsyncRequestNotUsableException ex) {
+        log.debug("Trình duyệt đã ngắt kết nối: {}", ex.getMessage());
+    }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> handleBadRequest(IllegalArgumentException ex) {
@@ -62,8 +72,29 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     // Lỗi bất ngờ - ghi log đầy đủ, chỉ trả thông báo chung ra ngoài
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleUnexpected(Exception ex) {
+        if (isClientDisconnect(ex)) {
+            log.debug("Trình duyệt đã ngắt kết nối: {}", ex.getMessage());
+            return null;
+        }
         log.error("Lỗi không mong muốn", ex);
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Lỗi hệ thống, vui lòng thử lại sau");
+    }
+
+    // Lỗi do phía trình duyệt đóng kết nối (Tomcat: ClientAbortException; Windows: "connection was aborted";
+    // Linux: "Broken pipe" / "Connection reset by peer"), có thể nằm sâu trong chuỗi nguyên nhân
+    static boolean isClientDisconnect(Throwable ex) {
+        for (Throwable t = ex; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            if (t instanceof AsyncRequestNotUsableException) return true;
+            if ("ClientAbortException".equals(t.getClass().getSimpleName())) return true;
+            if (t instanceof IOException) {
+                String m = t.getMessage() == null ? "" : t.getMessage().toLowerCase(Locale.ROOT);
+                if (m.contains("broken pipe") || m.contains("connection reset") || m.contains("connection was aborted")
+                        || m.contains("an existing connection was forcibly closed")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private ResponseEntity<Map<String, Object>> build(HttpStatus status, String message) {

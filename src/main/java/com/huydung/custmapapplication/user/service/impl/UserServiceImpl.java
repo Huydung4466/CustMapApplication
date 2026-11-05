@@ -198,7 +198,25 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    public UserDTO setMusicRole(Long userId, boolean enabled) {
+        UserEntity user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy tài khoản ID: " + userId));
+        Set<RoleEntity> roles = new HashSet<>(user.getRoles());
+        if (enabled) {
+            roles.add(roleRepository.findByCode("ROLE_MUSIC")
+                    .orElseThrow(() -> new IllegalStateException("Quyền Nhạc chưa được khởi tạo.")));
+        } else {
+            roles.removeIf(role -> "ROLE_MUSIC".equals(role.getCode()));
+        }
+        user.setRoles(roles);
+        return userConverter.toDTO(userRepository.save(user));
+    }
+
+    @Override
+    @Transactional
     public void initDefaultUsersAndRoles() {
+        roleRepository.findByCode("ROLE_MUSIC")
+                .orElseGet(() -> roleRepository.save(new RoleEntity("ROLE_MUSIC", "Nghe nhạc")));
         // 1. Tạo 2 Role mặc định
         RoleEntity adminRole = roleRepository.findByCode("ROLE_ADMIN")
                 .orElseGet(() -> roleRepository.save(new RoleEntity("ROLE_ADMIN", "Quản trị viên (Full quyền)")));
