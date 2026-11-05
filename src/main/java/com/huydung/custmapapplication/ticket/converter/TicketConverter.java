@@ -7,6 +7,7 @@ import com.huydung.custmapapplication.ticket.dto.TicketResponseDTO;
 import com.huydung.custmapapplication.ticket.dto.UpdateTicketActionRequest;
 import com.huydung.custmapapplication.ticket.entity.CustomerTicketEntity;
 import com.huydung.custmapapplication.ticket.type.TicketAttribute;
+import com.huydung.custmapapplication.ticket.enums.ReportStatus;
 import com.huydung.custmapapplication.ticket.enums.TicketType;
 import org.apache.poi.ss.usermodel.*;
 import org.modelmapper.ModelMapper;
@@ -78,6 +79,13 @@ public class TicketConverter {
         dto.setTicketTypeLabel(type.getLabel());
         dto.setTicketGroup(type.getGroup().name());
         dto.setTicketTypeColor(type.getColor());
+
+        // Trạng thái nộp báo cáo (null trong DB = chưa nộp)
+        ReportStatus report = ReportStatus.resolve(entity.getReportStatus());
+        dto.setReportStatus(report.name());
+        dto.setReportStatusLabel(report.getLabel());
+        dto.setReportStatusIcon(report.getIcon());
+        dto.setReportStatusBadge(report.getBadgeClass());
 
         List<TicketAttributeView> items = new ArrayList<>();
         Map<String, String> attrs = entity.getAttributes();

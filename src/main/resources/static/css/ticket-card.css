@@ -38,5 +38,8 @@
 .tc2 .tc-phones .btn-call-report { color: #475569; border-color: #94a3b8; }
 .tc2 .tc-main { display: flex; gap: 8px; }
 .tc2 .btn-camera { position: relative; flex: 0 0 46px; width: 46px; height: 44px; padding: 0; justify-content: center; border-radius: 12px; }
+.tc2 .btn-detail { flex: 0 0 46px; width: 46px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px;
+    background: #fff; color: #475569; border: 1px solid var(--card-border, #e2e8f0); font-size: 1rem; cursor: pointer; }
+.tc2 .btn-detail:hover { background: var(--vt-red-50, #FFF1F3); border-color: var(--vt-red-200, #FFC2CD); color: var(--vt-red-dark, #C70029); }
 .tc2 .btn-action-trigger { flex: 1 1 auto; height: 44px; justify-content: center; border-radius: 12px; font-size: 0.95rem; font-weight: 700; }
 .tc2 .quick-toolbar { margin-top: 2px; }

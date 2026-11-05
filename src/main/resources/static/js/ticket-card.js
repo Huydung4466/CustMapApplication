@@ -12,7 +12,9 @@
  *   options.processCall   hàm (item) => chuỗi gọi hàm khi bấm nút Cập nhật ca, vd. "openModal(5)"
  *   options.toolbarHtml   HTML thanh thao tác nhanh của trang (Hẹn giờ / KLL / ... hay Bỏ hẹn / KLL / Hoàn tất)
  * Cần: Font Awesome, css/ticket-card.css (kiểu thẻ mới, lớp tc2) cùng CSS thẻ cũ của trang. Tự chứa, không phụ thuộc hàm của trang.
- * Hàm onclick toàn cục: toggleC (xem thêm nội dung khiếu nại), toggleAttrs (xem thêm thông số hạ tầng).
+ * Hàm onclick toàn cục: toggleC (xem thêm nội dung khiếu nại), toggleAttrs (xem thêm thông số hạ tầng),
+ * openTicketDetail (nút "Chi tiết": mở hộp thoại dùng chung fragments/ticket-detail-modal.jsp; trang cần include fragment đó
+ * và có biến ticketCache như dashboard / appointments).
  */
 const TicketCard = (function () {
     /*
@@ -162,6 +164,7 @@ const TicketCard = (function () {
             +   '<div class="tc-main">'
             +     '<button type="button" class="btn-camera" title="Chụp ảnh hiện trường" onclick="openCamera(' + id + ')"><i class="fa-solid fa-camera"></i>'
             +       (item.photoCount > 0 ? '<span class="photo-count">' + Number(item.photoCount) + '</span>' : '') + '</button>'
+            +     '<button type="button" class="btn-detail" title="Chi tiết" aria-label="Xem chi tiết ca" onclick="openTicketDetail(' + id + ')"><i class="fa-solid fa-circle-info"></i></button>'
             +     '<button type="button" class="btn-action-trigger" onclick="' + esc(process) + '"><i class="fa-regular fa-pen-to-square"></i>Cập nhật ca</button>'
             +   '</div>'
             + '</div>'
@@ -186,4 +189,16 @@ function toggleAttrs(id, link) {
     if (!box) return;
     const hidden = box.classList.toggle('d-none');
     link.textContent = hidden ? '...xem thêm' : 'thu gọn';
+}
+
+// Nút "Chi tiết" trên thẻ: mở hộp thoại chi tiết (js/ticket-detail.js) từ ca đã có sẵn trong ticketCache của trang.
+// Trạng thái hiện theo danh mục statusMeta của trang (nếu có); ca đã lưu trữ thì kèm lý do.
+function openTicketDetail(id) {
+    const item = (typeof ticketCache !== 'undefined' && ticketCache) ? ticketCache[id] : null;
+    if (!item || typeof TicketDetail === 'undefined') return;
+    const meta = (typeof statusMeta !== 'undefined' && statusMeta) ? statusMeta : null;
+    const st = meta && meta.statuses ? meta.statuses.find(function (x) { return x.code === item.appStatus; }) : null;
+    const rs = item.archivedAt && meta && meta.archiveReasons
+        ? meta.archiveReasons.find(function (x) { return x.code === (item.archiveReason || 'DONE'); }) : null;
+    TicketDetail.open(item, { statusLabel: st ? st.label : '', reasonLabel: rs ? rs.label : '' });
 }

@@ -34,6 +34,7 @@ import com.huydung.custmapapplication.ticket.repository.TicketRepository;
 import com.huydung.custmapapplication.ticket.service.TicketService;
 import com.huydung.custmapapplication.ticket.enums.ArchiveReason;
 import com.huydung.custmapapplication.ticket.enums.HistoryTab;
+import com.huydung.custmapapplication.ticket.enums.ReportStatus;
 import com.huydung.custmapapplication.ticket.enums.TicketGroup;
 import com.huydung.custmapapplication.ticket.enums.TicketListFilter;
 import com.huydung.custmapapplication.ticket.enums.TicketStatus;
@@ -528,6 +529,69 @@ public class TicketServiceImpl implements TicketService {
             entity.setAppStatus(TicketStatus.DANG_XU_LY.name());
         }
         entity.setUpdatedAt(LocalDateTime.now());
+        return ticketConverter.toActionResponseDTO(ticketRepository.save(entity));
+    }
+
+    // Hoàn thành thẳng từ Lịch sử: ca KLL mà khách đã liên hệ / đã xử lý xong thì chuyển sang "Đã xử lý" luôn,
+    // không phải đưa về danh sách chính rồi mới bấm (ca dễ bị trôi giữa các ca đang làm). Lý do nào được phép do ArchiveReason.canComplete quyết định.
+    // archivedAt đặt lại giờ hiện tại vì Lịch sử sắp xếp và lọc ngày theo cột này: ca hoàn thành hôm nay phải hiện hôm nay.
+    @Override
+    @Transactional
+    public TicketResponseDTO completeFromHistory(Long ticketId) {
+        CustomerTicketEntity entity = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca phản ánh ID: " + ticketId));
+        assertCanModify(entity);
+
+        if (entity.getArchivedAt() == null) {
+            throw new IllegalArgumentException("Ca này đang nằm trong danh sách chính, hãy xử lý ở đó");
+        }
+        // Ca lưu trữ cũ chưa ghi lý do (reason = null) tính là đã hoàn thành
+        ArchiveReason reason = ArchiveReason.fromCode(entity.getArchiveReason());
+        if (reason == null || reason.getTab() == HistoryTab.COMPLETED) {
+            throw new IllegalArgumentException("Ca này đã nằm ở trang Đã hoàn thành");
+        }
+        if (!reason.isCanComplete()) {
+            throw new IllegalArgumentException("Ca \"" + reason.getLabel() + "\" không chuyển thẳng sang Đã xử lý được, hãy đưa về danh sách");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        entity.setAppStatus(TicketStatus.DA_XU_LY.name());
+        entity.setArchiveReason(TicketStatus.DA_XU_LY.getArchiveReason().name());
+        entity.setArchivedAt(now);
+        entity.setUpdatedAt(now);
+        return ticketConverter.toActionResponseDTO(ticketRepository.save(entity));
+    }
+
+    // ===================== NỘP BÁO CÁO (GOOGLE FORM) =====================
+
+    @Override
+    @Transactional
+    public TicketResponseDTO updateReportStatus(Long ticketId, String status) {
+        CustomerTicketEntity entity = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy ca phản ánh ID: " + ticketId));
+        assertCanModify(entity);
+
+        // Chỉ ca "Đã xử lý" (nằm trang Đã hoàn thành) mới nộp báo cáo; ca lưu trữ cũ chưa ghi lý do coi như đã hoàn thành
+        boolean done = entity.getArchivedAt() != null
+                && (entity.getArchiveReason() == null || ArchiveReason.DONE.name().equals(entity.getArchiveReason()));
+        if (!done) {
+            throw new IllegalArgumentException("Chỉ ca đã xử lý mới nộp báo cáo");
+        }
+
+        ReportStatus target = ReportStatus.fromCode(status);
+        ReportStatus current = ReportStatus.resolve(entity.getReportStatus());
+        // Đã nộp rồi mà mở lại form (nộp lại) thì giữ "Đã nộp", không hạ về "Đã mở form"
+        if (target == current || (current == ReportStatus.SUBMITTED && target == ReportStatus.OPENED)) {
+            return ticketConverter.toActionResponseDTO(entity);
+        }
+
+        if (target == ReportStatus.NOT_SUBMITTED) {
+            entity.setReportStatus(null);
+            entity.setReportUpdatedAt(null);
+        } else {
+            entity.setReportStatus(target.name());
+            entity.setReportUpdatedAt(LocalDateTime.now());
+        }
         return ticketConverter.toActionResponseDTO(ticketRepository.save(entity));
     }
 

@@ -68,4 +68,11 @@ public class TicketResponseDTO extends BaseDTO {
     // Lưu trữ / lịch sử
     private LocalDateTime archivedAt;
     private String archiveReason; // DONE (bấm Đã xử lý) | KLL (không liên lạc được) | NOT_IN_IMPORT (không còn trong file import mới)
+
+    // Nộp báo cáo (Google Form): mã ReportStatus + nhãn / biểu tượng / class màu do server gán (xem ReportStatus)
+    private String reportStatus;
+    private String reportStatusLabel;
+    private String reportStatusIcon;
+    private String reportStatusBadge;
+    private LocalDateTime reportUpdatedAt;
 }

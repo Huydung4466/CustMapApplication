@@ -126,4 +126,12 @@ public class CustomerTicketEntity extends BaseEntity {
     // Lý do quyết định ca hiện ở trang Lịch sử nào (xem HistoryTab)
     @Column(name = "archive_reason", length = 20)
     private String archiveReason;
+
+    // Nộp báo cáo (Google Form): tên một giá trị của ReportStatus; null = chưa nộp
+    @Column(name = "report_status", length = 20)
+    private String reportStatus;
+
+    // Thời điểm đổi trạng thái nộp báo cáo gần nhất (null khi chưa nộp)
+    @Column(name = "report_updated_at")
+    private LocalDateTime reportUpdatedAt;
 }
