@@ -49,6 +49,7 @@
         <!-- Nút Tải về / Xóa chỉ hiện với tài khoản có quyền Camera (photos.js) -->
         <div class="ph-lb-actions d-none" id="lbActions">
             <a class="btn btn-light btn-sm" id="lbDownload"><i class="fa-solid fa-download me-1"></i>Tải về</a>
+            <a class="btn btn-light btn-sm d-none" id="lbDownloadOrigin"><i class="fa-regular fa-image me-1"></i>Tải ảnh gốc</a>
             <button type="button" class="btn btn-danger btn-sm" id="lbDelete"><i class="fa-regular fa-trash-can me-1"></i>Xóa ảnh</button>
         </div>
     </div>
@@ -59,7 +60,7 @@
     const CTX = '${pageContext.request.contextPath}';
 </script>
 <script src="${pageContext.request.contextPath}/js/app-common.js?v=1"></script>
-<script src="${pageContext.request.contextPath}/js/photos.js?v=1"></script>
+<script src="${pageContext.request.contextPath}/js/photos.js?v=2"></script>
 <jsp:include page="/WEB-INF/views/fragments/bottom-nav.jsp"/>
 </body>
 </html>

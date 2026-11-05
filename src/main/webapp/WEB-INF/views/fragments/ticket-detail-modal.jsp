@@ -7,10 +7,11 @@
   Tùy chọn (không bắt buộc, bỏ trống thì dòng đó ẩn): statusLabel = nhãn trạng thái xử lý, reasonLabel = nhãn lý do lưu trữ,
             showReport = hiện trạng thái nộp báo cáo, onNotify = hàm hiện thông báo nhỏ (không truyền thì popup tự hiện).
   Đang dùng ở: history.jsp, dashboard.jsp, appointments.jsp (hai trang sau qua nút "Chi tiết" của ticket-card.js).
+  Hộp tự hiện ảnh hiện trường của ca (gọi /api/tickets/{id}/photos); trang cần khai báo biến CTX.
   Cần Font Awesome trong trang (popup dùng vài biểu tượng).
 --%>
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
-<link href="${pageContext.request.contextPath}/css/ticket-detail.css?v=2" rel="stylesheet">
+<link href="${pageContext.request.contextPath}/css/ticket-detail.css?v=3" rel="stylesheet">
 <div class="td-overlay" id="tdOverlay" aria-hidden="true">
     <section class="td-modal" role="dialog" aria-modal="true" aria-labelledby="tdTitle">
         <div class="td-head">
@@ -21,4 +22,12 @@
         <div class="td-foot"><button type="button" class="td-btn" id="tdOk">Đóng</button></div>
     </section>
 </div>
-<script src="${pageContext.request.contextPath}/js/ticket-detail.js?v=2"></script>
+<%-- Xem ảnh lớn (nằm trên hộp chi tiết) --%>
+<div class="td-lb" id="tdLb" aria-hidden="true" role="dialog" aria-label="Xem ảnh hiện trường">
+    <button type="button" class="td-lb-x" id="tdLbClose" aria-label="Đóng ảnh">&times;</button>
+    <button type="button" class="td-lb-nav prev" id="tdLbPrev" aria-label="Ảnh trước"><i class="fa-solid fa-chevron-left"></i></button>
+    <img id="tdLbImg" alt="Ảnh hiện trường">
+    <button type="button" class="td-lb-nav next" id="tdLbNext" aria-label="Ảnh sau"><i class="fa-solid fa-chevron-right"></i></button>
+    <div class="td-lb-meta" id="tdLbMeta"></div>
+</div>
+<script src="${pageContext.request.contextPath}/js/ticket-detail.js?v=3"></script>

@@ -2,6 +2,7 @@
  * profile.js - Trang Cá nhân.
  *  - Mọi vai trò: xem thông tin tài khoản, sửa số điện thoại, đổi mật khẩu, đăng xuất, import file KMZ.
  *  - ROLE_ADMIN: thêm import file Excel (phản ánh / hạ tầng).
+ *  - Mọi vai trò: khu "Cấu hình camera" (mục in lên ảnh + công tắc Origin), cài đặt riêng cho từng tài khoản.
  *  - ROLE_ADMIN: thêm khu "Quản lý tài khoản" (xem tài khoản khác, tạo tài khoản nhân viên, đặt lại mật khẩu nhân viên).
  * Cần: CTX, app-common.js, Bootstrap.
  */
@@ -20,12 +21,12 @@ document.addEventListener('DOMContentLoaded', async function () {
     createModal = new bootstrap.Modal(document.getElementById('createModal'));
     resetModal = new bootstrap.Modal(document.getElementById('resetModal'));
     await loadProfile();
+    loadPhotoOrigin();   // công tắc Origin: mọi vai trò
     applyImportPermissions();
+    loadCameraSettings();   // cấu hình camera + Origin: mọi vai trò (riêng từng tài khoản)
     if (isAdmin) {
         document.getElementById('adminSection').classList.remove('d-none');
-        document.getElementById('cameraSection').classList.remove('d-none');
         loadUsers();
-        loadCameraSettings();
     }
     // Tài khoản có quyền Camera: hiện phần bật / tắt tự xóa ảnh
     if (isCamera) {
@@ -339,7 +340,7 @@ async function submitReset() {
     }
 }
 
-// ===================== CẤU HÌNH CAMERA (ADMIN) =====================
+// ===================== CẤU HÌNH CAMERA (mọi vai trò, riêng từng tài khoản) =====================
 // Thứ tự khớp với thứ tự in trên ảnh (camera-capture.js > buildLines)
 const CAMERA_OPTIONS = [
     { key: 'showTime',         label: 'Ngày giờ chụp',          sample: '19/10/26 09:43' },
@@ -417,6 +418,37 @@ async function toggleCameraRole(id, enable) {
         loadUsers();
     } catch (e) {
         showToast(e.message, true);
+    }
+}
+
+// ===================== ẢNH GỐC / ORIGIN (mọi vai trò, riêng từng tài khoản) =====================
+async function loadPhotoOrigin() {
+    const sw = document.getElementById('swPhotoOrigin');
+    try {
+        const cfg = await apiFetch(CTX + '/api/photos/origin');
+        sw.checked = !!cfg.enabled;
+        sw.disabled = false;
+    } catch (e) {
+        showToast(e.message, true);
+    }
+}
+
+async function togglePhotoOrigin(checkbox) {
+    const enable = checkbox.checked;
+    checkbox.disabled = true;
+    try {
+        const cfg = await apiFetch(CTX + '/api/photos/origin', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: enable })
+        });
+        checkbox.checked = !!cfg.enabled;
+        showToast(cfg.enabled ? 'Đã bật Origin: lưu thêm ảnh gốc' : 'Đã tắt Origin: chỉ lưu ảnh có timemark', false);
+    } catch (e) {
+        checkbox.checked = !enable;   // lưu lỗi thì trả công tắc về như cũ
+        showToast(e.message, true);
+    } finally {
+        checkbox.disabled = false;
     }
 }
 

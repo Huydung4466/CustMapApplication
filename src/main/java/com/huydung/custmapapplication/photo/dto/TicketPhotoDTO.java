@@ -32,4 +32,7 @@ public class TicketPhotoDTO extends BaseDTO {
     private String fileUrl;       // xem ảnh đầy đủ (mọi tài khoản)
     private String thumbUrl;      // ảnh thu nhỏ cho lưới (mọi tài khoản)
     private String downloadUrl;   // tải về (chỉ tài khoản có quyền Camera)
+
+    private Boolean hasOriginal;          // true = ảnh này có kèm ảnh gốc (công tắc Origin)
+    private String originalDownloadUrl;   // tải ảnh gốc (chỉ tài khoản có quyền Camera); null nếu không có
 }

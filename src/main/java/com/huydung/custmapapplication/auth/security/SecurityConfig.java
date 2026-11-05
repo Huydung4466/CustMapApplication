@@ -76,8 +76,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/tickets/import", "/api/tickets/staffs", "/api/tickets/bulk").hasAuthority("ROLE_ADMIN")
                         // Xuất báo cáo Excel (tạo, danh sách, tải về, xóa) chỉ dành cho ADMIN
                         .requestMatchers("/api/exports/**").hasAuthority("ROLE_ADMIN")
-                        // Sửa cấu hình hệ thống (VD: bật/tắt mục in lên ảnh) chỉ dành cho ADMIN; đọc cấu hình thì ai đăng nhập cũng được
-                        .requestMatchers(HttpMethod.PUT, "/api/settings/**").hasAuthority("ROLE_ADMIN")
+                        // Cấu hình camera (mục in lên ảnh) là cài đặt RIÊNG của từng tài khoản: ai đăng nhập cũng sửa được của chính mình
                         // Ảnh hiện trường: lưu ảnh, xóa ảnh, tải về, bật / tắt tự xóa chỉ dành cho tài khoản có quyền Camera;
                         // xem danh sách / ảnh / ảnh thu nhỏ thì ai đăng nhập cũng được (quyền cũng được kiểm tra lại trong service)
                         .requestMatchers(HttpMethod.POST, "/api/photos", "/api/tickets/*/photos").hasAuthority("ROLE_CAMERA")

@@ -6,7 +6,10 @@
  * quay về trang -> trang in thông tin (giờ, tọa độ, địa chỉ, mã thuê bao...) lên ảnh gốc -> xem lại ->
  * Lưu (gửi lên server) / Chia sẻ (Zalo...) / Tải về.
  *
- * Mục nào được in lên ảnh do ADMIN bật/tắt (trang Cá nhân > Cấu hình camera), lấy qua GET /api/settings/camera.
+ * Công tắc Origin (trang Cá nhân, riêng từng tài khoản): bật thì ngoài ảnh có timemark còn có thêm 1 ảnh gốc (cùng kích thước,
+ * không in chữ) - Lưu ảnh gửi cả 2, Chia sẻ / Tải về cũng ra cả 2; tắt thì chỉ 1 ảnh có timemark. Lấy qua GET /api/photos/origin.
+ *
+ * Mục nào được in lên ảnh do CHÍNH người chụp bật/tắt (trang Cá nhân > Cấu hình camera, riêng từng tài khoản), lấy qua GET /api/settings/camera.
  *
  * Hai chế độ:
  *  - Gắn với ca: openCamera(ticketId) - in thêm thông tin của ca; ảnh lưu gắn với ca (cần ticketCache, apiFetch(), loadTickets()).
@@ -41,6 +44,7 @@
         showCustomerName: false, showAccount: true, showCabinetCode: false, showStaff: false
     };
     var cfg = Object.assign({}, DEFAULT_CFG);
+    var keepOriginal = false;   // công tắc Origin của tài khoản đang đăng nhập (mặc định tắt)
     var staffName = '';
     var staffLoaded = false;
 
@@ -361,7 +365,7 @@
             var none = document.createElement('div');
             none.className = 'l';
             none.style.color = '#94a3b8';
-            none.textContent = 'Quản trị viên đang tắt mọi mục: ảnh sẽ không có chữ.';
+            none.textContent = 'Bạn đang tắt mọi mục: ảnh sẽ không có chữ.';
             ui.preview.appendChild(none);
             return;
         }
@@ -387,6 +391,13 @@
                 updatePreview();
             })
             .catch(function () { /* giữ cấu hình mặc định */ });
+    }
+
+    function loadOrigin() {
+        fetch(baseUrl() + '/api/photos/origin', { headers: { 'Accept': 'application/json' } })
+            .then(function (r) { if (!r.ok) throw new Error('origin ' + r.status); return r.json(); })
+            .then(function (data) { keepOriginal = !!(data && data.enabled); })
+            .catch(function () { /* giữ giá trị hiện có */ });
     }
 
     // Tên nhân viên đang đăng nhập (để in "NV: ..." khi ADMIN bật mục này)
@@ -537,13 +548,32 @@
         var ctx = canvas.getContext('2d');
         ctx.drawImage(source, 0, 0, W, H);
 
+        // Origin bật: vẽ sẵn bản gốc (chưa in chữ) ngay lúc này, khi ảnh nguồn chắc chắn còn dùng được
+        var wantOriginal = keepOriginal;
+        var plain = null;
+        if (wantOriginal) {
+            plain = document.createElement('canvas');
+            plain.width = W;
+            plain.height = H;
+            plain.getContext('2d').drawImage(source, 0, 0, W, H);
+        }
+
         var snap = snapshot(s, taken);
         drawOverlay(ctx, W, H, snap.lines);
         exportJpeg(canvas, JPEG_QUALITY, function (blob) {
-            s.busy = false;
-            updateShoot();
-            if (!blob) { toast('Không tạo được ảnh, hãy thử lại.'); return; }
-            showReview(s, blob, snap, W, H);
+            if (!blob) { s.busy = false; updateShoot(); toast('Không tạo được ảnh, hãy thử lại.'); return; }
+            if (!wantOriginal) {
+                s.busy = false;
+                updateShoot();
+                showReview(s, blob, null, snap, W, H);
+                return;
+            }
+            exportJpeg(plain, JPEG_QUALITY, function (origBlob) {
+                s.busy = false;
+                updateShoot();
+                if (!origBlob) { toast('Không tạo được ảnh gốc, hãy thử lại.'); return; }
+                showReview(s, blob, origBlob, snap, W, H);
+            });
         });
     }
 
@@ -552,19 +582,24 @@
         catch (e) { blob.name = name; return blob; }
     }
 
-    function canShareFile(file) {
-        try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: [file] })); }
+    function canShareFile(files) {
+        try { return !!(navigator.canShare && navigator.share && navigator.canShare({ files: files })); }
         catch (e) { return false; }
     }
 
-    function showReview(s, blob, snap, W, H) {
+    function showReview(s, blob, origBlob, snap, W, H) {
         if (state !== s) return;
         if (s.captured) URL.revokeObjectURL(s.captured.url);
         var name = safeName(accountOf(s.ticket)) + '_' + formatStamp(snap.when) + '.jpg';
         var c = {
             blob: blob, file: makeFile(blob, name), name: name, url: URL.createObjectURL(blob),
-            pos: snap.pos, address: snap.address, saved: false, exported: false
+            pos: snap.pos, address: snap.address, saved: false, exported: false,
+            originalFile: null, originalName: ''
         };
+        if (origBlob) {
+            c.originalName = name.replace(/\.jpg$/, '_goc.jpg');
+            c.originalFile = makeFile(origBlob, c.originalName);
+        }
         s.captured = c;
         s.ratio = W / H;
         ui.photo.src = c.url;
@@ -573,7 +608,7 @@
         btnLabel(ui.btnSave, 'Lưu ảnh');
         ui.btnSave.disabled = false;
         ui.btnSave.style.display = cameraRole ? '' : 'none';
-        ui.btnShare.style.display = canShareFile(c.file) ? '' : 'none';
+        ui.btnShare.style.display = canShareFile(c.originalFile ? [c.file, c.originalFile] : [c.file]) ? '' : 'none';
         layoutStage();
     }
 
@@ -658,6 +693,7 @@
 
         var fd = new FormData();
         fd.append('file', c.file, c.name);
+        if (c.originalFile) fd.append('original', c.originalFile, c.originalName);
         if (c.pos) {
             fd.append('latitude', c.pos.lat);
             fd.append('longitude', c.pos.lng);
@@ -668,14 +704,14 @@
             fd.append('addressSource', c.address.source);
         }
 
-        uploadPhoto(s.free ? null : s.ticketId, fd).then(function () {
+        uploadPhoto(s.free ? null : s.ticketId, fd).then(function (res) {
             s.busy = false;
             c.saved = true;
             s.savedCount++;
             btnLabel(ui.btnSave, 'Đã lưu');
             btnLabel(ui.btnRetake, 'Chụp tiếp');
             updateSub();
-            toast('Đã lưu ảnh');
+            toast(res && res.hasOriginal ? 'Đã lưu ảnh và ảnh gốc' : 'Đã lưu ảnh');
         }, function (e) {
             s.busy = false;
             ui.btnSave.disabled = false;
@@ -687,7 +723,7 @@
     function share() {
         var s = state, c = s && s.captured;
         if (!c) return;
-        navigator.share({ files: [c.file], title: accountOf(s.ticket) || 'Ảnh hiện trường' }).then(function () {
+        navigator.share({ files: c.originalFile ? [c.file, c.originalFile] : [c.file], title: accountOf(s.ticket) || 'Ảnh hiện trường' }).then(function () {
             c.exported = true;
         }).catch(function (err) {
             if (err && err.name !== 'AbortError') toast('Không chia sẻ được ảnh, hãy dùng nút Tải về.', 3500);
@@ -703,6 +739,19 @@
         document.body.appendChild(a);
         a.click();
         a.remove();
+        // Origin bật: tải thêm ảnh gốc (trễ một chút để trình duyệt không gộp / chặn 2 lần tải liền nhau)
+        if (c.originalFile) {
+            setTimeout(function () {
+                var u = URL.createObjectURL(c.originalFile);
+                var b = document.createElement('a');
+                b.href = u;
+                b.download = c.originalName;
+                document.body.appendChild(b);
+                b.click();
+                b.remove();
+                setTimeout(function () { URL.revokeObjectURL(u); }, 10000);
+            }, 500);
+        }
         c.exported = true;
     }
 
@@ -738,6 +787,7 @@
         setMode('ready');
 
         loadConfig();
+        loadOrigin();
         startGps();
         updateChips();
         updatePreview();

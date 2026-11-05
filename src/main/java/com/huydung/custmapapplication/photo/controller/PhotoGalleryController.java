@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 /**
  * API HIỂN THỊ cho trang Ảnh: mọi tài khoản đăng nhập xem được danh sách, ảnh và ảnh thu nhỏ.
@@ -54,6 +55,12 @@ public class PhotoGalleryController {
         return ResponseEntity.ok(photoService.getSettings());
     }
 
+    // Công tắc Origin của người đang đăng nhập (mọi vai trò)
+    @GetMapping("/origin")
+    public ResponseEntity<Map<String, Boolean>> origin() {
+        return ResponseEntity.ok(Map.of("enabled", photoService.isKeepOriginal()));
+    }
+
     // Xem ảnh đầy đủ (hiện trực tiếp trong trình duyệt)
     @GetMapping("/{id}/file")
     public ResponseEntity<Resource> file(@PathVariable("id") Long id) {
@@ -76,10 +83,11 @@ public class PhotoGalleryController {
                 .body(photoService.loadThumbnail(id));
     }
 
-    // Tải về: chỉ tài khoản có quyền Camera
+    // Tải về (?original=true: tải ảnh gốc): chỉ tài khoản có quyền Camera
     @GetMapping("/{id}/download")
-    public ResponseEntity<Resource> download(@PathVariable("id") Long id) {
-        PhotoDownload d = photoService.loadForDownload(id);
+    public ResponseEntity<Resource> download(@PathVariable("id") Long id,
+                                             @RequestParam(value = "original", defaultValue = "false") boolean original) {
+        PhotoDownload d = original ? photoService.loadOriginalForDownload(id) : photoService.loadForDownload(id);
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_JPEG)
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment().filename(d.fileName()).build().toString())

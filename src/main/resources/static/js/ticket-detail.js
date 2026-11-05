@@ -5,12 +5,19 @@
  * Đang dùng ở: Lịch sử (history.js), Danh sách ca và Khách đã hẹn (nút "Chi tiết" trong ticket-card.js).
  * item là TicketResponseDTO đã có sẵn trong danh sách của trang, nên không gọi thêm API.
  * Tự lo: đóng bằng nút X / nút Đóng / bấm nền mờ / phím Esc, trả focus về nút đã mở, sao chép mã phản ánh.
+ * Ảnh hiện trường: mỗi lần mở, tự gọi GET /api/tickets/{id}/photos để hiện toàn bộ ảnh chụp bằng camera của ca đó
+ * (lưới ảnh thu nhỏ, bấm vào để xem lớn, có nút trước / sau). Cần biến CTX của trang (context path); không có thì coi là rỗng.
  */
 const TicketDetail = (function () {
     const $ = function (id) { return document.getElementById(id); };
     let opener = null;
     let notify = null;
     let toastTimer = null;
+    let photos = [];       // ảnh của ca đang mở
+    let photoToken = 0;    // tăng mỗi lần mở / đóng để bỏ qua kết quả tải ảnh của lần mở cũ
+    let lbIndex = -1;      // ảnh đang xem lớn (-1 = đang đóng)
+
+    function ctx() { return typeof CTX !== 'undefined' ? CTX : ''; }
 
     function esc(str) {
         return String(str === null || str === undefined ? '' : str)
@@ -68,6 +75,79 @@ const TicketDetail = (function () {
         }
     }
 
+
+    // ===================== ẢNH HIỆN TRƯỜNG =====================
+    function photoSection(inner) {
+        return '<div class="td-sec" id="tdPhotos"><h4><i class="fa-solid fa-camera me-1"></i>Ảnh hiện trường</h4>' + inner + '</div>';
+    }
+
+    function setPhotoHtml(inner) {
+        const box = $('tdPhotos');
+        if (box) box.innerHTML = '<h4><i class="fa-solid fa-camera me-1"></i>Ảnh hiện trường'
+            + (photos.length ? ' <span class="td-ph-n">' + photos.length + '</span>' : '') + '</h4>' + inner;
+    }
+
+    async function loadPhotos(ticketId) {
+        const token = ++photoToken;
+        photos = [];
+        try {
+            const res = await fetch(ctx() + '/api/tickets/' + encodeURIComponent(ticketId) + '/photos', {
+                headers: { 'Accept': 'application/json' }, credentials: 'same-origin'
+            });
+            if (token !== photoToken) return;
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (token !== photoToken) return;
+            photos = Array.isArray(data) ? data : [];
+        } catch (_) {
+            if (token !== photoToken) return;
+            setPhotoHtml('<p class="td-ph-state">Không tải được ảnh.</p>');
+            return;
+        }
+        if (!photos.length) {
+            setPhotoHtml('<p class="td-ph-state">Ca này chưa có ảnh chụp.</p>');
+            return;
+        }
+        setPhotoHtml('<div class="td-ph-grid">' + photos.map(function (p, i) {
+            return '<button type="button" class="td-ph" data-ph="' + i + '" aria-label="Xem ảnh ' + (i + 1) + '">'
+                + '<img src="' + esc(ctx() + (p.thumbUrl || p.url)) + '" loading="lazy" alt="Ảnh hiện trường ' + (i + 1) + '">'
+                + '<span>' + esc(fmt(p.takenAt)) + '</span></button>';
+        }).join('') + '</div>');
+    }
+
+    function showPhoto(i) {
+        if (!photos.length) return;
+        lbIndex = (i + photos.length) % photos.length;
+        const p = photos[lbIndex];
+        const img = $('tdLbImg');
+        img.onerror = function () { img.alt = 'Ảnh không còn trên máy chủ (có thể đã tự xóa).'; };
+        img.alt = 'Ảnh hiện trường';
+        img.src = ctx() + (p.url || p.fileUrl);
+        let meta = '<b>' + esc(p.takenByName || p.takenByUsername || '—') + '</b> · ' + esc(fmt(p.takenAt))
+            + ' · ' + (lbIndex + 1) + '/' + photos.length;
+        if (p.address) meta += '<br>' + esc(p.address);
+        if (p.latitude !== null && p.latitude !== undefined && p.longitude !== null && p.longitude !== undefined) {
+            meta += '<br><a href="https://www.google.com/maps?q=' + encodeURIComponent(p.latitude + ',' + p.longitude)
+                + '" target="_blank" rel="noopener">' + esc(Number(p.latitude).toFixed(6) + ', ' + Number(p.longitude).toFixed(6)) + '</a>';
+        }
+        $('tdLbMeta').innerHTML = meta;
+        const many = photos.length > 1;
+        $('tdLbPrev').style.display = many ? '' : 'none';
+        $('tdLbNext').style.display = many ? '' : 'none';
+        $('tdLb').classList.add('show');
+        $('tdLb').setAttribute('aria-hidden', 'false');
+    }
+
+    function closePhoto() {
+        const lb = $('tdLb');
+        if (!lb || !lb.classList.contains('show')) return false;
+        lb.classList.remove('show');
+        lb.setAttribute('aria-hidden', 'true');
+        $('tdLbImg').removeAttribute('src');
+        lbIndex = -1;
+        return true;
+    }
+
     function open(item, opts) {
         if (!item || !$('tdOverlay')) return;
         opts = opts || {};
@@ -115,6 +195,9 @@ const TicketDetail = (function () {
         }
         if (item.callNote) html += '<div class="td-sec"><h4>Ghi chú cuộc gọi</h4><p>' + esc(item.callNote) + '</p></div>';
 
+        // Ảnh hiện trường: khung hiện ngay, ảnh tải xong thì điền vào
+        html += photoSection('<p class="td-ph-state">Đang tải ảnh...</p>');
+
         $('tdTitle').textContent = item.customerName || 'Chi tiết ca';
         $('tdSub').textContent = 'Chi tiết ca · ' + (item.subscriberAccount || item.ticketCode || '');
         $('tdBody').innerHTML = html;
@@ -122,11 +205,15 @@ const TicketDetail = (function () {
         $('tdOverlay').classList.add('show');
         $('tdOverlay').setAttribute('aria-hidden', 'false');
         $('tdClose').focus();
+        loadPhotos(item.id);
     }
 
     function close() {
         const o = $('tdOverlay');
         if (!o || !o.classList.contains('show')) return;
+        closePhoto();
+        photoToken++;
+        photos = [];
         o.classList.remove('show');
         o.setAttribute('aria-hidden', 'true');
         if (opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus();
@@ -141,7 +228,21 @@ const TicketDetail = (function () {
             const c = e.target.closest('[data-copy]');
             if (c) copyText(c.dataset.copy);
         });
-        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+        $('tdBody').addEventListener('click', function (e) {
+            const b = e.target.closest('[data-ph]');
+            if (b) showPhoto(Number(b.dataset.ph));
+        });
+        $('tdLbClose').addEventListener('click', closePhoto);
+        $('tdLbPrev').addEventListener('click', function () { showPhoto(lbIndex - 1); });
+        $('tdLbNext').addEventListener('click', function () { showPhoto(lbIndex + 1); });
+        $('tdLb').addEventListener('click', function (e) { if (e.target === this) closePhoto(); });
+        document.addEventListener('keydown', function (e) {
+            const lbOpen = $('tdLb').classList.contains('show');
+            if (e.key === 'Escape') {
+                if (lbOpen) { closePhoto(); e.stopPropagation(); } else { close(); }
+            } else if (lbOpen && e.key === 'ArrowLeft') { showPhoto(lbIndex - 1); }
+            else if (lbOpen && e.key === 'ArrowRight') { showPhoto(lbIndex + 1); }
+        });
     }
 
     return { open: open, close: close };

@@ -32,4 +32,23 @@
 .td-toast { position: fixed; left: 50%; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 1110; max-width: min(440px, calc(100vw - 28px)); padding: 10px 16px; border-radius: 11px; font-size: 13px; text-align: center; background: rgba(15, 23, 42, .94); color: #fff; box-shadow: 0 8px 22px rgba(0, 0, 0, .25); }
 .td-toast.error { background: #b91c1c; }
 
+/* Ảnh hiện trường trong hộp chi tiết */
+.td-ph-n { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: 10px; background: #eef2f8; color: #52647b; font-size: 11.5px; font-weight: 700; text-align: center; }
+.td-ph-state { color: #8a98ab; font-size: 12.5px; }
+.td-ph-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.td-ph { position: relative; border: 0; padding: 0; border-radius: 10px; overflow: hidden; background: #e5eaf1; cursor: pointer; aspect-ratio: 1 / 1; }
+.td-ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.td-ph span { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 4px 3px; font-size: 10px; color: #fff; text-align: center; background: linear-gradient(transparent, rgba(0, 0, 0, .65)); }
+.td-ph:focus-visible { outline: 3px solid #aec7ff; outline-offset: 2px; }
+
+.td-lb { position: fixed; inset: 0; z-index: 1120; background: rgba(0, 0, 0, .92); display: none; align-items: center; justify-content: center; flex-direction: column; padding: 48px 12px 90px; }
+.td-lb.show { display: flex; }
+.td-lb img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; }
+.td-lb-x { position: absolute; top: 10px; right: 12px; width: 38px; height: 38px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .16); color: #fff; font-size: 26px; line-height: 1; cursor: pointer; }
+.td-lb-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 40px; height: 40px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .16); color: #fff; cursor: pointer; }
+.td-lb-nav.prev { left: 8px; }
+.td-lb-nav.next { right: 8px; }
+.td-lb-meta { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px)); color: #e5eaf1; font-size: 12.5px; text-align: center; background: linear-gradient(transparent, rgba(0, 0, 0, .75)); }
+.td-lb-meta a { color: #9cc2ff; }
+
 @media (max-width: 420px) { .td-grid, .td-attrs { gap: 11px 12px; } }
