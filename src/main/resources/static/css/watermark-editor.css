@@ -1,0 +1,8 @@
+.wm-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1rem; }
+.wm-panel { background: #fff; border: 1px solid #ddd; border-radius: .75rem; padding: 1rem; }
+#wmCanvas { display: block; max-width: 100%; max-height: 65vh; width: auto; height: auto; margin: auto; }
+#wmCanvas[hidden] { display: none; }
+#wmCanvas.wm-selecting { cursor: crosshair; touch-action: none; }
+@media (max-width: 720px) {
+    .wm-grid { grid-template-columns: minmax(0, 1fr); }
+}
