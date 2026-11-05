@@ -221,12 +221,16 @@ function userRowHtml(u) {
     const cam = '<button type="button" class="btn btn-sm ' + (hasCam ? 'btn-outline-danger' : 'btn-outline-primary') + ' rounded-pill px-2" '
         + 'onclick="toggleCameraRole(' + id + ', ' + (!hasCam) + ')" title="' + (hasCam ? 'Thu hồi quyền Camera' : 'Cấp quyền Camera') + '">'
         + '<i class="fa-solid fa-camera me-1"></i>' + (hasCam ? 'Thu hồi Camera' : 'Cấp Camera') + '</button>';
+    const hasMusic = (u.roles || []).includes('ROLE_MUSIC');
+    const music = '<button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-2" '
+        + 'onclick="toggleMusicRole(' + id + ', ' + (!hasMusic) + ')">'
+        + (hasMusic ? 'Thu hồi Nhạc' : 'Cấp quyền Nhạc') + '</button>';
     return '<div class="user-row">'
         + '<div class="avatar-circle avatar-sm">' + escapeHtml(initialsOf(u.fullName)) + '</div>'
         + '<div class="info"><div class="name">' + escapeHtml(u.fullName) + locked + '</div>'
         +   '<div class="sub">@' + escapeHtml(u.username) + ' • ' + phone + '</div>'
         +   '<div class="mt-1">' + roleBadges(u.roles) + '</div></div>'
-        + '<div class="d-flex flex-column gap-1 align-items-stretch">' + cam + reset + '</div>'
+        + '<div class="d-flex flex-column gap-1 align-items-stretch">' + cam + music + reset + '</div>'
         + '</div>';
 }
 
@@ -490,5 +494,20 @@ async function togglePhotoAutoDelete(checkbox) {
         showToast(e.message, true);
     } finally {
         checkbox.disabled = false;
+    }
+}
+
+async function toggleMusicRole(id, enabled) {
+    if (!confirm(enabled ? 'Cấp quyền Nhạc cho tài khoản này?' : 'Thu hồi quyền Nhạc của tài khoản này?')) return;
+    try {
+        await apiFetch(CTX + '/api/users/' + id + '/music-role', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+        });
+        showToast('Đã cập nhật quyền Nhạc. Mở lại trang Nhạc để áp dụng.', false);
+        loadUsers();
+    } catch (error) {
+        showToast(error.message, true);
     }
 }

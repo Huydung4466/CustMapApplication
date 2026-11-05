@@ -1,0 +1,102 @@
+/*
+ * music-dock.css - Thanh nhạc nhỏ nổi ở mọi trang (do js/music-player.js tạo, nạp bởi fragments/top-navbar.jsp).
+ * Có thanh điều hướng dưới (body.has-bottom-nav) thì nằm ngay phía trên nút chụp ảnh "+" nổi; không có thì nằm sát đáy.
+ * Màu lấy từ biến của viettel-theme.css (có giá trị dự phòng).
+ */
+.mdock {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    width: calc(100% - 16px);
+    max-width: 724px;
+    box-sizing: border-box;
+    z-index: 1035;               /* dưới thanh điều hướng dưới (1040), trên nội dung trang, dưới modal Bootstrap (1055) */
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 6px 9px 8px;
+    background: #fff;
+    border: 1px solid var(--vt-gray-200, #E5E7EB);
+    border-radius: 16px;
+    box-shadow: 0 8px 22px rgba(17, 24, 39, .18);
+    overflow: hidden;
+}
+body.has-bottom-nav .mdock { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+
+/* Chừa chỗ để thanh nhạc không che phần cuối của trang */
+body.has-music-dock { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+body.has-music-dock.has-bottom-nav { padding-bottom: calc(176px + env(safe-area-inset-bottom, 0px)) !important; }
+
+.mdock-info {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: inherit;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.mdock-cover {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, .95);
+    font-size: 1rem;
+    background: var(--vt-red, #EE0033);
+}
+.mdock-text { min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.mdock-title {
+    font-size: .88rem;
+    font-weight: 700;
+    color: var(--vt-ink, #111827);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mdock-sub { font-size: .72rem; color: var(--vt-gray-500, #6B7280); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.mdock-btn {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border: 0;
+    border-radius: 50%;
+    padding: 0;
+    background: transparent;
+    color: var(--vt-gray-700, #374151);
+    font-size: .95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.mdock-btn:hover { background: var(--vt-gray-100, #F3F4F6); }
+.mdock-btn:focus-visible { outline: 2px solid rgba(var(--vt-red-rgb, 238, 0, 51), .45); outline-offset: 1px; }
+.mdock-play { background: var(--vt-red, #EE0033); color: #fff; }
+.mdock-play:hover { background: var(--vt-red-dark, #C70029); }
+.mdock-close { color: var(--vt-gray-500, #6B7280); font-size: .85rem; }
+
+.mdock-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--vt-gray-100, #F3F4F6); }
+.mdock-bar span { display: block; height: 100%; width: 0; background: var(--vt-red, #EE0033); transition: width .4s linear; }
+
+@media (max-width: 340px) {
+    .mdock-close { display: none; }
+}
+
+/* Kiểu thanh nhạc nhỏ theo bản mẫu: bìa 43px, tên bài 11px đậm, nút phát tròn đỏ */
+.mdock { border-radius: 15px; padding: 8px 8px 10px 8px; }
+.mdock-cover { width: 43px; height: 43px; border-radius: 10px; background-size: cover; background-position: center; box-shadow: 0 4px 10px rgba(20, 36, 72, .16); }
+.mdock-title { font-size: .76rem; font-weight: 800; }
+.mdock-sub { font-size: .68rem; margin-top: 2px; }
+.mdock-play { width: 34px; height: 34px; }
+/* Trang Nghe nhạc đang mở màn "Đang phát" thì ẩn thanh nhỏ (giống bản mẫu) */
+body.mdock-hidden .mdock { display: none; }
+body.mdock-hidden.has-music-dock { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+body.mdock-hidden.has-music-dock.has-bottom-nav { padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px)) !important; }

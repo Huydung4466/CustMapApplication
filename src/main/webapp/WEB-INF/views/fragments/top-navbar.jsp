@@ -32,10 +32,12 @@
     String pagePath = forwardUri != null ? forwardUri.toString() : request.getRequestURI();
     boolean onDashboard = pagePath != null && pagePath.endsWith("/dashboard");
     boolean onPhotos = pagePath != null && pagePath.endsWith("/photos");
+    boolean onMusic = pagePath != null && pagePath.endsWith("/music");
 %>
 <link href="<%= ctx %>/css/top-navbar.css?v=1" rel="stylesheet">
 <link href="<%= ctx %>/css/nav-tabs.css?v=2" rel="stylesheet">
 <link href="<%= ctx %>/css/notifications.css?v=2" rel="stylesheet">
+<link href="<%= ctx %>/css/music-dock.css?v=1" rel="stylesheet">
 <div class="top-navbar py-2" id="appTopNav" data-ctx="<%= HtmlUtils.htmlEscape(ctx) %>" data-kmz="<%= navKmz %>">
     <div class="nav-inner">
         <div class="nav-left">
@@ -77,10 +79,13 @@
         <button type="button" class="nav-tab" id="navBellBtn" title="Thông báo" aria-label="Thông báo" aria-haspopup="true" aria-expanded="false">
             <i class="fa-regular fa-bell"></i><span class="nav-tab-badge d-none" id="navBellBadge">0</span>
         </button>
-        <button type="button" class="nav-tab" data-soon="Menu" title="Menu" aria-label="Menu"><i class="fa-solid fa-bars"></i></button>
+        <%-- Nghe nhạc: mở ngay trong ứng dụng (cùng tab). Nhạc đang phát được js/music-player.js giữ khi chuyển trang --%>
+        <a class="nav-tab<%= onMusic ? " active" : "" %>" href="<%= ctx %>/music" title="Nghe nhạc" aria-label="Nghe nhạc"<%= onMusic ? " aria-current=\"page\"" : "" %>><i class="fa-solid fa-music"></i></a>
     </div>
 </nav>
 <script src="<%= ctx %>/js/csrf.js?v=1"></script>
 <script src="<%= ctx %>/js/app-nav.js?v=1"></script>
 <script src="<%= ctx %>/js/nav-tabs.js?v=1"></script>
 <script src="<%= ctx %>/js/notifications.js?v=2"></script>
+<%-- Bộ phát nhạc dùng chung: nhớ bài đang nghe, phát tiếp khi chuyển trang, hiện thanh nhạc nhỏ (nạp ngay, không defer: để nhạc phát tiếp sớm nhất khi chuyển trang) --%>
+<script src="<%= ctx %>/js/music-player.js?v=2"></script>
