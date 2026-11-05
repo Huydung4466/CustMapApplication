@@ -72,4 +72,11 @@ public class TicketPhotoEntity extends BaseEntity {
     // Tên đăng nhập người chụp (null với ảnh cũ)
     @Column(name = "taken_by_username", length = 100)
     private String takenByUsername;
+
+    // Ảnh gốc (chưa in giờ / tọa độ / địa chỉ): chỉ có khi người chụp bật công tắc Origin lúc lưu. null = không có ảnh gốc.
+    @Column(name = "original_file_path", length = 255)
+    private String originalFilePath;
+
+    @Column(name = "original_file_size")
+    private Long originalFileSize;
 }

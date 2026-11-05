@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Chỉ chứa các API HIỂN THỊ cấu hình (mọi người dùng đăng nhập đều đọc được, vì camera cần biết nên in mục nào lên ảnh).
- * API sửa cấu hình (chỉ ADMIN) nằm ở package setting.api.
+ * Chỉ chứa các API HIỂN THỊ cấu hình (trả về cấu hình riêng của người đang đăng nhập, vì camera cần biết nên in mục nào lên ảnh).
+ * API sửa cấu hình nằm ở package setting.api.
  */
 @RestController
 @RequestMapping("/api/settings")

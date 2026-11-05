@@ -28,12 +28,24 @@ public class PhotoGalleryApiController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<TicketPhotoDTO> uploadFree(
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "original", required = false) MultipartFile original,
             @RequestParam(value = "latitude", required = false) Double latitude,
             @RequestParam(value = "longitude", required = false) Double longitude,
             @RequestParam(value = "accuracy", required = false) Double accuracy,
             @RequestParam(value = "address", required = false) String address,
             @RequestParam(value = "addressSource", required = false) String addressSource) {
-        return ResponseEntity.ok(photoService.uploadFree(file, latitude, longitude, accuracy, address, addressSource));
+        return ResponseEntity.ok(photoService.uploadFree(file, original, latitude, longitude, accuracy, address, addressSource));
+    }
+
+    // Công tắc Origin của CHÍNH người đang đăng nhập (mọi vai trò, không cần quyền Camera):
+    // bật = mỗi lần lưu có thêm ảnh gốc không timemark, tắt = chỉ ảnh có timemark
+    @PutMapping("/origin")
+    public ResponseEntity<Map<String, Boolean>> updateOrigin(@RequestBody Map<String, Boolean> request) {
+        Boolean enabled = request == null ? null : request.get("enabled");
+        if (enabled == null) {
+            throw new IllegalArgumentException("Thiếu giá trị bật / tắt Origin");
+        }
+        return ResponseEntity.ok(Map.of("enabled", photoService.setKeepOriginal(enabled)));
     }
 
     @DeleteMapping("/{id}")

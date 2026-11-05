@@ -27,11 +27,12 @@ public class TicketPhotoApiController {
     public ResponseEntity<TicketPhotoDTO> upload(
             @PathVariable("ticketId") Long ticketId,
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "original", required = false) MultipartFile original,
             @RequestParam(value = "latitude", required = false) Double latitude,
             @RequestParam(value = "longitude", required = false) Double longitude,
             @RequestParam(value = "accuracy", required = false) Double accuracy,
             @RequestParam(value = "address", required = false) String address,
             @RequestParam(value = "addressSource", required = false) String addressSource) {
-        return ResponseEntity.ok(photoService.upload(ticketId, file, latitude, longitude, accuracy, address, addressSource));
+        return ResponseEntity.ok(photoService.upload(ticketId, file, original, latitude, longitude, accuracy, address, addressSource));
     }
 }

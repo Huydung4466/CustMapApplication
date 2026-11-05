@@ -3,7 +3,7 @@
  *  - Mọi tài khoản: xem lưới ảnh thu nhỏ (mới nhất lên đầu), lọc theo người chụp, bấm vào ảnh để xem đầy đủ.
  *  - Dưới mỗi ảnh có BỘ ĐẾM GIỜ còn lại trước khi ảnh tự xóa (hạn = giờ chụp + 72 giờ, theo đồng hồ server).
  *    Đang tắt tự xóa thì hiện "Tự xóa đang tắt"; ảnh cũ không có hạn thì hiện "Lưu lâu dài".
- *  - Chỉ tài khoản có quyền Camera (me.camera) thấy nút Tải về và Xóa; server cũng chặn người khác (ROLE_CAMERA).
+ *  - Chỉ tài khoản có quyền Camera (me.camera) thấy nút Tải về, Tải ảnh gốc (nếu ảnh có kèm ảnh gốc) và Xóa; server cũng chặn người khác (ROLE_CAMERA).
  * Cần biến CTX (khai báo trong photos.jsp) và app-common.js (apiFetch, escapeHtml, showToast, formatDateTime).
  */
 let me = null;
@@ -90,6 +90,7 @@ function cardHtml(it) {
     const actions = me.camera
         ? '<div class="ph-actions">'
             + '<a class="btn btn-outline-secondary" href="' + CTX + escapeHtml(it.downloadUrl) + '"><i class="fa-solid fa-download me-1"></i>Tải</a>'
+            + (it.hasOriginal ? '<a class="btn btn-outline-secondary" href="' + CTX + escapeHtml(it.originalDownloadUrl) + '" title="Tải ảnh gốc (không timemark)"><i class="fa-regular fa-image me-1"></i>Gốc</a>' : '')
             + '<button type="button" class="btn btn-outline-danger" onclick="deletePhoto(' + Number(it.id) + ')"><i class="fa-regular fa-trash-can me-1"></i>Xóa</button>'
             + '</div>'
         : '';
@@ -162,6 +163,8 @@ function openLightbox(id) {
     $('lbMeta').innerHTML = meta;
     $('lbActions').classList.toggle('d-none', !me.camera);
     $('lbDownload').href = CTX + it.downloadUrl;
+    $('lbDownloadOrigin').classList.toggle('d-none', !it.hasOriginal);
+    if (it.hasOriginal) $('lbDownloadOrigin').href = CTX + it.originalDownloadUrl;
     $('lbDelete').onclick = function () { deletePhoto(id); };
     $('lightbox').classList.add('open');
     $('lightbox').setAttribute('aria-hidden', 'false');

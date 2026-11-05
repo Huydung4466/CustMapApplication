@@ -118,11 +118,16 @@
         <div class="text-muted small mt-1" id="photoSettingNote"></div>
     </div>
 
-    <!-- ===== CẤU HÌNH CAMERA (chỉ ROLE_ADMIN) ===== -->
-    <div class="card border-0 shadow-sm rounded-4 bg-white p-3 mb-3 d-none" id="cameraSection">
+    <!-- ===== CẤU HÌNH CAMERA (mọi vai trò, riêng từng tài khoản; gồm cả công tắc Origin) ===== -->
+    <div class="card border-0 shadow-sm rounded-4 bg-white p-3 mb-3" id="cameraSection">
         <h6 class="fw-bold text-primary mb-1"><i class="fa-solid fa-camera me-1"></i>Cấu hình camera</h6>
-        <div class="text-muted mb-2 vt-fs-78">Bật/tắt các thông tin được in lên ảnh khi nhân viên chụp. Áp dụng cho mọi tài khoản ở lần chụp kế tiếp.</div>
+        <div class="text-muted mb-2 vt-fs-78">Bật/tắt các thông tin in lên ảnh khi bạn chụp. Cài đặt riêng cho tài khoản của bạn, áp dụng ở lần chụp kế tiếp.</div>
         <div id="cameraSwitches"></div>
+        <!-- Origin: bật = mỗi lần chụp lưu thêm 1 ảnh gốc không timemark (không in lên ảnh nên không có trong phần xem trước) -->
+        <div class="form-check form-switch d-flex align-items-center justify-content-between ps-0 py-2 border-bottom">
+            <label class="form-check-label flex-grow-1" for="swPhotoOrigin">Origin <span class="text-muted small">(lưu thêm ảnh gốc, không timemark)</span></label>
+            <input class="form-check-input ms-2 mt-0" type="checkbox" role="switch" id="swPhotoOrigin" onchange="togglePhotoOrigin(this)" disabled style="width:2.6em;height:1.4em;">
+        </div>
         <div class="text-muted small mt-3 mb-1">Xem trước (ví dụ):</div>
         <div class="camera-preview" id="cameraPreview"></div>
     </div>

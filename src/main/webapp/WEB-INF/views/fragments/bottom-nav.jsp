@@ -39,5 +39,5 @@
     </div>
 </nav>
 <script>document.body.classList.add('has-bottom-nav');</script>
-<script src="${pageContext.request.contextPath}/js/camera-capture.js?v=3"></script>
+<script src="${pageContext.request.contextPath}/js/camera-capture.js?v=5"></script>
 <script src="${pageContext.request.contextPath}/js/bottom-nav.js?v=1"></script>

@@ -74,6 +74,7 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
     private static final int THUMB_MAX_EDGE = 480;                 // px, cạnh dài của ảnh thu nhỏ trong lưới
     private static final int PURGE_BATCH = 200;
     private static final String KEY_AUTO_DELETE = "photo.autoDelete";
+    private static final String KEY_KEEP_ORIGINAL = "photo.keepOriginal.";   // + id người dùng
     private static final Set<String> ADDRESS_SOURCES = Set.of("GEOCODE", "TICKET");
     private static final DateTimeFormatter DIR_FMT = DateTimeFormatter.ofPattern("yyyy/MM/dd");
     private static final DateTimeFormatter STAMP_FMT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
@@ -107,7 +108,7 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
 
     @Override
     @Transactional
-    public TicketPhotoDTO upload(Long ticketId, MultipartFile file,
+    public TicketPhotoDTO upload(Long ticketId, MultipartFile file, MultipartFile original,
                                  Double latitude, Double longitude, Double accuracyM,
                                  String address, String addressSource) {
         CurrentUserResponse user = requireCamera();
@@ -115,19 +116,19 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
         if (photoRepository.countByTicketId(ticketId) >= maxPerTicket) {
             throw new IllegalArgumentException("Mỗi ca chỉ lưu tối đa " + maxPerTicket + " ảnh");
         }
-        return store(ticket.getId(), file, latitude, longitude, accuracyM, address, addressSource, user);
+        return store(ticket.getId(), file, original, latitude, longitude, accuracyM, address, addressSource, user);
     }
 
     @Override
     @Transactional
-    public TicketPhotoDTO uploadFree(MultipartFile file,
+    public TicketPhotoDTO uploadFree(MultipartFile file, MultipartFile original,
                                      Double latitude, Double longitude, Double accuracyM,
                                      String address, String addressSource) {
         CurrentUserResponse user = requireCamera();
-        return store(null, file, latitude, longitude, accuracyM, address, addressSource, user);
+        return store(null, file, original, latitude, longitude, accuracyM, address, addressSource, user);
     }
 
-    private TicketPhotoDTO store(Long ticketId, MultipartFile file,
+    private TicketPhotoDTO store(Long ticketId, MultipartFile file, MultipartFile original,
                                  Double latitude, Double longitude, Double accuracyM,
                                  String address, String addressSource, CurrentUserResponse user) {
         if (file == null || file.isEmpty()) {
@@ -147,9 +148,26 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
         }
         validateJpeg(bytes);
 
+        // Ảnh gốc: chỉ nhận khi công tắc Origin của người chụp đang bật (server quyết định, không tin client)
+        byte[] originalBytes = null;
+        if (original != null && !original.isEmpty() && isKeepOriginal(user.getId())) {
+            if (original.getSize() > MAX_FILE_BYTES) {
+                throw new IllegalArgumentException("Ảnh gốc quá lớn (tối đa 8 MB)");
+            }
+            try {
+                originalBytes = original.getBytes();
+            } catch (IOException e) {
+                log.error("Không đọc được dữ liệu ảnh gốc tải lên", e);
+                throw new IllegalStateException("Không đọc được ảnh gốc tải lên, vui lòng thử lại");
+            }
+            validateJpeg(originalBytes);
+        }
+
         // Tên file do server tự sinh, không dùng tên file từ client; ảnh nằm trong thư mục riêng của người chụp
         LocalDateTime now = LocalDateTime.now();
-        String relativePath = ownerFolder(user) + "/" + now.format(DIR_FMT) + "/" + UUID.randomUUID() + ".jpg";
+        String stem = ownerFolder(user) + "/" + now.format(DIR_FMT) + "/" + UUID.randomUUID();
+        String relativePath = stem + ".jpg";
+        String originalRelativePath = originalBytes == null ? null : stem + "_goc.jpg";
         Path target = resolveSafe(relativePath);
         try {
             Files.createDirectories(target.getParent());
@@ -159,6 +177,16 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
             throw new IllegalStateException("Không lưu được file ảnh, vui lòng thử lại");
         }
         deleteFileIfNotCommitted(target);
+        if (originalBytes != null) {
+            Path originalTarget = resolveSafe(originalRelativePath);
+            try {
+                Files.write(originalTarget, originalBytes);
+            } catch (IOException e) {
+                log.error("Không ghi được file ảnh gốc vào {}", originalTarget, e);
+                throw new IllegalStateException("Không lưu được file ảnh gốc, vui lòng thử lại");
+            }
+            deleteFileIfNotCommitted(originalTarget);
+        }
 
         String cleanAddress = cleanAddress(address);
 
@@ -166,6 +194,8 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
         photo.setTicketId(ticketId);
         photo.setFilePath(relativePath);
         photo.setFileSize((long) bytes.length);
+        photo.setOriginalFilePath(originalRelativePath);
+        photo.setOriginalFileSize(originalBytes == null ? null : (long) originalBytes.length);
         photo.setTakenAt(now);
         photo.setExpiresAt(now.plusHours(retentionHours));
         photo.setLatitude(latitude);
@@ -188,11 +218,7 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
         requireCamera();
         TicketPhotoEntity photo = findPhoto(photoId);
         List<Path> files = new ArrayList<>();
-        try {
-            files.add(resolveSafe(photo.getFilePath()));
-        } catch (IllegalStateException e) {
-            log.warn("Bỏ qua file ảnh có đường dẫn không hợp lệ: {}", photo.getFilePath());
-        }
+        collectFiles(photo, files);
         photoRepository.delete(photo);
         deleteFilesAfterCommit(files);
     }
@@ -299,6 +325,52 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
         requireCamera();
     }
 
+    // ===================== ẢNH GỐC (công tắc Origin) =====================
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean isKeepOriginal() {
+        return isKeepOriginal(authService.getCurrentLoggedUser().getId());
+    }
+
+    // Mặc định TẮT; cài đặt riêng cho từng tài khoản, mọi vai trò đều đổi được của chính mình
+    private boolean isKeepOriginal(Long userId) {
+        return settingRepository.findBySettingKey(KEY_KEEP_ORIGINAL + userId)
+                .map(e -> Boolean.parseBoolean(e.getSettingValue()))
+                .orElse(false);
+    }
+
+    @Override
+    @Transactional
+    public boolean setKeepOriginal(boolean enabled) {
+        String key = KEY_KEEP_ORIGINAL + authService.getCurrentLoggedUser().getId();
+        AppSettingEntity entity = settingRepository.findBySettingKey(key).orElseGet(() -> {
+            AppSettingEntity e = new AppSettingEntity();
+            e.setSettingKey(key);
+            return e;
+        });
+        entity.setSettingValue(String.valueOf(enabled));
+        settingRepository.save(entity);
+        return enabled;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PhotoDownload loadOriginalForDownload(Long photoId) {
+        requireCamera();
+        TicketPhotoEntity photo = findPhoto(photoId);
+        if (photo.getOriginalFilePath() == null) {
+            throw new ResourceNotFoundException("Ảnh này không có ảnh gốc");
+        }
+        Path file = resolveSafe(photo.getOriginalFilePath());
+        if (!Files.isRegularFile(file)) {
+            throw new ResourceNotFoundException("File ảnh gốc không còn trên máy chủ");
+        }
+        String owner = photo.getTakenByUsername() != null ? photo.getTakenByUsername() : "anh";
+        String name = safeFileName(owner) + "_" + photo.getTakenAt().format(STAMP_FMT) + "_" + photo.getId() + "_goc.jpg";
+        return new PhotoDownload(new FileSystemResource(file), name);
+    }
+
     // ===================== TỰ XÓA ẢNH QUÁ HẠN =====================
 
     @Override
@@ -342,11 +414,7 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
         }
         List<Path> files = new ArrayList<>();
         for (TicketPhotoEntity p : expired) {
-            try {
-                files.add(resolveSafe(p.getFilePath()));
-            } catch (IllegalStateException e) {
-                log.warn("Bỏ qua file ảnh có đường dẫn không hợp lệ: {}", p.getFilePath());
-            }
+            collectFiles(p, files);
         }
         photoRepository.deleteAllInBatch(expired);
         deleteFilesAfterCommit(files);
@@ -368,11 +436,7 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
         // Lấy đường dẫn file trước khi xóa dòng database
         List<Path> files = new ArrayList<>();
         for (TicketPhotoEntity p : photos) {
-            try {
-                files.add(resolveSafe(p.getFilePath()));
-            } catch (IllegalStateException e) {
-                log.warn("Bỏ qua file ảnh có đường dẫn không hợp lệ: {}", p.getFilePath());
-            }
+            collectFiles(p, files);
         }
 
         for (int i = 0; i < photos.size(); i += 500) {
@@ -391,6 +455,18 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
             throw new AccessDeniedException("Chỉ tài khoản có quyền Camera mới thực hiện được thao tác này");
         }
         return user;
+    }
+
+    // Gom file của một ảnh (ảnh có timemark và ảnh gốc nếu có) để xóa
+    private void collectFiles(TicketPhotoEntity p, List<Path> files) {
+        for (String rel : new String[]{p.getFilePath(), p.getOriginalFilePath()}) {
+            if (rel == null) continue;
+            try {
+                files.add(resolveSafe(rel));
+            } catch (IllegalStateException e) {
+                log.warn("Bỏ qua file ảnh có đường dẫn không hợp lệ: {}", rel);
+            }
+        }
     }
 
     private TicketPhotoEntity findPhoto(Long photoId) {
@@ -606,6 +682,9 @@ public class TicketPhotoServiceImpl implements TicketPhotoService {
         dto.setFileUrl("/api/photos/" + p.getId() + "/file");
         dto.setThumbUrl("/api/photos/" + p.getId() + "/thumb");
         dto.setDownloadUrl("/api/photos/" + p.getId() + "/download");
+        boolean hasOriginal = p.getOriginalFilePath() != null;
+        dto.setHasOriginal(hasOriginal);
+        dto.setOriginalDownloadUrl(hasOriginal ? "/api/photos/" + p.getId() + "/download?original=true" : null);
         return dto;
     }
 }

@@ -12,12 +12,13 @@ public interface TicketPhotoService {
     // ===================== LƯU / XÓA (chỉ tài khoản có quyền Camera - ROLE_CAMERA) =====================
 
     // Lưu một ảnh JPEG vừa chụp cho ca (ADMIN: mọi ca; STAFF: chỉ ca được giao cho mình)
-    TicketPhotoDTO upload(Long ticketId, MultipartFile file,
+    // original: ảnh gốc không timemark (có thể null); chỉ được lưu khi công tắc Origin của người chụp đang bật
+    TicketPhotoDTO upload(Long ticketId, MultipartFile file, MultipartFile original,
                           Double latitude, Double longitude, Double accuracyM,
                           String address, String addressSource);
 
     // Lưu ảnh chụp nhanh, không gắn với ca nào
-    TicketPhotoDTO uploadFree(MultipartFile file,
+    TicketPhotoDTO uploadFree(MultipartFile file, MultipartFile original,
                               Double latitude, Double longitude, Double accuracyM,
                               String address, String addressSource);
 
@@ -48,6 +49,16 @@ public interface TicketPhotoService {
 
     // Tải ảnh của ca với download=true: chỉ tài khoản có quyền Camera (ném AccessDeniedException nếu không có)
     void assertCanDownload();
+
+    // ===================== ẢNH GỐC (công tắc Origin, riêng từng tài khoản, mọi vai trò) =====================
+
+    // Công tắc Origin của người đang đăng nhập (mặc định tắt)
+    boolean isKeepOriginal();
+
+    boolean setKeepOriginal(boolean enabled);
+
+    // Tải ảnh gốc: chỉ tài khoản có quyền Camera
+    PhotoDownload loadOriginalForDownload(Long photoId);
 
     // ===================== TỰ XÓA ẢNH QUÁ HẠN =====================
 
